@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/godot-forge/godot-forge/schemas/project-scan.schema.json",
+  "title": "Godot Forge project scan report",
+  "description": "Structured output of `godotforge project scan`.",
+  "type": "object",
+  "required": ["project", "inventory", "settings", "scenes", "scripts", "graph"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["root"],
+      "properties": {
+        "root": {"type": "string"},
+        "godot_version": {"type": ["string", "null"]},
+        "engine_flavor": {"type": ["string", "null"]}
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["root", "files", "counts", "uid_count"],
+      "properties": {
+        "root": {"type": "string"},
+        "files": {"type": "object"},
+        "counts": {"type": "object"},
+        "uid_count": {"type": "integer"}
+      }
+    },
+    "settings": {"type": "object"},
+    "scenes": {"type": "array"},
+    "scripts": {"type": "array"},
+    "graph": {
+      "type": "object",
+      "required": ["node_count", "edge_count"],
+      "properties": {
+        "node_count": {"type": "integer"},
+        "edge_count": {"type": "integer"}
+      }
+    }
+  }
+}

@@ -84,7 +84,7 @@ def serialize(envelope: Envelope, fmt: OutputFormat) -> str:
     if fmt is OutputFormat.JSONL:
         lines: list[str] = []
         summary = {
-            "type": "summary",
+            "record": "summary",
             "schema_version": envelope.schema_version,
             "command": envelope.command,
             "status": envelope.status,
@@ -92,7 +92,7 @@ def serialize(envelope: Envelope, fmt: OutputFormat) -> str:
         summary.update(envelope.data)
         lines.append(json.dumps(summary))
         for diag in envelope.diagnostics:
-            lines.append(json.dumps({"type": "diagnostic", **diag}))
+            lines.append(json.dumps({"record": "diagnostic", **diag}))
         return "\n".join(lines)
 
     if fmt is OutputFormat.SARIF:

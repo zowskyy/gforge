@@ -22,6 +22,7 @@ from .project_godot import (
     parse_export_preset_names,
     parse_project_settings,
 )
+from .report import build_scan_report
 from .tscn import (
     ExtResourceRef,
     NodeRef,
@@ -55,4 +56,5 @@ __all__ = [
     "exists",
     "filesystem_path",
     "res_path",
+    "build_scan_report",
 ]

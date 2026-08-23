@@ -16,8 +16,8 @@ def test_jsonl_summary_and_diagnostic() -> None:
         diagnostics=[{"code": "X", "severity": "error"}],
     )
     lines = serialize(envelope, OutputFormat.JSONL).splitlines()
-    assert json.loads(lines[0])["type"] == "summary"
-    assert json.loads(lines[1])["type"] == "diagnostic"
+    assert json.loads(lines[0])["record"] == "summary"
+    assert json.loads(lines[1])["record"] == "diagnostic"
 
 
 def test_human_contains_status() -> None:

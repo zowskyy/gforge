@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 from godotforge_core.detection.workspace import find_workspace
 from godotforge_core.output import OutputFormat, build_envelope
-from godotforge_core.scan import inventory_project
+from godotforge_core.scan import build_scan_report, inventory_project
 
 from godotforge_cli.output import emit
 
@@ -37,3 +37,15 @@ def inventory(ctx: click.Context) -> None:
         ),
         fmt,
     )
+
+
+@cli.command("scan")
+@click.pass_context
+def scan(ctx: click.Context) -> None:
+    fmt: OutputFormat = ctx.obj["output_format"]
+    project: str | None = ctx.obj.get("project")
+    start = Path(project) if project else Path.cwd()
+    root = find_workspace(start) or start
+
+    report = build_scan_report(root)
+    emit(build_envelope(command="project.scan", status="ok", data=report), fmt)

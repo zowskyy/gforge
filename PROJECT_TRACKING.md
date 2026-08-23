@@ -303,9 +303,32 @@ Known limitations:
 - `refresh` currently recomputes fully (incremental diff deferred)
 - gdtoolkit adapter untested without the extra (see 0004)
 
-### PROJECT-0006 through PROJECT-0007 (planned)
+### PROJECT-0006 — Scan output formats
 
-- 0006 `feat(cli): expose project scan output formats`
+Commit: 03dd772d1ea64fed4e284d79e4bbe704cec03c90
+Status: complete
+
+Implemented:
+- `godotforge_core/scan/report.py`: `build_scan_report` aggregates inventory,
+  settings, scenes, scripts, and in-memory graph into one structured payload
+  (read-only; persistence stays in `graph rebuild`)
+- `project scan` command emits the report in the requested format
+  (human/json/jsonl)
+- JSONL serializer uses summary-first contract: line 1 `{"record":"summary",
+  ...}`, then one `{"record":"diagnostic", ...}` per diagnostic
+- `schemas/project-scan.schema.json` documents the report shape
+
+Tests:
+- Unit (`test_scan_report.py`): top-level keys, counts, parsed settings
+- CLI (`test_project_scan.py`): json output structure, jsonl summary-first,
+  schema field parity
+
+Known limitations:
+- `project scan` recomputes the graph in-memory; does not write the store
+- 0007 (negative fixtures + read-only scan integration) pending
+
+### PROJECT-0007 (planned)
+
 - 0007 `test(scanner): add dependency-analysis fixtures`
 
 ## Known Gaps
