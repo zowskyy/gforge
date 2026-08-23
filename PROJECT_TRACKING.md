@@ -548,7 +548,7 @@ Tests:
 - Unit: 18 diff tests
 
 Known limitations:
-- No backup/transaction persistence, atomic apply, rollback, CLI, or YAML loading (PATCH-0004..0008)
+- No atomic project-file replacement, delete/rename/mkdir application, rollback, transaction persistence beyond manifest, Godot validation, or CLI (PATCH-0005..0008)
 
 ### PATCH-0004 — Hash-checked backup manifests
 
@@ -565,6 +565,22 @@ Tests:
 
 Known limitations:
 - No atomic project-file replacement, delete/rename/mkdir application, rollback, transaction persistence beyond manifest, Godot validation, or CLI (PATCH-0005..0008)
+
+### PATCH-0005 — Atomic apply of patch operations
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/patch/apply.py` — `apply_plan(root, plan, manifest, content_provider)` with manifest validation (transaction_id, plan_id, plan_hash, backup dir/entries existence, backup hash match), overlap detection (duplicate paths, rename source/to collisions, rename source reused), precondition re-check before first write, desired hash verification, atomic same-dir temp file writes with `fsync` + `os.replace` + parent `fsync`, per-kind apply (create/update/delete/rename/mkdir) with hash re-checks, atomic journal under backup dir, stop on first failure returning FAILED with applied count, never COMMITTED on partial
+- `godotforge_core/patch/__init__.py` — export `apply_plan`
+- `tests/unit/test_patch_apply.py` — create/update/delete/rename/mkdir apply, desired hash mismatch, stale expected hash, missing/mismatched manifest, parent not implicit, temp cleanup, failed stops later, partial applied count, binary content, order preservation, overlap rejection (duplicate, create+update, rename dest exists), rename dest re-check
+
+Tests:
+- Unit: 20 apply tests
+
+Known limitations:
+- No rollback, transaction persistence, Godot validation, CLI, or YAML loading (PATCH-0006..0008)
 
 ## Known Gaps
 

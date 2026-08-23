@@ -1,5 +1,6 @@
 """Patch engine domain contracts (framework-neutral, no I/O)."""
 
+from .apply import apply_plan
 from .backup import BackupManifest, create_backup
 from .diff import DiffEntry, render_operation_diff, render_plan_diffs
 from .hashing import compute_plan_hash, hash_bytes, hash_file
@@ -34,6 +35,7 @@ __all__ = [
     "PatchResult",
     "Transaction",
     "TransactionStatus",
+    "apply_plan",
     "can_transition",
     "compute_plan_hash",
     "create_backup",
