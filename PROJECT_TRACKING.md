@@ -534,6 +534,22 @@ Tests:
 Known limitations:
 - No backup creation, diff, atomic apply, rollback, or CLI (PATCH-0003..0008)
 
+### PATCH-0003 — Deterministic unified diffs
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/patch/diff.py` — `DiffEntry(operation_index, kind, path, from_path, to_path, changed, binary, diff, operation)` + `render_operation_diff(operation, original, desired)` validates content per kind (create/update/delete/rename/mkdir), handles mkdir no diff, binary via NUL/invalid UTF-8, text via `difflib.unified_diff` with stable headers `--- a/...` `+++ b/...` `/dev/null`, no timestamps/absolute paths, preserves operation order, unchanged update → `changed=False`/`diff=None`, rename unchanged → `changed=True`/`diff=None`, LF/CRLF/missing newline explicit
+- `godotforge_core/patch/__init__.py` — export `DiffEntry`/`render_operation_diff`/`render_plan_diffs` + `render_plan_diffs(plan, content_provider)` preserves order, deterministic
+- `tests/unit/test_patch_diff.py` — unchanged, single-line, deletion, multi-hunk, create, delete, rename changed/unchanged, mkdir, UTF-8, binary, invalid UTF-8, LF/CRLF, missing newline, stable headers, no absolute paths, order preservation, deterministic
+
+Tests:
+- Unit: 18 diff tests
+
+Known limitations:
+- No backup/transaction persistence, atomic apply, rollback, CLI, or YAML loading (PATCH-0004..0008)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

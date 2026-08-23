@@ -1,5 +1,6 @@
 """Patch engine domain contracts (framework-neutral, no I/O)."""
 
+from .diff import DiffEntry, render_operation_diff, render_plan_diffs
 from .hashing import compute_plan_hash, hash_bytes, hash_file
 from .models import (
     ALLOWED_TRANSITIONS,
@@ -24,6 +25,7 @@ __all__ = [
     "ALLOWED_TRANSITIONS",
     "BackupRecord",
     "Conflict",
+    "DiffEntry",
     "OperationKind",
     "PatchOperation",
     "PatchPlan",
@@ -38,4 +40,6 @@ __all__ = [
     "PreconditionIssue",
     "PreconditionReport",
     "check_plan",
+    "render_operation_diff",
+    "render_plan_diffs",
 ]
