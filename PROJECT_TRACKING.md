@@ -519,8 +519,8 @@ Known limitations:
 
 ### PATCH-0002 — Hash and path preconditions
 
-Commit: (pending)
-Status: in-progress
+Commit: 839a07a8ebcf9d368beb5edf378744c26348a3f0
+Status: complete
 
 Implemented:
 - `godotforge_core/patch/hashing.py` — `hash_file()`, `hash_bytes()`, `compute_plan_hash(plan)` with canonical JSON (`sort_keys`, `separators (",", ":")`, `ensure_ascii=False`), schema version, operation order preserved, includes kind/path/from/to/expected_hash/desired_hash/owner/source/reason, excludes `created_at`/`original_hash`/status/backups; operation order affects hash
