@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.dev/schemas/output-envelope.schema.json",
+  "title": "Godot Forge CLI Output Envelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "command",
+    "status",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "warn",
+        "fail",
+        "blocked",
+        "inconclusive"
+      ]
+    },
+    "data": {
+      "type": "object"
+    },
+    "diagnostics": {
+      "type": "array"
+    },
+    "meta": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

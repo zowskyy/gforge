@@ -1,0 +1,29 @@
+.godot/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+extension/node_modules/
+extension/out/
+extension/.vscode-test/
+node_modules/
+
+# Godot Forge generated/cache state (track .godotforge/project.yaml and project.lock)
+.godotforge/cache/
+.godotforge/backups/
+.godotforge/transactions/
+.godotforge/index.sqlite
+.godotforge/reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pytest / cache
+.pytest-tmp/
+.cache/

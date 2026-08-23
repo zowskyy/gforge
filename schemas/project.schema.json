@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.dev/schemas/project.schema.json",
+  "title": "Godot Forge Project Contract",
+  "version": 1,
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "godot": {
+      "type": "object",
+      "properties": {
+        "min_version": { "type": "string" },
+        "exact_version": { "type": "string" },
+        "source": { "type": "string", "enum": ["auto", "pinned", "system"] },
+        "executable": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "main_scene": { "type": "string" },
+    "features": { "type": "array", "items": { "type": "string" } },
+    "policies": { "type": "object" },
+    "providers": { "type": "array", "items": { "type": "string" } },
+    "directories": { "type": "object" }
+  },
+  "additionalProperties": true
+}

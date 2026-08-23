@@ -1,0 +1,59 @@
+[project]
+name = "godotforge-cli"
+version = "0.1.0"
+description = "Godot Forge CLI - deterministic, version-aware workbench for building and maintaining Godot games"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "click>=8.1,<9",
+    "godotforge-core",
+]
+
+[project.scripts]
+godotforge = "godotforge_cli.app:main"
+
+[project.entry-points."godotforge.providers"]
+# Optional providers (GodotSteam, Blender, GUT, C#, ...) register here in later phases.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+godotforge-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2,<9",
+    "ruff>=0.6,<1",
+    "pyright>=1.1,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/godotforge_cli"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "packages",
+]
+addopts = [
+    "-q",
+    "--strict-markers",
+    "--strict-config",
+    "--basetemp=.pytest-tmp",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.pyright]
+include = ["src", "packages", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
