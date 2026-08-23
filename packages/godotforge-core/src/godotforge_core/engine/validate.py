@@ -47,16 +47,6 @@ class ValidationResult:
     graph: dict
 
 
-def _status_from_process(process: ProcessResult) -> str:
-    if process.timed_out:
-        return "fail"
-    if process.launch_error is not None:
-        return "fail"
-    if process.exit_code != 0:
-        return "fail"
-    return "ok"
-
-
 def _graph_state(project_root: Path) -> dict:
     from ..graph.store import default_store_path
 
@@ -74,22 +64,67 @@ def _run_stage(
     args: list[str],
     *,
     timeout: float,
+    engine_version: str,
     capture_config: CaptureConfig | None = None,
 ) -> StageResult:
     command: tuple[str, ...] = (executable, *tuple(args))
     process = run_process(executable, args, timeout=timeout, capture_config=capture_config)
-    raw_status = _status_from_process(process)
-    # Map raw process status to normalized-ish status for now;
-    # richer classification (fatal vs shutdown noise) lands in
-    # ENGINE-0005 / DIAGNOSTIC-0001.
-    normalized = "ok" if raw_status == "ok" else "fail"
+    # Process-level normalization (ENGINE-0005). Text-level parsing
+    # (DIAGNOSTIC-0001) will enrich this later, but we already
+    # classify exit/timeout/crash/fatal patterns and known teardown noise.
+    from .normalize import normalize_process
+
+    normalized = normalize_process(
+        exit_code=process.exit_code,
+        stdout=process.stdout,
+        stderr=process.stderr,
+        duration_ms=process.duration_ms,
+        timed_out=process.timed_out,
+        launch_error=process.launch_error,
+        stage=stage,
+        engine_version=engine_version,
+    )
+    # Split diagnostics into fatal vs ignored for StageResult.
+    fatal: list[dict] = []
+    ignored: list[dict] = []
+    for diag in normalized.diagnostics:
+        entry = {
+            "severity": diag.severity,
+            "code": diag.code,
+            "message": diag.message,
+            "phase": diag.phase,
+            "classification": diag.classification,
+            "ignored_for_status": diag.ignored_for_status,
+            "engine_version": diag.engine_version,
+            "stage": diag.stage,
+        }
+        if diag.ignored_for_status:
+            ignored.append(entry)
+        elif diag.classification == "fatal":
+            fatal.append(entry)
+        else:
+            # inconclusive / unknown still counts as fatal for status,
+            # but keep separate for evidence.
+            fatal.append(entry)
+
+    # Map normalized status to stage status.
+    # ok/warn are both non-fail for overall; inconclusive/fail are fails.
+    if normalized.status == "ok":
+        stage_status = "ok"
+    elif normalized.status == "warn":
+        stage_status = "warn"
+    elif normalized.status == "inconclusive":
+        stage_status = "inconclusive"
+    else:
+        stage_status = "fail"
+
     return StageResult(
         stage=stage,
         command=command,
         process=process,
-        status=normalized,
-        fatal_diagnostics=(),
-        ignored_diagnostics=(),
+        status=stage_status,
+        fatal_diagnostics=tuple(fatal),
+        ignored_diagnostics=tuple(ignored),
     )
 
 
@@ -179,6 +214,7 @@ def validate_project(
         )
 
     executable = str(resolved)
+    engine_version = probe.version
 
     stages: list[StageResult] = []
     overall = "ok"
@@ -212,12 +248,21 @@ def validate_project(
             )
             return False
         result = _run_stage(
-            stage_name, executable, args, timeout=timeout, capture_config=capture_config
+            stage_name,
+            executable,
+            args,
+            timeout=timeout,
+            engine_version=engine_version,
+            capture_config=capture_config,
         )
         stages.append(result)
-        if result.status != "ok":
+        if result.status in ("fail", "inconclusive"):
             overall = "fail"
-        return result.status == "ok"
+        elif result.status == "warn" and overall == "ok":
+            # warn does not fail overall, but could be surfaced as warn
+            # For now keep overall ok; DIAGNOSTIC layer may promote to warn.
+            pass
+        return result.status in ("ok", "warn")
 
     import_args = ["--headless", "--path", str(root), "--import"]
     load_args = ["--headless", "--path", str(root), "--editor", "--quit"]

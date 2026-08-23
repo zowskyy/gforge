@@ -450,6 +450,22 @@ Known limitations:
 - Streaming `Popen` not yet (post-capture truncation is retained-output limit, not peak memory)
 - Rich diagnostic classification still deferred to ENGINE-0005
 
+### ENGINE-0005 — Normalize Godot process results
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/engine/normalize.py` — `NormalizedDiagnostic`/`NormalizedResult`, `FATAL_PATTERNS`, versioned `IGNORED_SHUTDOWN_PATTERNS` (4.7.1), `normalize_process()` with decision model (timeout/launch/crash → fail, nonzero → fail, fatal at exit 0 → fail, known teardown only → warn, unknown → inconclusive, else ok); raw output always preserved; never whitelists generic `ERROR:.*`
+- `godotforge_core/engine/validate.py` — `_run_stage()` now calls `normalize_process()` with `engine_version`, splits `fatal_diagnostics`/`ignored_diagnostics`, maps `warn`/`inconclusive` to stage status, `full` fail-fast with `skipped`
+- `tests/unit/test_normalize.py` — exit 0 ok, known noise warn, script error fail, exit 1 fail, timeout fail, crash, unknown inconclusive, all fatal patterns, second resource noise
+
+Tests:
+- Unit: 9 normalize tests
+
+Known limitations:
+- Text-level parsing (ERROR/WARNING records, Forge JSON, multiline locations) deferred to DIAGNOSTIC-0001
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
