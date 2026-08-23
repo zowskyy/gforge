@@ -358,7 +358,7 @@ Four-mode validation (`import`/`load`/`boot`/`full`), `full` default for CLI/CI,
 
 ### fix(cli): prepare engine command group
 
-Commit: 88c6d07cbca65cdd36a2fa86e3598fd34cbd2515
+Commit: f65cc0c07bbeb336d7f7798e10f8d36e4b110546
 Status: complete
 
 Implemented:
@@ -378,6 +378,23 @@ Tests:
 Known limitations:
 - No `engine validate` subcommand yet (lands in ENGINE-0003)
 - No Godot invocation in this commit
+
+### ENGINE-0001 — Framework-neutral process runner
+
+Commit: 26d0246fc18ac2770acaed5ffbe872ae4a6b22b7
+Status: complete
+
+Implemented:
+- `godotforge_core/engine/__init__.py` — package init
+- `godotforge_core/engine/runner.py` — `ProcessResult(executable, args: tuple[str,...], exit_code, stdout, stderr, duration_ms, timed_out, launch_error)` + `run_process()` with `os.environ` overlay, `time.perf_counter`, `capture_output=True`, timeout/launch-error handling, `DEBUG` log
+- `tests/unit/test_runner.py` — success, nonzero, timeout, not-found, env overlay preserves `PATH`, tuple args immutable
+
+Tests:
+- Unit: 7 new tests
+
+Known limitations:
+- No Godot-specific logic (ENGINE-0002 adds probe, ENGINE-0003 adds modes)
+- `max_retained_*` truncation deferred to ENGINE-0004 (post-capture limit)
 
 ## Known Gaps
 
