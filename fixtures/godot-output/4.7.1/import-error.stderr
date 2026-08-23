@@ -1,0 +1,2 @@
+ERROR: Failed to load resource 'res://missing.tscn'
+   at: load (core/io/resource_loader.cpp:123)

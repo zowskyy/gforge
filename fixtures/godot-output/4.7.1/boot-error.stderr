@@ -1,0 +1,2 @@
+ERROR: GODOTFORGE_DIAGNOSTIC AUTOLOAD_MISSING: Required autoload is missing: GameState
+   at: _run_validation (res://.godotforge/validate_boot.gd:22)

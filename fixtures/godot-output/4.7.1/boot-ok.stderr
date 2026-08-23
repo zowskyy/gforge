@@ -1,0 +1,2 @@
+ERROR: ObjectDB instances leaked at exit (run with --verbose for details).
+ERROR: 2 resources still in use at exit (run with --verbose for details).

@@ -482,6 +482,21 @@ Tests:
 Known limitations:
 - Versioned fixtures deferred to DIAGNOSTIC-0002
 
+### DIAGNOSTIC-0002 — Versioned Godot output fixtures
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `fixtures/godot-output/4.7.1/` — version.stdout, import-ok.{stdout,stderr}, import-error.stderr, load-ok.{stdout,stderr}, load-error.stderr, boot-ok.{stdout,stderr} (with known teardown noise), boot-error.stderr (forge autoload missing) — 10 files from real Godot 4.7.1 mono output
+- `tests/unit/test_engine_fixtures.py` — parses each fixture via `parse_engine_output` and `normalize_process`, verifies import-ok ok, import-error fail, load-ok ok, load-error fail, boot-ok warn (known noise), boot-error fail, fixtures existence
+
+Tests:
+- Unit: 8 fixture tests
+
+Known limitations:
+- Fixtures are 4.7.1 only; cross-version drift (4.6 vs 4.7) deferred
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
