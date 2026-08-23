@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
-import subprocess
 from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+
+
+class Flavor(StrEnum):
+    STANDARD = "standard"
+    MONO = "mono"
 
 
 class EngineInfo:
@@ -25,6 +32,26 @@ class EngineInfo:
             "raw_version": self.raw_version,
             "version": self.version,
             "flavor": self.flavor,
+        }
+
+
+@dataclass(frozen=True)
+class EngineProbeResult:
+    executable: str
+    version: str
+    flavor: str
+    raw_version: str
+    sha256: str
+    probe_duration_ms: float
+
+    def as_dict(self) -> dict:
+        return {
+            "executable": self.executable,
+            "version": self.version,
+            "flavor": self.flavor,
+            "raw_version": self.raw_version,
+            "sha256": self.sha256,
+            "probe_duration_ms": self.probe_duration_ms,
         }
 
 
@@ -102,27 +129,55 @@ def resolve_engine(
     return None
 
 
+def hash_executable(path: str | Path) -> str:
+    """Return SHA-256 hex digest of the executable file."""
+    data = Path(path).read_bytes()
+    return hashlib.sha256(data).hexdigest()
+
+
 def probe_engine(executable: Path, *, timeout: float = 30.0) -> EngineInfo | None:
-    """Run ``<exe> --version`` and parse the result."""
-    try:
-        proc = subprocess.run(
-            [str(executable), "--version"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except (OSError, subprocess.SubprocessError):
+    """Run ``<exe> --version`` and parse the result (legacy).
+
+    Uses :func:`probe_engine_full` internally; kept for backward
+    compatibility with callers expecting :class:`EngineInfo`.
+    """
+    result = probe_engine_full(executable, timeout=timeout)
+    if result is None:
+        return None
+    return EngineInfo(
+        executable=Path(result.executable),
+        raw_version=result.raw_version,
+        version=result.version,
+        flavor=result.flavor,
+    )
+
+
+def probe_engine_full(executable: str | Path, *, timeout: float = 30.0) -> EngineProbeResult | None:
+    """Run ``<exe> --version`` via :func:`run_process` and hash the binary."""
+    from ..engine.runner import run_process
+
+    result = run_process(executable, ["--version"], timeout=timeout)
+    if result.timed_out or result.launch_error is not None or result.exit_code != 0:
         return None
 
-    if proc.returncode != 0:
-        return None
-
-    raw = (proc.stdout or proc.stderr).strip().splitlines()
+    raw = (result.stdout or result.stderr).strip().splitlines()
     raw_line = raw[0] if raw else ""
     if not raw_line:
         return None
 
     match = _VERSION_RE.search(raw_line)
     version = match.group(1) if match else "unknown"
-    flavor = "mono" if ".mono." in raw_line else "standard"
-    return EngineInfo(executable=executable, raw_version=raw_line, version=version, flavor=flavor)
+    flavor = Flavor.MONO.value if ".mono." in raw_line else Flavor.STANDARD.value
+    try:
+        sha256 = hash_executable(executable)
+    except OSError:
+        return None
+
+    return EngineProbeResult(
+        executable=str(Path(executable)),
+        version=version,
+        flavor=flavor,
+        raw_version=raw_line,
+        sha256=sha256,
+        probe_duration_ms=result.duration_ms,
+    )

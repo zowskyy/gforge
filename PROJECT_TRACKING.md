@@ -396,6 +396,22 @@ Known limitations:
 - No Godot-specific logic (ENGINE-0002 adds probe, ENGINE-0003 adds modes)
 - `max_retained_*` truncation deferred to ENGINE-0004 (post-capture limit)
 
+### ENGINE-0002 — Probe executable version, flavor, and hash
+
+Commit: a70bfa3dd0f3471c434532b687396d06ee334503
+Status: complete
+
+Implemented:
+- `godotforge_core/detection/engine.py` — add `Flavor` enum, `hash_executable()`, `EngineProbeResult(executable, version, flavor, raw_version, sha256, probe_duration_ms)`, `probe_engine_full()` via `run_process()` (env overlay, timeout, exit_code handling, `.mono.` flavor detection), legacy `probe_engine()` now delegates to `probe_engine_full()`
+- `tests/unit/test_engine_probe.py` — hash deterministic, nonexistent→None, mocked mono/standard/timeout, real Godot (skipped if not found)
+
+Tests:
+- Unit: 5 passed + 1 skipped (real Godot)
+
+Known limitations:
+- No validation modes yet (ENGINE-0003)
+- No capture limits yet (ENGINE-0004)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
