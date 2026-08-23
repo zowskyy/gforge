@@ -452,8 +452,8 @@ Known limitations:
 
 ### ENGINE-0005 — Normalize Godot process results
 
-Commit: (pending)
-Status: in-progress
+Commit: 64cd1f522dfd229332684dd058b0a78c4be96730
+Status: complete
 
 Implemented:
 - `godotforge_core/engine/normalize.py` — `NormalizedDiagnostic`/`NormalizedResult`, `FATAL_PATTERNS`, versioned `IGNORED_SHUTDOWN_PATTERNS` (4.7.1), `normalize_process()` with decision model (timeout/launch/crash → fail, nonzero → fail, fatal at exit 0 → fail, known teardown only → warn, unknown → inconclusive, else ok); raw output always preserved; never whitelists generic `ERROR:.*`
