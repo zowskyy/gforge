@@ -484,8 +484,8 @@ Known limitations:
 
 ### DIAGNOSTIC-0002 — Versioned Godot output fixtures
 
-Commit: (pending)
-Status: in-progress
+Commit: dcf7015dcf0f467509e9fd24f1e70839aa2793fe
+Status: complete
 
 Implemented:
 - `fixtures/godot-output/4.7.1/` — version.stdout, import-ok.{stdout,stderr}, import-error.stderr, load-ok.{stdout,stderr}, load-error.stderr, boot-ok.{stdout,stderr} (with known teardown noise), boot-error.stderr (forge autoload missing) — 10 files from real Godot 4.7.1 mono output
