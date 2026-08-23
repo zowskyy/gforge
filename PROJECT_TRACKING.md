@@ -414,8 +414,8 @@ Known limitations:
 
 ### ENGINE-0003 — Configurable Godot validation modes
 
-Commit: (pending)
-Status: in-progress
+Commit: ef0729d578f03a8b081d5a46d030e6714cb45042
+Status: complete
 
 Implemented:
 - `godotforge_core/engine/validate.py` — `ValidateMode` (import/load/boot/full), `StageResult(command: tuple, process: ProcessResult, status, fatal/ignored)`, `ValidationResult(project_root, engine, mode, stages, status, wall_duration_ms, graph)` + `validate_project()` (workspace resolve, engine resolve via `FORGE_GODOT_PATH` precedence, `probe_engine_full`, import/load/boot invocations, `full` fail-fast with `skipped` stages, graph state reported not mutated, `wall_duration_ms` vs stage `duration_ms`)
