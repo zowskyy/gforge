@@ -497,6 +497,26 @@ Tests:
 Known limitations:
 - Fixtures are 4.7.1 only; cross-version drift (4.6 vs 4.7) deferred
 
+## Patch Engine Work (branch `feature/patch-engine`)
+
+Patch engine is transaction-safe and Godot-agnostic in Phase 1. Later phases add hash preconditions, diffs, backups, atomic apply, rollback, CLI, and fixtures.
+
+### PATCH-0001 — Patch operation and transaction models
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/patch/__init__.py` — re-exports
+- `godotforge_core/patch/models.py` — `OperationKind` (create/update/delete/rename/mkdir), `TransactionStatus` (planned/previewed/approved/applying/validated/committed/failed/rolled_back) with `ALLOWED_TRANSITIONS` and `can_transition()`, `PatchOperation` (explicit `path` vs `from_path`/`to_path` for rename, `expected_hash`/`original_hash`/`desired_hash`, validated `owner` via namespaced pattern, `source` provenance, `reason`), `PatchPlan` (required `id` via identifier pattern, `operations: tuple`), `BackupRecord`, `Transaction`, `Conflict`, `PatchResult` — all `frozen`, explicit `as_dict()`/`from_dict()` with stable enum/string/tuple and `from`/`to` rename mapping, hash-format validation (64 hex), relative-path validation (no absolute, no `..`, no `//`, POSIX `/`)
+- `tests/unit/test_patch_models.py` — per-kind construction, rename explicit fields, rename validation, owner valid/invalid, hash valid/invalid, path valid/invalid, plan id valid/invalid, plan serialization, transition table, backup/conflict/result, frozen, stable enum strings
+
+Tests:
+- Unit: 14 tests
+
+Known limitations:
+- No filesystem hashing, diff, backup, I/O, Godot validation, content-hash generation, or CLI (deferred to PATCH-0002..0008)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
