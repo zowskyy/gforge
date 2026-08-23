@@ -18,6 +18,9 @@ node_modules/
 .godotforge/backups/
 .godotforge/transactions/
 .godotforge/index.sqlite
+.godotforge/index.sqlite-wal
+.godotforge/index.sqlite-shm
+.godotforge/index.sqlite.new
 .godotforge/reports/
 
 # OS

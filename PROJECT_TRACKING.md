@@ -273,9 +273,38 @@ Known limitations:
   subsequent `load(path)`; reported as runtime load
 - SQLite graph persistence not yet implemented (0005)
 
-### PROJECT-0005 through PROJECT-0007 (planned)
+### PROJECT-0005 — Graph persistence
 
-- 0005 `feat(graph): persist project graph incrementally`
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/graph/model.py`: `GraphNode`, `GraphEdge`, `ProjectGraph`
+- `godotforge_core/graph/store.py`: `open_writer`/`open_readonly` (WAL),
+  `build_graph` (nodes from project.godot/autoloads/scenes/scripts, edges
+  depends_on/instance/autoload with `classify_resource`), `rebuild` (atomic
+  `.new` + replace), `status`/`validate`/`query`/`export`-via-`graph_from_store`/
+  `stats`/`vacuum`
+- `godotforge_core/graph/paths` reused via `scan.paths` (`res_path`,
+  `filesystem_path`, `exists`) — no `res://` → `Path` mangling
+- `src/godotforge_cli/commands/graph.py`: `status`, `validate`, `query`,
+  `export`, `stats`, `rebuild`, `refresh`, `vacuum` (read-only commands open
+  the index read-only)
+- Default store `.godotforge/index.sqlite` (gitignored, incl. `-wal`/`-shm`)
+
+Tests:
+- Unit (`test_graph.py`): build counts, rebuild+status, validate clean on
+  golden, query node, stats, vacuum, readonly-missing raises, roundtrip
+- CLI (`test_graph_cli.py`): rebuild→status/validate/stats (store cleared
+  before each test to avoid order dependence)
+
+Known limitations:
+- Read-only commands do not auto-build; `graph rebuild` required first
+- `refresh` currently recomputes fully (incremental diff deferred)
+- gdtoolkit adapter untested without the extra (see 0004)
+
+### PROJECT-0006 through PROJECT-0007 (planned)
+
 - 0006 `feat(cli): expose project scan output formats`
 - 0007 `test(scanner): add dependency-analysis fixtures`
 

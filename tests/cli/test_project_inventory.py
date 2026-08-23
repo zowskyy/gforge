@@ -21,9 +21,9 @@ def test_project_inventory_json() -> None:
     assert data["data"]["counts"]["uid"] == 7
 
 
-def test_help_does_not_expose_unimplemented_commands() -> None:
+def test_help_exposes_implemented_commands() -> None:
     result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "project" in result.output
+    assert "graph" in result.output
     assert "scan" not in result.output
-    assert "graph" not in result.output
