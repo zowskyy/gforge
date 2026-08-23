@@ -503,8 +503,8 @@ Patch engine is transaction-safe and Godot-agnostic in Phase 1. Later phases add
 
 ### PATCH-0001 — Patch operation and transaction models
 
-Commit: (pending)
-Status: in-progress
+Commit: c161cb58e4b23d21cc2010d0f2ccfc260955c26a
+Status: complete
 
 Implemented:
 - `godotforge_core/patch/__init__.py` — re-exports
