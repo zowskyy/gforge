@@ -552,8 +552,8 @@ Known limitations:
 
 ### PATCH-0004 — Hash-checked backup manifests
 
-Commit: (pending)
-Status: in-progress
+Commit: 7b91afb5a01ebf8fc20348a47b293c48776e1944
+Status: complete
 
 Implemented:
 - `godotforge_core/patch/backup.py` — `BackupManifest(transaction_id, plan_id, plan_hash, entries, created_at, schema_version)` + `create_backup(root, transaction_id, plan, report)` with 8-step algorithm (reject existing final, verify report ok & same plan/hash, re-check source before copy, copy to `files/000000.bin` temp, hash copied, confirm, write `manifest.json` canonical, atomic `os.replace` temp→final, cleanup temp on failure); `files/000000.bin` naming prevents traversal, `create`/`mkdir` with `existed=False`/`hash=None` no file, root/symlink safety via same checks as `check_plan`, `transaction_id` no separators, backup destination under `.godotforge/backups`, project files untouched
