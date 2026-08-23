@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "fixture": "golden-2d",
+  "engine": {
+    "version": "4.7.1",
+    "flavor": "mono",
+    "executable_sha256": "b2c334ff6bf1e07ded41b80bd6f4785485650db6ddbb2740b802930f35237c26"
+  },
+  "policy": {
+    "network_required": false,
+    "external_assets_allowed": false,
+    "expected_clean_load": true
+  }
+}

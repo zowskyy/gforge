@@ -1,0 +1,22 @@
+name: golden-2d
+
+godot:
+  source: auto
+  min_version: "4.7"
+
+main_scene: res://scenes/main.tscn
+
+features:
+  - player_controller
+  - input_map
+  - autoloads
+  - dynamic_load
+
+directories:
+  scenes: res://scenes
+  scripts: res://scripts
+
+policies:
+  network_required: false
+  external_assets_allowed: false
+  expected_clean_load: true

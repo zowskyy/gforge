@@ -75,26 +75,83 @@ later subsystem is validated against.
 | `tests/unit/test_output.py` | Serializer round-trips | complete |
 | `tests/unit/test_config.py` | Config merge + workspace walk | complete |
 | `tests/unit/test_doctor.py` | Doctor service (mocked engine) | complete |
-| `tests/unit/test_schema_parity.py` | Packaged vs root schema parity | complete |
 | `tests/cli/test_help.py` | Help + command listing | complete |
 | `tests/cli/test_version.py` | Version JSON + lazy import | complete |
 | `tests/cli/test_cli_errors.py` | Unknown command / bad format / doctor | complete |
+| `tests/cli/test_output_schema.py` | Output validated against envelope schema | complete |
+| `tests/cli/test_schema_parity.py` | Packaged vs root schema parity (both schemas) | complete |
+| `tests/integration/test_doctor_readonly.py` | Doctor leaves fixture tree unchanged | complete |
 
 ### Fixture
 
 | File | Purpose | Status |
 |---|---|---|
-| `fixtures/golden-2d/` | Clean golden 2D Godot project | complete (FIXTURE-0001) |
-| `fixtures/cases/*` | Negative test-case documentation | not started |
+| `fixtures/golden-2d/` | Clean golden 2D Godot project (see structure below) | complete |
+| `fixtures/golden-2d/tests/golden_fixture_test.gd` | SceneTree smoke test (explicit exit 0/1) | complete |
+| `fixtures/golden-2d/.godotforge/project.yaml` | Human-editable project contract | complete |
+| `fixtures/golden-2d/.godotforge/project.lock` | JSON machine lock (version/flavor/sha256 only) | complete |
+| `fixtures/cases/<7 names>/README.md` | Negative test-case documentation | complete |
 
 ## Open Dependencies
 
-- Godot 4.7.1-stable.mono (console executable) — discovered via `FORGE_GODOT_PATH`
-  or `PATH` during doctor; pinned in `fixtures/golden-2d/.godotforge/project.lock`.
+- Godot 4.7.1-stable.mono (console executable). For Phase 1 the engine is staged
+  as a **local copy** at `C:\Tools\Godot\Godot_v4.7.1-stable_mono_win64\` (copied
+  from the original OneDrive install, which remains an untouched rollback source).
+  It is referenced only via the **session-only** `FORGE_GODOT_PATH` (no `setx`).
+  The committed `fixtures/golden-2d/.godotforge/project.lock` records only the
+  portable engine identity (`version`, `flavor`, `executable_sha256`) — never an
+  absolute path.
 - Later phases depend on this Phase 1 foundation: project graph (Phase 2),
   runner (Phase 3), diagnostics (Phase 4), patch engine (Phase 5), feature
   manifests (Phase 6), knowledge packs (Phase 7), Godot-native ops (Phase 8),
   VS Code (Phase 9), providers/CI (Phase 10).
+
+## Lockfile Contract (decided Phase 1)
+
+Machine lockfiles are JSON to avoid teaching the core lockfile reader both YAML and
+JSON before that is needed:
+
+```text
+project.yaml       human-editable project contract
+project.lock       resolved machine contract (JSON)
+sources.lock       resolved documentation/example sources (future)
+```
+
+The committed `project.lock` stores engine version, flavor, and sha256 plus the
+compatibility policy — it must never store a personal executable path.
+
+## Future Decisions (recorded, not yet implemented)
+
+- **Engine profiles in user config.** Long-term engine identity should live in
+  `%USERPROFILE%\.godotforge\config.toml` (TOML) with an `[engines.<name>]`
+  table (`path`, `version`, `flavor`, `sha256`) and `[defaults].engine`. This
+  replaces the current YAML-based `~/.godotforge/config.yaml` user config. The
+  core user-config reader will need to support TOML and engine profiles when that
+  phase starts.
+- **Extended engine-resolver precedence.** Once engine profiles exist, resolution
+  order is: `--engine` → `FORGE_GODOT_PATH` → project-local user config →
+  `%USERPROFILE%\.godotforge\config.toml` → `PATH` → known installation dirs. The
+  "project-local user config" tier is new and not implemented in Phase 1.
+
+## Fixture Evidence (FIXTURE-0001, 2026-08-23)
+
+Engine validated directly (no CI harness):
+
+```text
+source engine version : 4.7.1.stable.mono.official.a13da4feb
+local engine version  : 4.7.1.stable.mono.official.a13da4feb
+source SHA-256        : b2c334ff6bf1e07ded41b80bd6f4785485650db6ddbb2740b802930f35237c26
+local SHA-256         : b2c334ff6bf1e07ded41b80bd6f4785485650db6ddbb2740b802930f35237c26
+import exit code      : 0
+editor-load exit code : 0  (no SCRIPT ERROR / Parse Error / ERROR:)
+SceneTree-test rc     : 0
+generated UID files   : 7 (.gd resources; committed)
+```
+
+The read-only integration test (`tests/integration/test_doctor_readonly.py`) hashes
+the fixture tree before/after `doctor` (excluding `.godot/`, `.godotforge/cache/`,
+`.godotforge/reports/`, `.pytest-tmp/`) and asserts it is unchanged; with the engine
+present it additionally asserts exit 0 and `workspace` check `ok`.
 
 ## Known Gaps
 
@@ -103,5 +160,3 @@ later subsystem is validated against.
 - `fixtures/cases/*` contain only documented breakage; the parser/lint that
   detects them lands in Phases 2–4.
 - `--engine` global is wired into `doctor` but not yet consumed by later phases.
-- Golden 2D fixture (`FIXTURE-0001`) not yet seeded; fixture-dependent
-  read-only integration test deferred to that patch.

@@ -22,7 +22,10 @@ def test_doctor_runs_outside_project() -> None:
             cli,
             ["--project", directory, "--format", "json", "doctor"],
         )
-        assert result.exit_code != 0
         payload = json.loads(result.output)
         assert payload["command"] == "doctor"
-        assert payload["status"] == "fail"
+        # Outside a Godot project the workspace check cannot be ok; the overall
+        # status reflects that regardless of engine availability (engine missing
+        # -> fail/exit nonzero, engine present -> warn/exit 0).
+        assert payload["status"] != "ok"
+        assert payload["data"]["checks"]["workspace"]["status"] != "ok"
