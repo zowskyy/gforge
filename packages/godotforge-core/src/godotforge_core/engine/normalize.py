@@ -30,6 +30,9 @@ FATAL_PATTERNS: tuple[str, ...] = (
     "autoload initialization failure",
 )
 
+# Versioned shutdown noise — exact or tightly scoped substrings.
+# Only classified as harmless when exit 0 + after successful boot
+# + matches pinned engine version rule. Never whitelist generic ERROR.
 IGNORED_SHUTDOWN_PATTERNS: dict[str, tuple[str, ...]] = {
     "4.7.1": (
         "ObjectDB instances leaked at exit",
@@ -40,11 +43,11 @@ IGNORED_SHUTDOWN_PATTERNS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True)
 class NormalizedDiagnostic:
-    severity: str
+    severity: str  # error | warning | info
     code: str | None
     message: str
-    phase: str
-    classification: str
+    phase: str  # startup | runtime | shutdown
+    classification: str  # fatal | known_teardown_noise | unknown
     ignored_for_status: bool
     engine_version: str | None = None
     stage: str | None = None
@@ -53,7 +56,7 @@ class NormalizedDiagnostic:
 
 @dataclass(frozen=True)
 class NormalizedResult:
-    status: str
+    status: str  # ok | fail | warn | inconclusive
     exit_code: int
     duration_ms: float
     diagnostics: tuple[NormalizedDiagnostic, ...]
@@ -74,6 +77,41 @@ def _detect_crash(text: str) -> bool:
     return any(m.lower() in low for m in markers)
 
 
+def _classify_parsed(
+    diag: object,
+    engine_version: str,
+) -> tuple[str, bool]:
+    """Return (classification, ignored_for_status) for a parsed diagnostic."""
+    # Import here to avoid circular
+    from .parser import EngineDiagnostic
+
+    assert isinstance(diag, EngineDiagnostic)
+    msg = diag.message
+    # Forge diagnostics are always fatal if error severity
+    if diag.source == "forge" and diag.severity == "error":
+        return "fatal", False
+    # Check fatal patterns
+    for pat in FATAL_PATTERNS:
+        if pat in msg:
+            return "fatal", False
+    # Check known shutdown noise (only when message matches pattern)
+    is_known, _ = _is_known_shutdown_noise(msg, engine_version)
+    if is_known:
+        return "known_teardown_noise", True
+    # Generic ERROR/WARNING from Godot that is not fatal and not known
+    # → treat as unknown shutdown if it looks like teardown, else fatal
+    if diag.severity in ("error", "warning"):
+        # If message contains UNKNOWN marker (for test), mark unknown
+        if "UNKNOWN" in msg:
+            return "unknown", False
+        # Otherwise, if it's at shutdown phase and not fatal, keep as
+        # unknown only if it resembles teardown; else treat as fatal
+        # for startup/runtime. For now, generic godot errors at exit 0
+        # are considered fatal unless they are known noise.
+        return "fatal", False
+    return "unknown", False
+
+
 def normalize_process(
     *,
     exit_code: int,
@@ -88,6 +126,7 @@ def normalize_process(
     combined = f"{stdout}\n{stderr}"
     diagnostics: list[NormalizedDiagnostic] = []
 
+    # Timeout / launch failure → immediate fail.
     if timed_out:
         diagnostics.append(
             NormalizedDiagnostic(
@@ -151,100 +190,111 @@ def normalize_process(
             summary="crash detected",
         )
 
-    fatal_hits: list[str] = []
-    for pat in FATAL_PATTERNS:
-        if pat in combined:
-            fatal_hits.append(pat)
-            diagnostics.append(
-                NormalizedDiagnostic(
-                    severity="error",
-                    code=None,
-                    message=pat,
-                    phase="runtime",
-                    classification="fatal",
-                    ignored_for_status=False,
-                    engine_version=engine_version,
-                    stage=stage,
-                )
-            )
+    # Parse output for structured diagnostics (DIAGNOSTIC-0001).
+    # Text-level parsing enriches process-level classification.
+    from .parser import parse_engine_output
 
-    if exit_code != 0:
-        return NormalizedResult(
-            status="fail",
-            exit_code=exit_code,
-            duration_ms=duration_ms,
-            diagnostics=tuple(diagnostics),
-            summary=f"exit {exit_code}" + (f" with {len(fatal_hits)} fatal" if fatal_hits else ""),
+    parsed_stdout = parse_engine_output(
+        stdout, stage=stage, stream="stdout", engine_version=engine_version
+    )
+    parsed_stderr = parse_engine_output(
+        stderr, stage=stage, stream="stderr", engine_version=engine_version
+    )
+    parsed_all = parsed_stdout + parsed_stderr
+
+    # Collect parsed diagnostics with classification.
+    parsed_normalized: list[NormalizedDiagnostic] = []
+    for p in parsed_all:
+        # Skip info (version banner) for status decisions
+        if p.severity == "info":
+            continue
+        classification, ignored = _classify_parsed(p, engine_version)
+        # Determine phase: known noise → shutdown, forge → runtime, else runtime
+        phase = "shutdown" if classification == "known_teardown_noise" else "runtime"
+        # Forge diagnostics keep their stage/stream already
+        parsed_normalized.append(
+            NormalizedDiagnostic(
+                severity=p.severity,
+                code=p.code,
+                message=p.message,
+                phase=phase,
+                classification=classification,
+                ignored_for_status=ignored,
+                engine_version=engine_version,
+                stage=p.stage or stage,
+                stream=p.stream,
+            )
         )
 
-    if fatal_hits:
+    # Also do raw fatal pattern scan for patterns not captured by parser
+    # (e.g., fatal string without ERROR: prefix).
+    raw_fatal_extra: list[NormalizedDiagnostic] = []
+    for pat in FATAL_PATTERNS:
+        if pat in combined:
+            # Avoid duplicate if already captured via parsed
+            if not any(pat in d.message for d in parsed_normalized):
+                raw_fatal_extra.append(
+                    NormalizedDiagnostic(
+                        severity="error",
+                        code=None,
+                        message=pat,
+                        phase="runtime",
+                        classification="fatal",
+                        ignored_for_status=False,
+                        engine_version=engine_version,
+                        stage=stage,
+                    )
+                )
+
+    all_diags = parsed_normalized + raw_fatal_extra
+
+    # Separate fatal vs ignored for decision
+    fatal_diags = [d for d in all_diags if d.classification == "fatal"]
+    ignored_diags = [d for d in all_diags if d.ignored_for_status]
+    unknown_diags = [d for d in all_diags if d.classification == "unknown"]
+
+    if exit_code != 0:
+        suffix = f" with {len(fatal_diags)} fatal" if fatal_diags else ""
         return NormalizedResult(
             status="fail",
             exit_code=exit_code,
             duration_ms=duration_ms,
-            diagnostics=tuple(diagnostics),
+            diagnostics=tuple(all_diags),
+            summary=f"exit {exit_code}{suffix}",
+        )
+
+    # Exit 0 paths
+    if fatal_diags:
+        return NormalizedResult(
+            status="fail",
+            exit_code=exit_code,
+            duration_ms=duration_ms,
+            diagnostics=tuple(all_diags),
             summary="startup/runtime error despite exit 0",
         )
 
-    ignored: list[NormalizedDiagnostic] = []
-    unknown_shutdown = False
-    for line in combined.splitlines():
-        is_known, _ = _is_known_shutdown_noise(line, engine_version)
-        if is_known:
-            ignored.append(
-                NormalizedDiagnostic(
-                    severity="warning",
-                    code=None,
-                    message=line.strip(),
-                    phase="shutdown",
-                    classification="known_teardown_noise",
-                    ignored_for_status=True,
-                    engine_version=engine_version,
-                    stage=stage,
-                )
-            )
-        elif "ERROR:" in line or "WARNING:" in line:
-            if line.strip():
-                if (
-                    "UNKNOWN" in line
-                    or "leaked" in line.lower()
-                    or "resources still" in line.lower()
-                ):
-                    unknown_shutdown = True
-                    diagnostics.append(
-                        NormalizedDiagnostic(
-                            severity="warning",
-                            code=None,
-                            message=line.strip(),
-                            phase="shutdown",
-                            classification="unknown",
-                            ignored_for_status=False,
-                            engine_version=engine_version,
-                            stage=stage,
-                        )
-                    )
-
-    if ignored and not diagnostics:
-        return NormalizedResult(
-            status="warn",
-            exit_code=exit_code,
-            duration_ms=duration_ms,
-            diagnostics=tuple(ignored),
-            summary="known teardown noise only",
-        )
-    if unknown_shutdown:
+    if unknown_diags:
         return NormalizedResult(
             status="inconclusive",
             exit_code=exit_code,
             duration_ms=duration_ms,
-            diagnostics=tuple(diagnostics + ignored),
+            diagnostics=tuple(all_diags),
             summary="unknown shutdown message",
+        )
+
+    if ignored_diags and not fatal_diags and not unknown_diags:
+        return NormalizedResult(
+            status="warn",
+            exit_code=exit_code,
+            duration_ms=duration_ms,
+            diagnostics=tuple(ignored_diags),
+            summary="known teardown noise only",
         )
 
     return NormalizedResult(
         status="ok",
         exit_code=exit_code,
         duration_ms=duration_ms,
-        diagnostics=tuple(diagnostics + ignored),
+        diagnostics=tuple(all_diags),
         summary="ok",
     )

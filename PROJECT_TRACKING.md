@@ -466,6 +466,22 @@ Tests:
 Known limitations:
 - Text-level parsing (ERROR/WARNING records, Forge JSON, multiline locations) deferred to DIAGNOSTIC-0001
 
+### DIAGNOSTIC-0001 — Parse Godot engine output
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/engine/parser.py` — `EngineDiagnostic(severity, code, message, location, source, stage, stream, engine_version)` + `parse_engine_output(text, *, stage, stream, engine_version)` handling `ERROR:`/`WARNING:` + `at:` location, `GODOTFORGE_DIAGNOSTIC` JSON and `CODE: msg` forms, version line as info, multiline, stage/stream/version context preserved
+- `godotforge_core/engine/normalize.py` — now uses `parse_engine_output` for text-level enrichment: classifies parsed diagnostics via `_classify_parsed()` (fatal patterns, versioned known noise, unknown), merges with raw fatal scan, produces `warn`/`inconclusive` correctly; raw log always preserved
+- `tests/unit/test_engine_parser.py` — error with location, warning, multiline, Forge JSON, CODE: msg, version, empty, mixed, forge inside ERROR
+
+Tests:
+- Unit: 9 parser tests
+
+Known limitations:
+- Versioned fixtures deferred to DIAGNOSTIC-0002
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
