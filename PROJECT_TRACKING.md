@@ -305,7 +305,7 @@ Known limitations:
 
 ### PROJECT-0006 — Scan output formats
 
-Commit: 03dd772d1ea64fed4e284d79e4bbe704cec03c90
+Commit: b1efd6c804606efa40aaa03e74ce802de14b6a8d
 Status: complete
 
 Implemented:
@@ -327,9 +327,30 @@ Known limitations:
 - `project scan` recomputes the graph in-memory; does not write the store
 - 0007 (negative fixtures + read-only scan integration) pending
 
-### PROJECT-0007 (planned)
+### PROJECT-0007 — Dependency-analysis fixtures
 
-- 0007 `test(scanner): add dependency-analysis fixtures`
+Commit: dd3a1b7a8cce6dba757bd862063c93643f5f41e1
+Status: complete
+
+Implemented:
+- Real negative fixtures under `fixtures/cases/`:
+  - `dangling-preload/` — GDScript preload to a nonexistent `res://` target
+  - `missing-scene-ref/` — scene instancing an ext_resource that does not exist
+  - `malformed-scene/` — structurally broken `.tscn` (parser must not crash)
+- `tests/unit/test_negative_fixtures.py`: dangling preload detected (missing
+  node), missing scene reference detected, malformed scene tolerated, and a
+  read-only integration test asserting the golden tree is byte-identical
+  before/after a full `project scan` + `graph rebuild` (excluding
+  `.godotforge/`/`.godot`/`.pytest-tmp`).
+
+Tests:
+- Unit: the four cases above
+
+Known limitations:
+- Fixtures are dependency-analysis focused; the documented `fixtures/cases/*`
+  README breakage catalog (Phases 2-4) remains broader than these three
+- `validate` over SQLite is tested separately; negative-fixture detection here
+  is asserted on the in-memory graph (`status == "missing"`)
 
 ## Known Gaps
 

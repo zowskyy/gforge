@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bmissingrefmain"]
+
+[ext_resource type="PackedScene" uid="uid://bmissingrefx" path="res://scenes/missing.tscn" id="1_miss"]
+
+[node name="Main" type="Node2D"]
+
+[node name="Child" parent="." instance=ExtResource("1_miss")]
