@@ -21,8 +21,10 @@ import sqlite3
 import time
 from pathlib import Path
 
-from ..scan import index_scenes, index_scripts, parse_project_settings
+from ..scan.gdscript import index_scripts
 from ..scan.paths import exists, filesystem_path, res_path
+from ..scan.project_godot import parse_project_settings
+from ..scan.tscn import index_scenes
 from .model import GraphEdge, GraphNode, ProjectGraph
 
 GRAPH_SCHEMA_VERSION = 1
@@ -126,7 +128,7 @@ def build_graph(root: str | Path) -> ProjectGraph:
         project_id = res_path("project.godot")
         add_node(project_id, "config", "project.godot")
 
-        settings = parse_project_settings(project_godot)
+        settings = parse_project_settings(root)
         for autoload in settings.autoloads:
             if not autoload.path:
                 continue
@@ -137,6 +139,13 @@ def build_graph(root: str | Path) -> ProjectGraph:
                 status = "valid" if exists(root, target) else "missing"
             add_node(target, "script", autoload.name, status)
             graph.edges.append(GraphEdge(project_id, target, "autoload", 0.9))
+
+        if settings.main_scene:
+            main_scene = res_path(settings.main_scene)
+            status = "valid" if exists(root, main_scene) else "missing"
+            add_node(main_scene, "scene", settings.main_scene, status)
+            graph.edges.append(GraphEdge(project_id, main_scene, "main_scene", 1.0))
+            graph.main_scene = main_scene
 
     for scene in index_scenes(root):
         scene_id = res_path(scene.path)

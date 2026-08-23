@@ -26,6 +26,7 @@ class GraphEdge:
 class ProjectGraph:
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
+    main_scene: str | None = None
 
 
 VALID_STATUSES = {"valid", "missing", "stale", "corrupt", "rebuilding", "inconclusive"}

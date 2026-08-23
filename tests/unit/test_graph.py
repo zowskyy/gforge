@@ -113,3 +113,12 @@ def test_roundtrip_graph_from_store() -> None:
 
 def test_default_store_path() -> None:
     assert default_store_path("fixtures/golden-2d").as_posix().endswith(".godotforge/index.sqlite")
+
+
+def test_graph_records_main_scene() -> None:
+    graph = build_graph(ROOT)
+    assert graph.main_scene == "res://scenes/main.tscn"
+    assert any(
+        edge.kind == "main_scene" and edge.target == "res://scenes/main.tscn"
+        for edge in graph.edges
+    )
