@@ -1,10 +1,26 @@
 """Project scanner core (framework-neutral, no Click).
 
-PROJECT-0001 introduces only the file-inventory primitive. Graph persistence
-and GDScript/TSCN parsing arrive in later slices.
+PROJECT-0001 introduces only the file-inventory primitive. PROJECT-0002 adds
+project-settings parsing. Graph persistence and GDScript/TSCN deep parsing
+arrive in later slices.
 """
 
 from .inventory import inventory_project
 from .model import InventoryResult
+from .project_godot import (
+    Autoload,
+    InputAction,
+    ProjectSettings,
+    parse_export_preset_names,
+    parse_project_settings,
+)
 
-__all__ = ["inventory_project", "InventoryResult"]
+__all__ = [
+    "inventory_project",
+    "InventoryResult",
+    "Autoload",
+    "InputAction",
+    "ProjectSettings",
+    "parse_project_settings",
+    "parse_export_preset_names",
+]

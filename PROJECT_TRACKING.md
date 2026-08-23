@@ -188,9 +188,28 @@ Known limitations:
 - Scene/script/resource dependency parsing not yet implemented
 - SQLite graph persistence not yet implemented
 
-### PROJECT-0002 through PROJECT-0007 (planned)
+### PROJECT-0002 — Project settings
 
-- 0002 `feat(scanner): parse project settings and autoloads`
+Commit: 20bbcdf842046246fab740dd7b0dda14844e5e96
+Status: complete
+
+Implemented:
+- `godotforge_core/scan/project_godot.py` tolerant section reader (multiline `{}`/`[]` values)
+- Top-level `config_version`; `[application]` `config/name`, `config/features`, `run/main_scene`
+- Autoloads: singleton marker inside quoted value; `valid` flag (invalid paths retained, not dropped)
+- Input actions: multiline `{...}` dicts, event count, deadzone
+- Export preset names (`export_presets.cfg`)
+
+Tests:
+- Unit: golden settings, autoloads (singletons), input actions, missing main scene,
+  invalid autoload retained + `valid=False`, multiple autoloads, export presets
+
+Known limitations:
+- Scene/script/resource dependency parsing not yet implemented (0003/0004)
+- SQLite graph persistence not yet implemented (0005)
+
+### PROJECT-0003 through PROJECT-0007 (planned)
+
 - 0003 `feat(scanner): index text scenes and resource references`
 - 0004 `feat(scanner): index GDScript declarations and dependencies`
 - 0005 `feat(graph): persist project graph incrementally`
