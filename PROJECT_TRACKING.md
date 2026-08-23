@@ -398,7 +398,7 @@ Known limitations:
 
 ### ENGINE-0002 — Probe executable version, flavor, and hash
 
-Commit: a70bfa3dd0f3471c434532b687396d06ee334503
+Commit: 8757ce46fe61939b7d864e6f891345d7e1a86ca5
 Status: complete
 
 Implemented:
