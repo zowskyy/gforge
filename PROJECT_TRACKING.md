@@ -468,8 +468,8 @@ Known limitations:
 
 ### DIAGNOSTIC-0001 — Parse Godot engine output
 
-Commit: (pending)
-Status: in-progress
+Commit: b503f508268e08498398e8a6f019b87675c0ec09
+Status: complete
 
 Implemented:
 - `godotforge_core/engine/parser.py` — `EngineDiagnostic(severity, code, message, location, source, stage, stream, engine_version)` + `parse_engine_output(text, *, stage, stream, engine_version)` handling `ERROR:`/`WARNING:` + `at:` location, `GODOTFORGE_DIAGNOSTIC` JSON and `CODE: msg` forms, version line as info, multiline, stage/stream/version context preserved
