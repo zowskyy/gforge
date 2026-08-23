@@ -5,6 +5,13 @@ project-settings parsing. Graph persistence and GDScript/TSCN deep parsing
 arrive in later slices.
 """
 
+from .gdscript import (
+    ScriptDependency,
+    ScriptModel,
+    index_scripts,
+    parse_script,
+    script_dependency_paths,
+)
 from .inventory import inventory_project
 from .model import InventoryResult
 from .project_godot import (
@@ -39,4 +46,9 @@ __all__ = [
     "index_scenes",
     "parse_scene",
     "scene_dependencies",
+    "ScriptDependency",
+    "ScriptModel",
+    "index_scripts",
+    "parse_script",
+    "script_dependency_paths",
 ]

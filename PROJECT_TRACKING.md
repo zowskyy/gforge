@@ -228,9 +228,39 @@ Known limitations:
 - GDScript dependency parsing not yet implemented (0004)
 - SQLite graph persistence not yet implemented (0005)
 
-### PROJECT-0004 through PROJECT-0007 (planned)
+### PROJECT-0004 — GDScript index
 
-- 0004 `feat(scanner): index GDScript declarations and dependencies`
+Commit: f08f7021bf7244947aab8e8e98544af83021e890
+Status: complete
+
+Implemented:
+- `godotforge_core/scan/gdscript.py`: `parse_script`, `parse_with_fallback`,
+  `parse_with_gdtoolkit`, `load_optional_gdtoolkit`, `index_scripts`,
+  `script_dependency_paths`
+- `ScriptModel` / `ScriptDependency` dataclasses (class_name, extends, deps,
+  node_paths, autoload_refs, signals, adapter provenance)
+- Two adapters: `fallback` (always available) and `gdtoolkit` (optional extra
+  `gdscript-parser`), imported dynamically so core stays importable without it
+- Standalone `load` regex with negative lookbehind so `preload(...)`,
+  `ResourceLoader.load(...)`, and identifiers containing `load` are not
+  misclassified
+
+Tests:
+- Unit: declarations (player_controller), runtime loads (resource_catalog,
+  scene_router), autoload ref (pause_menu), signal (game_state), fallback
+  adapter default, preload/load/ResourceLoader separation, identifier
+  containing load ignored, index_scripts on golden
+
+Known limitations:
+- gdtoolkit adapter AST walk is best-effort and untested without the extra
+- Comment/string-literal stripping is naive (inline `#` removed); deeper lexer
+  deferred
+- Dynamic format-string (`var path := "res://...%s" % x`) not re-linked to the
+  subsequent `load(path)`; reported as runtime load
+- SQLite graph persistence not yet implemented (0005)
+
+### PROJECT-0005 through PROJECT-0007 (planned)
+
 - 0005 `feat(graph): persist project graph incrementally`
 - 0006 `feat(cli): expose project scan output formats`
 - 0007 `test(scanner): add dependency-analysis fixtures`
