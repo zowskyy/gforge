@@ -412,6 +412,27 @@ Known limitations:
 - No validation modes yet (ENGINE-0003)
 - No capture limits yet (ENGINE-0004)
 
+### ENGINE-0003 — Configurable Godot validation modes
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/engine/validate.py` — `ValidateMode` (import/load/boot/full), `StageResult(command: tuple, process: ProcessResult, status, fatal/ignored)`, `ValidationResult(project_root, engine, mode, stages, status, wall_duration_ms, graph)` + `validate_project()` (workspace resolve, engine resolve via `FORGE_GODOT_PATH` precedence, `probe_engine_full`, import/load/boot invocations, `full` fail-fast with `skipped` stages, graph state reported not mutated, `wall_duration_ms` vs stage `duration_ms`)
+- `fixtures/golden-2d/.godotforge/validate_boot.gd` — Forge-owned `SceneTree` validator (parse `OS.get_cmdline_user_args()` for `--scene`/`--required-autoload`/`--settle-frames`, load+instantiate main scene, await frames, verify autoloads + `Player`/`Camera2D`, `quit(0/1)` with `GODOTFORGE_DIAGNOSTIC` push_error)
+- `src/godotforge_cli/commands/engine.py` — `engine validate --mode import|load|boot|full` (default `full`), `--timeout`, `--project`/`--engine` globals, Forge exit mapping (0 ok, 1 validation fail, 3 unavailable, 4 timeout)
+- `tests/cli/test_engine.py` — now asserts `validate` in `engine --help`
+- `tests/unit/test_inventory.py` — updated `forge_config` count 2→3 (now includes `validate_boot.gd`)
+
+Tests:
+- Manual: `fixtures/golden-2d` passes all four modes (import/load/boot/full) with real Godot 4.7.1 mono
+- Existing 103 + updated = 104 passing (inventory count fix)
+
+Known limitations:
+- Diagnostic classification (fatal vs shutdown noise) deferred to ENGINE-0005/DIAGNOSTIC-0001
+- Capture limits (`max_retained_*`) deferred to ENGINE-0004
+- Boot script assumes autoloads present via `get_root().get_node_or_null`; verified on golden (both autoloads present)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

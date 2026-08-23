@@ -10,7 +10,9 @@ def test_golden_inventory_counts() -> None:
     result = inventory_project(GOLDEN)
 
     assert result.counts["project_config"] == 1
-    assert result.counts["forge_config"] == 2
+    # project.yaml + project.lock + validate_boot.gd
+    assert result.counts["forge_config"] == 3
+    assert ".godotforge/validate_boot.gd" in result.files["forge_config"]
     assert result.counts["scene"] == 3
     assert result.counts["script"] == 7
     assert result.counts["uid"] == 7

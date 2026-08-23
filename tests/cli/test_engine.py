@@ -9,7 +9,7 @@ def test_engine_appears_in_help() -> None:
     assert "engine" in result.output
 
 
-def test_engine_validate_not_yet_registered() -> None:
+def test_engine_validate_registered() -> None:
     result = CliRunner().invoke(cli, ["engine", "--help"])
     assert result.exit_code == 0
-    assert "validate" not in result.output
+    assert "validate" in result.output
