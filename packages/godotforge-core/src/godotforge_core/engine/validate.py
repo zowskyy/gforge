@@ -16,7 +16,7 @@ from pathlib import Path
 from ..detection.engine import EngineProbeResult, probe_engine_full, resolve_engine
 from ..detection.workspace import find_workspace
 from ..scan.project_godot import parse_project_settings
-from .runner import ProcessResult, run_process
+from .runner import CaptureConfig, ProcessResult, run_process
 
 
 class ValidateMode(StrEnum):
@@ -74,9 +74,10 @@ def _run_stage(
     args: list[str],
     *,
     timeout: float,
+    capture_config: CaptureConfig | None = None,
 ) -> StageResult:
     command: tuple[str, ...] = (executable, *tuple(args))
-    process = run_process(executable, args, timeout=timeout)
+    process = run_process(executable, args, timeout=timeout, capture_config=capture_config)
     raw_status = _status_from_process(process)
     # Map raw process status to normalized-ish status for now;
     # richer classification (fatal vs shutdown noise) lands in
@@ -122,6 +123,7 @@ def validate_project(
     mode: ValidateMode | str = ValidateMode.FULL,
     engine_path: str | Path | None = None,
     timeout: float = 60.0,
+    capture_config: CaptureConfig | None = None,
 ) -> ValidationResult:
     """Validate *project_root* using *mode*.
 
@@ -195,6 +197,8 @@ def validate_project(
                 duration_ms=0.0,
                 timed_out=False,
                 launch_error=None,
+                stdout_truncated=False,
+                stderr_truncated=False,
             )
             stages.append(
                 StageResult(
@@ -207,7 +211,9 @@ def validate_project(
                 )
             )
             return False
-        result = _run_stage(stage_name, executable, args, timeout=timeout)
+        result = _run_stage(
+            stage_name, executable, args, timeout=timeout, capture_config=capture_config
+        )
         stages.append(result)
         if result.status != "ok":
             overall = "fail"

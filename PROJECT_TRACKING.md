@@ -433,6 +433,23 @@ Known limitations:
 - Capture limits (`max_retained_*`) deferred to ENGINE-0004
 - Boot script assumes autoloads present via `get_root().get_node_or_null`; verified on golden (both autoloads present)
 
+### ENGINE-0004 — Capture stdout, stderr, exit code, and timing
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/engine/runner.py` — add `CaptureConfig(max_retained_stdout=1MiB, max_retained_stderr=1MiB, capture_stdout, capture_stderr)` + extend `ProcessResult` with `stdout_truncated`/`stderr_truncated`; `_apply_capture()` truncates post-capture (stored limit, not streaming) and marks flags; `run_process(..., capture_config=...)` now respects overlay, exact `args: tuple[str,...]`, `duration_ms` via `perf_counter`, separate stdout/stderr
+- `godotforge_core/engine/validate.py` — plumb `CaptureConfig` through `_run_stage()` and `validate_project(..., capture_config=None)`; `StageResult` retains authoritative `process` (no duplicate stdout/stderr); wall `wall_duration_ms` measured around full operation vs sum of stages
+- `tests/unit/test_capture.py` — synthetic `python -c "print('x'*2000000)"` verifies retained limit, truncation flag, exit code, stderr separation, duration populated, command exact, capture toggles, wall vs stage
+
+Tests:
+- Unit: 9 new capture tests (all use `sys.executable`, no Godot)
+
+Known limitations:
+- Streaming `Popen` not yet (post-capture truncation is retained-output limit, not peak memory)
+- Rich diagnostic classification still deferred to ENGINE-0005
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

@@ -15,6 +15,14 @@ from pathlib import Path
 
 
 @dataclass(frozen=True)
+class CaptureConfig:
+    max_retained_stdout: int = 1024 * 1024
+    max_retained_stderr: int = 1024 * 1024
+    capture_stdout: bool = True
+    capture_stderr: bool = True
+
+
+@dataclass(frozen=True)
 class ProcessResult:
     executable: str
     args: tuple[str, ...]
@@ -24,6 +32,33 @@ class ProcessResult:
     duration_ms: float
     timed_out: bool
     launch_error: str | None
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+
+
+def _apply_capture(
+    stdout: str,
+    stderr: str,
+    config: CaptureConfig | None,
+) -> tuple[str, str, bool, bool]:
+    if config is None:
+        config = CaptureConfig()
+    out = stdout if config.capture_stdout else ""
+    err = stderr if config.capture_stderr else ""
+    out_trunc = False
+    err_trunc = False
+    if config.capture_stdout and len(out) > config.max_retained_stdout:
+        out = out[: config.max_retained_stdout]
+        out_trunc = True
+    if config.capture_stderr and len(err) > config.max_retained_stderr:
+        err = err[: config.max_retained_stderr]
+        err_trunc = True
+    # If capture disabled, never marked truncated.
+    if not config.capture_stdout:
+        out_trunc = False
+    if not config.capture_stderr:
+        err_trunc = False
+    return out, err, out_trunc, err_trunc
 
 
 def run_process(
@@ -33,6 +68,7 @@ def run_process(
     cwd: str | Path | None = None,
     env: Mapping[str, str] | None = None,
     timeout: float = 30.0,
+    capture_config: CaptureConfig | None = None,
 ) -> ProcessResult:
     """Run *executable* with *args* and capture the raw process outcome.
 
@@ -67,35 +103,43 @@ def run_process(
             env=process_env,
         )
         duration_ms = (time.perf_counter() - start) * 1000.0
+        raw_stdout = proc.stdout or ""
+        raw_stderr = proc.stderr or ""
+        out, err, out_trunc, err_trunc = _apply_capture(raw_stdout, raw_stderr, capture_config)
         return ProcessResult(
             executable=exe_str,
             args=args_tuple,
             exit_code=proc.returncode,
-            stdout=proc.stdout or "",
-            stderr=proc.stderr or "",
+            stdout=out,
+            stderr=err,
             duration_ms=duration_ms,
             timed_out=False,
             launch_error=None,
+            stdout_truncated=out_trunc,
+            stderr_truncated=err_trunc,
         )
     except subprocess.TimeoutExpired as exc:
         duration_ms = (time.perf_counter() - start) * 1000.0
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
         stderr = exc.stderr if isinstance(exc.stderr, str) else ""
-        # ``stdout``/``stderr`` can be bytes if text mode not applied in time;
-        # coerce conservatively.
         if isinstance(stdout, bytes):
             stdout = stdout.decode("utf-8", errors="replace")
         if isinstance(stderr, bytes):
             stderr = stderr.decode("utf-8", errors="replace")
+        raw_stdout = stdout or ""
+        raw_stderr = stderr or ""
+        out, err, out_trunc, err_trunc = _apply_capture(raw_stdout, raw_stderr, capture_config)
         return ProcessResult(
             executable=exe_str,
             args=args_tuple,
             exit_code=-1,
-            stdout=stdout or "",
-            stderr=stderr or "",
+            stdout=out,
+            stderr=err,
             duration_ms=duration_ms,
             timed_out=True,
             launch_error=f"timeout after {timeout}s",
+            stdout_truncated=out_trunc,
+            stderr_truncated=err_trunc,
         )
     except OSError as exc:
         duration_ms = (time.perf_counter() - start) * 1000.0
@@ -108,4 +152,6 @@ def run_process(
             duration_ms=duration_ms,
             timed_out=False,
             launch_error=str(exc),
+            stdout_truncated=False,
+            stderr_truncated=False,
         )
