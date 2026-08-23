@@ -536,8 +536,8 @@ Known limitations:
 
 ### PATCH-0003 — Deterministic unified diffs
 
-Commit: (pending)
-Status: in-progress
+Commit: 5a27db8938175d42f3c0458ac374126f6fe2cfb6
+Status: complete
 
 Implemented:
 - `godotforge_core/patch/diff.py` — `DiffEntry(operation_index, kind, path, from_path, to_path, changed, binary, diff, operation)` + `render_operation_diff(operation, original, desired)` validates content per kind (create/update/delete/rename/mkdir), handles mkdir no diff, binary via NUL/invalid UTF-8, text via `difflib.unified_diff` with stable headers `--- a/...` `+++ b/...` `/dev/null`, no timestamps/absolute paths, preserves operation order, unchanged update → `changed=False`/`diff=None`, rename unchanged → `changed=True`/`diff=None`, LF/CRLF/missing newline explicit
