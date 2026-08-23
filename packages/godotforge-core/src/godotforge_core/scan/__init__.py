@@ -14,6 +14,7 @@ from .gdscript import (
 )
 from .inventory import inventory_project
 from .model import InventoryResult
+from .paths import exists, filesystem_path, res_path
 from .project_godot import (
     Autoload,
     InputAction,
@@ -51,4 +52,7 @@ __all__ = [
     "index_scripts",
     "parse_script",
     "script_dependency_paths",
+    "exists",
+    "filesystem_path",
+    "res_path",
 ]

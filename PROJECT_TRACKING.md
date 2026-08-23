@@ -18,6 +18,20 @@ later subsystem is validated against.
 - Click shell over a framework-neutral core (`godotforge_core` never imports Click).
 - Golden 2D fixture seeded in this phase.
 
+## Corrections
+
+### Scanner resource-path contract (PROJECT-0003 follow-up)
+
+- `index_scenes()` now preserves project-relative scene paths
+  (`scenes/main.tscn`), not basenames.
+- Added `godotforge_core/scan/paths.py` with `res_path`, `filesystem_path`,
+  `exists`. Godot resource paths (`res://...`) are NEVER routed through
+  `pathlib.Path` normalization — on Windows that produced `res:/...` and
+  double-prefixed `res://res://...` node identities. The SQLite graph depends
+  on these correct identities, so this was corrected before graph persistence.
+- Tests: `tests/unit/test_paths.py` (normalization) and updated
+  `tests/unit/test_tscn.py` scene-path expectation.
+
 ## File Inventory
 
 ### Packages

@@ -132,6 +132,8 @@ def scene_dependencies(scene: SceneModel) -> list[str]:
 def index_scenes(root: str | Path) -> list[SceneModel]:
     inventory = inventory_project(root)
     scenes: list[SceneModel] = []
-    for rel in inventory.files.get("scene", []):
-        scenes.append(parse_scene(Path(root) / rel))
+    for relative_path in inventory.files.get("scene", []):
+        scene = parse_scene(Path(root) / relative_path)
+        scene.path = relative_path.replace("\\", "/")
+        scenes.append(scene)
     return scenes

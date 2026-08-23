@@ -39,7 +39,11 @@ def test_pause_menu_scene() -> None:
 def test_index_scenes_on_golden() -> None:
     scenes = index_scenes(REPO_ROOT / "fixtures" / "golden-2d")
     names = {s.path for s in scenes}
-    assert names == {"main.tscn", "player.tscn", "pause_menu.tscn"}
+    assert names == {
+        "scenes/main.tscn",
+        "scenes/player.tscn",
+        "scenes/ui/pause_menu.tscn",
+    }
 
 
 def test_malformed_scene_does_not_crash(tmp_path: Path) -> None:
