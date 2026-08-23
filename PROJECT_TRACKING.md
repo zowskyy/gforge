@@ -550,6 +550,22 @@ Tests:
 Known limitations:
 - No backup/transaction persistence, atomic apply, rollback, CLI, or YAML loading (PATCH-0004..0008)
 
+### PATCH-0004 — Hash-checked backup manifests
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/patch/backup.py` — `BackupManifest(transaction_id, plan_id, plan_hash, entries, created_at, schema_version)` + `create_backup(root, transaction_id, plan, report)` with 8-step algorithm (reject existing final, verify report ok & same plan/hash, re-check source before copy, copy to `files/000000.bin` temp, hash copied, confirm, write `manifest.json` canonical, atomic `os.replace` temp→final, cleanup temp on failure); `files/000000.bin` naming prevents traversal, `create`/`mkdir` with `existed=False`/`hash=None` no file, root/symlink safety via same checks as `check_plan`, `transaction_id` no separators, backup destination under `.godotforge/backups`, project files untouched
+- `godotforge_core/patch/__init__.py` — export `BackupManifest`/`create_backup`
+- `tests/unit/test_patch_backup.py` — update/delete/rename copied, create/mkdir existed False, hash matches, manifest round-trip, plan id/hash, precondition conflict prevents, mutation during verification detected, symlink rejected, nested no escape, existing tx rejected, partial cleanup via injected `shutil.copy2` failure, project unchanged, manifest only after copies, repeated manifests equivalent, traversal rejected, destination under workspace
+
+Tests:
+- Unit: 18 backup tests (1 skipped on Windows symlink)
+
+Known limitations:
+- No atomic project-file replacement, delete/rename/mkdir application, rollback, transaction persistence beyond manifest, Godot validation, or CLI (PATCH-0005..0008)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

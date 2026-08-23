@@ -1,5 +1,6 @@
 """Patch engine domain contracts (framework-neutral, no I/O)."""
 
+from .backup import BackupManifest, create_backup
 from .diff import DiffEntry, render_operation_diff, render_plan_diffs
 from .hashing import compute_plan_hash, hash_bytes, hash_file
 from .models import (
@@ -23,6 +24,7 @@ from .preconditions import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "BackupManifest",
     "BackupRecord",
     "Conflict",
     "DiffEntry",
@@ -34,6 +36,7 @@ __all__ = [
     "TransactionStatus",
     "can_transition",
     "compute_plan_hash",
+    "create_backup",
     "hash_bytes",
     "hash_file",
     "PathSnapshot",
