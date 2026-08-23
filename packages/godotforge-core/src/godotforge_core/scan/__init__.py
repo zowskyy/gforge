@@ -14,6 +14,15 @@ from .project_godot import (
     parse_export_preset_names,
     parse_project_settings,
 )
+from .tscn import (
+    ExtResourceRef,
+    NodeRef,
+    SceneModel,
+    SubResourceRef,
+    index_scenes,
+    parse_scene,
+    scene_dependencies,
+)
 
 __all__ = [
     "inventory_project",
@@ -23,4 +32,11 @@ __all__ = [
     "ProjectSettings",
     "parse_project_settings",
     "parse_export_preset_names",
+    "ExtResourceRef",
+    "NodeRef",
+    "SceneModel",
+    "SubResourceRef",
+    "index_scenes",
+    "parse_scene",
+    "scene_dependencies",
 ]

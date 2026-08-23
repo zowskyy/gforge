@@ -208,9 +208,28 @@ Known limitations:
 - Scene/script/resource dependency parsing not yet implemented (0003/0004)
 - SQLite graph persistence not yet implemented (0005)
 
-### PROJECT-0003 through PROJECT-0007 (planned)
+### PROJECT-0003 — Scene index
 
-- 0003 `feat(scanner): index text scenes and resource references`
+Commit: f77cb66e98da5edaf626056ad9bfeb1d4e75bfe1
+Status: complete
+
+Implemented:
+- `godotforge_core/scan/tscn.py`: `parse_scene`, `index_scenes`, `scene_dependencies`
+- Scene header (format/uid), `ext_resource`, `sub_resource`, `[node]` (parent/instance/script), connections
+- External-resource edges and scene-instance edges derived into `dependencies`
+- Tolerant of malformed scenes (no crash)
+
+Tests:
+- Unit: main external resources, instance edge, player script+subresource,
+  pause_menu script, `index_scenes` on golden, malformed scene
+
+Known limitations:
+- Semantic node-path validation deferred
+- GDScript dependency parsing not yet implemented (0004)
+- SQLite graph persistence not yet implemented (0005)
+
+### PROJECT-0004 through PROJECT-0007 (planned)
+
 - 0004 `feat(scanner): index GDScript declarations and dependencies`
 - 0005 `feat(graph): persist project graph incrementally`
 - 0006 `feat(cli): expose project scan output formats`
