@@ -153,6 +153,50 @@ the fixture tree before/after `doctor` (excluding `.godot/`, `.godotforge/cache/
 `.godotforge/reports/`, `.pytest-tmp/`) and asserts it is unchanged; with the engine
 present it additionally asserts exit 0 and `workspace` check `ok`.
 
+## Scanner Work (branch `feature/project-scanner`)
+
+Seven green commits, merged to `main` only after all pass. `gdtoolkit` is an
+**optional** core extra (`[project.optional-dependencies] gdscript-parser`), never
+a mandatory dependency — Godot headless validation stays authoritative for whether
+scripts/scenes load. Commands are registered only when implemented.
+
+### PROJECT-0001 — File inventory
+
+Commit: 0a06ac6f8f0ad547f124c064e00a5d7743dcd71b
+Status: complete
+
+Implemented:
+- `godotforge_core/scan` subpackage (`model`, `inventory`)
+- Project root / `project.godot` discovery
+- Scene, script, resource, UID, addon, forge-config discovery
+- Ignored/generated path filtering (`.godot`, `.git`, `.pytest-tmp`, `__pycache__`, `.godotforge/cache|reports`, `index.sqlite*`)
+- SHA-256 file fingerprints
+- `project inventory` command (JSON/JSONL via envelope)
+
+Tests:
+- Unit: golden counts, stable fingerprints, ignored dirs, empty dir, sorted output
+- CLI: `project inventory --format json` on golden; `--help` excludes `scan`/`graph`
+
+Artifacts:
+- `.godotforge/index.sqlite*`: not yet produced (graph lands in PROJECT-0005)
+- No generated databases/reports committed
+
+Dependency note:
+- `godotforge-core` gained optional extra `gdscript-parser = ["gdtoolkit"]` (unused until PROJECT-0004)
+
+Known limitations:
+- Scene/script/resource dependency parsing not yet implemented
+- SQLite graph persistence not yet implemented
+
+### PROJECT-0002 through PROJECT-0007 (planned)
+
+- 0002 `feat(scanner): parse project settings and autoloads`
+- 0003 `feat(scanner): index text scenes and resource references`
+- 0004 `feat(scanner): index GDScript declarations and dependencies`
+- 0005 `feat(graph): persist project graph incrementally`
+- 0006 `feat(cli): expose project scan output formats`
+- 0007 `test(scanner): add dependency-analysis fixtures`
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

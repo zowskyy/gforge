@@ -19,6 +19,7 @@ LAZY_SUBCOMMANDS = {
     "version": "godotforge_cli.commands.version.cli",
     "doctor": "godotforge_cli.commands.doctor.cli",
     "config": "godotforge_cli.commands.config.cli",
+    "project": "godotforge_cli.commands.project.cli",
 }
 
 
