@@ -22,7 +22,6 @@ from .project_godot import (
     parse_export_preset_names,
     parse_project_settings,
 )
-from .report import build_scan_report
 from .tscn import (
     ExtResourceRef,
     NodeRef,
@@ -33,6 +32,9 @@ from .tscn import (
     scene_dependencies,
 )
 
+# ``build_scan_report`` is intentionally not imported here to avoid a
+# circular init (scan.__init__ -> report -> graph -> scan). Import it
+# directly via ``godotforge_core.scan.report`` when needed.
 __all__ = [
     "inventory_project",
     "InventoryResult",
@@ -56,5 +58,4 @@ __all__ = [
     "exists",
     "filesystem_path",
     "res_path",
-    "build_scan_report",
 ]

@@ -352,6 +352,33 @@ Known limitations:
 - `validate` over SQLite is tested separately; negative-fixture detection here
   is asserted on the in-memory graph (`status == "missing"`)
 
+## Engine Runner Work (branch `feature/godot-runner`)
+
+Four-mode validation (`import`/`load`/`boot`/`full`), `full` default for CLI/CI, `import` for VS Code on-save. Boot uses Forge-owned `SceneTree` validator with `OS.get_cmdline_user_args()` + `quit(0/1)`. Source clone deferred (`C:\Tools\GodotSource\godot-4.7-stable`, future `SOURCE-0001..0003`). Graph read-only during validate.
+
+### fix(cli): prepare engine command group
+
+Commit: 88c6d07cbca65cdd36a2fa86e3598fd34cbd2515
+Status: complete
+
+Implemented:
+- `src/godotforge_cli/commands/engine.py`: empty `@click.group("engine")` (no subcommands yet)
+- `src/godotforge_cli/app.py`: add `engine` to `LAZY_SUBCOMMANDS`
+- `tests/cli/test_engine.py`: engine in help, validate not yet
+- Fix circular import `scan.report -> graph -> scan` that broke `godotforge --help`
+  when `graph` loaded before `project`: `report.py` now lazy-imports
+  `graph.store.build_graph` inside `build_scan_report`; `scan/__init__.py` no
+  longer re-exports `build_scan_report` (import via `scan.report`); updated
+  `commands/project.py` and `tests/unit/test_negative_fixtures.py` accordingly.
+
+Tests:
+- CLI: engine appears in `--help`, `engine --help` does not list `validate`
+- Existing 89 + 2 new = 91 passing
+
+Known limitations:
+- No `engine validate` subcommand yet (lands in ENGINE-0003)
+- No Godot invocation in this commit
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

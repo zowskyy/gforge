@@ -1,5 +1,6 @@
 from godotforge_core.graph import build_graph, default_store_path, rebuild
-from godotforge_core.scan import build_scan_report, index_scenes, parse_script
+from godotforge_core.scan import index_scenes, parse_script
+from godotforge_core.scan.report import build_scan_report
 
 CASES = "fixtures/cases"
 

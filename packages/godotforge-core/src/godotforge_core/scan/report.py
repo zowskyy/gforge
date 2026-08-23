@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
-from ..graph import build_graph
 from .gdscript import index_scripts
 from .inventory import inventory_project
 from .project_godot import parse_project_settings
@@ -19,6 +18,10 @@ from .tscn import index_scenes
 
 
 def build_scan_report(root: str | Path) -> dict:
+    # Local import to avoid circular init between scan and graph
+    # (graph.store -> scan.gdscript -> scan.__init__ -> report -> graph).
+    from ..graph.store import build_graph
+
     root = Path(root)
     inventory = inventory_project(root)
     settings = parse_project_settings(root)

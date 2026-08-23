@@ -7,7 +7,8 @@ from pathlib import Path
 import click
 from godotforge_core.detection.workspace import find_workspace
 from godotforge_core.output import OutputFormat, build_envelope
-from godotforge_core.scan import build_scan_report, inventory_project
+from godotforge_core.scan import inventory_project
+from godotforge_core.scan.report import build_scan_report
 
 from godotforge_cli.output import emit
 
