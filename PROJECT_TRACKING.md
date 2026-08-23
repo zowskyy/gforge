@@ -517,6 +517,23 @@ Tests:
 Known limitations:
 - No filesystem hashing, diff, backup, I/O, Godot validation, content-hash generation, or CLI (deferred to PATCH-0002..0008)
 
+### PATCH-0002 — Hash and path preconditions
+
+Commit: (pending)
+Status: in-progress
+
+Implemented:
+- `godotforge_core/patch/hashing.py` — `hash_file()`, `hash_bytes()`, `compute_plan_hash(plan)` with canonical JSON (`sort_keys`, `separators (",", ":")`, `ensure_ascii=False`), schema version, operation order preserved, includes kind/path/from/to/expected_hash/desired_hash/owner/source/reason, excludes `created_at`/`original_hash`/status/backups; operation order affects hash
+- `godotforge_core/patch/preconditions.py` — `PathSnapshot`, `PreconditionIssue`, `PreconditionReport(ok)`, `check_plan(root, plan)` read-only; per-kind rules (create not exists, update/delete hash match, rename from→to, mkdir), unsupported types rejected (symlink/socket/FIFO/device), root/symlink safety via `is_symlink` + `resolve()` + `relative_to` checks, parent chain escape detection, hash via `sha256`, no mutation
+- `tests/unit/test_patch_hashing.py` — known/empty file hash, deterministic, changes with intent, ignores created_at/original_hash, order affects, includes expected/desired
+- `tests/unit/test_patch_preconditions.py` — known/empty/missing, create exists, update match/conflict, delete, rename, mkdir, absolute/traversal, symlink escape/file, type mismatch, read-only, deterministic hash, ok property, snapshot hash
+
+Tests:
+- Unit: 7 hashing + 19 preconditions (2 skipped on Windows symlink)
+
+Known limitations:
+- No backup creation, diff, atomic apply, rollback, or CLI (PATCH-0003..0008)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
