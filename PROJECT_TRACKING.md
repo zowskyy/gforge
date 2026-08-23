@@ -435,8 +435,8 @@ Known limitations:
 
 ### ENGINE-0004 — Capture stdout, stderr, exit code, and timing
 
-Commit: (pending)
-Status: in-progress
+Commit: 410c55289d96fc08c0a5be48445d6892ff146728
+Status: complete
 
 Implemented:
 - `godotforge_core/engine/runner.py` — add `CaptureConfig(max_retained_stdout=1MiB, max_retained_stderr=1MiB, capture_stdout, capture_stderr)` + extend `ProcessResult` with `stdout_truncated`/`stderr_truncated`; `_apply_capture()` truncates post-capture (stored limit, not streaming) and marks flags; `run_process(..., capture_config=...)` now respects overlay, exact `args: tuple[str,...]`, `duration_ms` via `perf_counter`, separate stdout/stderr
