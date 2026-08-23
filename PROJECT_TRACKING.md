@@ -568,8 +568,8 @@ Known limitations:
 
 ### PATCH-0005 — Atomic apply of patch operations
 
-Commit: (pending)
-Status: in-progress
+Commit: d3ccf12d0aa4cd14885bce506833dded59e8310d
+Status: complete
 
 Implemented:
 - `godotforge_core/patch/apply.py` — `apply_plan(root, plan, manifest, content_provider)` with manifest validation (transaction_id, plan_id, plan_hash, backup dir/entries existence, backup hash match), overlap detection (duplicate paths, rename source/to collisions, rename source reused), precondition re-check before first write, desired hash verification, atomic same-dir temp file writes with `fsync` + `os.replace` + parent `fsync`, per-kind apply (create/update/delete/rename/mkdir) with hash re-checks, atomic journal under backup dir, stop on first failure returning FAILED with applied count, never COMMITTED on partial
