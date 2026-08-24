@@ -648,6 +648,7 @@ Known limitations:
 
 ### PATCH-0009 — CLI wiring for project settings adapters
 
+Commit: 2a803b7b3750f9112c4dbc0a724183bd8a83b44b
 Status: implementation complete; commit hash recorded below
 
 Implemented:
