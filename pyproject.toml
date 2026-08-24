@@ -45,6 +45,9 @@ addopts = [
     "--strict-config",
     "--basetemp=.pytest-tmp",
 ]
+markers = [
+    "integration: tests that touch real external fixtures (deselected by default in CI without the fixture)",
+]
 
 [tool.ruff]
 line-length = 100

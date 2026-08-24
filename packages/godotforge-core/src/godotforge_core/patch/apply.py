@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 from collections.abc import Callable
 from pathlib import Path
 
 from .backup import BACKUP_ROOT_NAME, BackupManifest
 from .hashing import compute_plan_hash
+from .journal import JournalState, new_journal, update_entry, write_journal
 from .models import (
     Conflict,
     OperationKind,
@@ -265,11 +265,13 @@ def apply_plan(
 
     # Now apply sequentially, stop at first failure
     applied = 0
-    # Journal path (optional small journal under backup dir)
-    journal_path = root / BACKUP_ROOT_NAME / manifest.transaction_id / "apply_journal.json"
-    # Ensure journal not needed for test, but we can update atomically if needed
+    journal = new_journal(manifest.transaction_id, plan)
+    write_journal(root, journal)
+
     for idx, op in enumerate(plan.operations):
         try:
+            journal = update_entry(journal, idx, JournalState.STARTED)
+            write_journal(root, journal)
             if op.kind == OperationKind.CREATE:
                 assert op.path is not None
                 dest = root / op.path
@@ -334,17 +336,8 @@ def apply_plan(
                 dest.mkdir(exist_ok=False)
 
             applied += 1
-            try:
-                journal_tmp = journal_path.with_suffix(".tmp")
-                journal_data = {
-                    "transaction_id": manifest.transaction_id,
-                    "applied": applied,
-                    "last_index": idx,
-                }
-                journal_tmp.write_text(json.dumps(journal_data), encoding="utf-8")
-                journal_tmp.replace(journal_path)
-            except OSError:
-                pass
+            journal = update_entry(journal, idx, JournalState.COMPLETED)
+            write_journal(root, journal)
 
         except Exception as exc:
             reason = str(exc) or exc.__class__.__name__

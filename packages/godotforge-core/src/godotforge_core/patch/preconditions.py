@@ -448,7 +448,13 @@ def check_plan(root: Path, plan: PatchPlan) -> PreconditionReport:
             issues.append(
                 PreconditionIssue(
                     path=rel,
-                    code="symlink_escape" if "symlink" in escape_reason else "outside_root",
+                    code=(
+                        "unsupported_symlink"
+                        if escape_reason.startswith("symlink unsupported")
+                        else "symlink_escape"
+                        if "symlink" in escape_reason
+                        else "outside_root"
+                    ),
                     expected_hash=None,
                     actual_hash=snap.sha256,
                     reason=escape_reason,

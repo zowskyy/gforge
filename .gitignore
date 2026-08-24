@@ -30,3 +30,4 @@ Thumbs.db
 # Pytest / cache
 .pytest-tmp/
 .cache/
+.worktrees/
