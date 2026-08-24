@@ -39,6 +39,8 @@ class ProjectSettings:
     autoloads: list[Autoload] = field(default_factory=list)
     input_actions: list[InputAction] = field(default_factory=list)
     export_presets: list[str] = field(default_factory=list)
+    physics_layer_names: dict[str, str] = field(default_factory=dict)
+    renderer_settings: dict[str, str] = field(default_factory=dict)
 
 
 def _bracket_depth(text: str) -> int:
@@ -160,6 +162,18 @@ def parse_project_settings(root: str | Path) -> ProjectSettings:
 
     export_presets = parse_export_preset_names(Path(root))
 
+    layer_names: dict[str, str] = {}
+    for key, raw in sorted(sections.get("layer_names", {}).items()):
+        value = _unquote(raw)
+        if value:
+            layer_names[key] = value
+
+    renderer_settings: dict[str, str] = {}
+    for key, raw in sorted(sections.get("rendering", {}).items()):
+        value = _unquote(raw)
+        if value:
+            renderer_settings[key] = value
+
     return ProjectSettings(
         name=_unquote(config.get("config/name")),
         config_version=config_version,
@@ -169,6 +183,8 @@ def parse_project_settings(root: str | Path) -> ProjectSettings:
         autoloads=autoloads,
         input_actions=input_actions,
         export_presets=export_presets,
+        physics_layer_names=layer_names,
+        renderer_settings=renderer_settings,
     )
 
 

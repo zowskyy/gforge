@@ -13,8 +13,8 @@ from pathlib import Path
 
 from .model import InventoryResult
 
-IGNORED_DIRS = {".godot", ".git", ".pytest-tmp", "__pycache__"}
-IGNORED_PREFIXES = (".godotforge/cache", ".godotforge/reports")
+IGNORED_DIRS = {".godot", ".git", ".pytest-tmp", "__pycache__", "build", "builds"}
+IGNORED_PREFIXES = (".godotforge/cache", ".godotforge/reports", ".godotforge/backups")
 CATEGORY_ORDER = (
     "project_config",
     "forge_config",
