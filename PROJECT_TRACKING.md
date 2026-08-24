@@ -582,6 +582,47 @@ Tests:
 Known limitations:
 - No rollback, transaction persistence, Godot validation, CLI, or YAML loading (PATCH-0006..0008)
 
+### PATCH-0006 — Durable apply journal, safe rollback, and recovery inspection
+
+Commits (feature):
+- e3fcb8d877a5b39e64ca7d43c7101545fd3efebd — feat(patch): add durable apply journal
+- 708922d0ce8da1c4ceb56b9c7504e470d96c4d32 — feat(patch): add safe rollback
+- 30d87631da3273e3c0053119575dfb3b7e1e5965 — feat(core): add patch recovery inspection
+- 9341947d572a07d1de96f29fbe8237635af25543 — fix(patch): classify unsupported symlinks correctly
+
+Status: complete
+
+Implemented:
+- `godotforge_core/patch/journal.py` — durable apply journal (217 lines) recording apply progress for crash recovery; `patch/__init__.py` exports; `apply.py` wired to the journal
+- `godotforge_core/patch/rollback.py` — safe rollback (447 lines) restoring from backup manifests; `.githooks/pre-commit` added; exports updated
+- `godotforge_core/patch/recovery.py` — recovery inspection (301 lines) for interrupted transactions
+- `godotforge_core/patch/preconditions.py` — unsupported symlinks classified correctly
+- `tests/unit/test_patch_rollback.py` — 7 rollback tests
+- `tests/unit/test_patch_recovery.py` — 8 recovery tests
+
+Tests:
+- Full suite at 30d87631: 246 passed, 4 skipped
+
+### PATCH-0007 — Deterministic Godot project profiling
+
+Commits:
+- c95a5e74d35dc162eba18547c07b289e452a61bc — feat(core): add deterministic Godot project profiling (feature)
+- 588acd8537f9fb4240834d45cbac86c2e1c4c19c — chore: ignore local Hermes worktrees (config-only, `.gitignore`; no code or tests)
+
+Status: complete
+
+Implemented:
+- `godotforge_core/scan/profile.py` — deterministic project profile (145 lines): settings, autoloads, input actions, layer names, renderer settings, inventoried scenes/scripts/resources/tests, export presets, ownership classification, SHA-256 fingerprint
+- `godotforge_core/scan/project_godot.py` — parser support for profile fields
+- `godotforge_core/scan/inventory.py` — minor integration
+- `godotforge_cli/commands/project.py` — `godotforge project profile` CLI command
+- `docs/contracts/project-profile.md` — profile output contract
+- `tests/unit/test_profile.py` (14 tests), `tests/cli/test_profile_cli.py` (4 tests), including the Project Blacktop read-only integration guards (`pytest.mark.integration`)
+
+Tests:
+- Profile: 14 unit + 4 CLI tests
+- Full suite at c95a5e74: 263 passed, 5 skipped
+
 ### PATCH-0008 — Deterministic project settings adapters
 
 Commit: 2aae33818b06e194d79bfc9d4de6b6767051c459
