@@ -1076,7 +1076,7 @@ class TestStalenessAndPreconditions:
 
         empty = tmp_path / "empty"
         empty.mkdir()
-        with pytest.raises(ProfileError, match="missing project.godot"):
+        with pytest.raises(ProfileError, match=r"missing project\.godot"):
             plan_update_autoloads(empty)
 
     def test_plan_rejects_stale_apply_via_preconditions(self, tmp_path: pathlib.Path) -> None:
