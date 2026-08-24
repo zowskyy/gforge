@@ -31,6 +31,7 @@ from .preconditions import (
     PreconditionReport,
     check_plan,
 )
+from .recovery import RecoveryEntry, RecoveryReport, RecoveryState, inspect_recovery
 from .rollback import RollbackResult, rollback_transaction
 
 __all__ = [
@@ -65,5 +66,9 @@ __all__ = [
     "render_operation_diff",
     "render_plan_diffs",
     "RollbackResult",
+    "RecoveryEntry",
+    "RecoveryReport",
+    "RecoveryState",
+    "inspect_recovery",
     "rollback_transaction",
 ]
