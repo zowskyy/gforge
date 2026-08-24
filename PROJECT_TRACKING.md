@@ -582,6 +582,29 @@ Tests:
 Known limitations:
 - No rollback, transaction persistence, Godot validation, CLI, or YAML loading (PATCH-0006..0008)
 
+### PATCH-0008 — Deterministic project settings adapters
+
+Commit: 9b498563429f3cf04595c2e92320dea201142f0d
+Status: complete
+
+Implemented:
+- `godotforge_core/patch/project_godot_plan.py` — four read-only adapters (`plan_update_autoloads`, `plan_update_input_actions`, `plan_update_physics_layer_names`, `plan_update_renderer_settings`) producing `ProjectGodotPatch` (plan + desired content) for `project.godot`; single `UPDATE` op with `expected_hash` = current SHA-256, `desired_hash` = edited content SHA-256; deterministic plan ids (`pg-` prefix)
+- Byte-preserving targeted editing: line-preserving editor (`_apply_section_edits`) replaces/inserts/removes only the targeted key spans in the targeted section; comments (`;`/`#`), blank lines, trailing whitespace, unrelated sections/keys, and ordering remain byte-identical; line-ending style detected and preserved (CRLF stays CRLF, LF stays LF); original final-newline behavior preserved
+- No-op contract: a request with no effective changes produces no PatchPlan (`ProjectGodotPatch.plan is None`) and returns the original bytes unchanged
+- Strict validation: input action names (`^[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}$`), autoload names (`^[A-Za-z_][A-Za-z0-9_]{0,127}$`), layer/renderer keys via `_validate_relative_path` (now rejects CR/LF) with CR/LF-free non-empty values, and caller-provided input-action event literals as opaque validated fragments (exactly one balanced `{...}` dict, string-aware bracket scan, no CR/NUL, well-formed `Object(Type,...)` heads) — literals cannot inject sections or keys
+- `AdapterError` for ambiguous/malformed targeted sections (duplicate section headers, duplicate keys, unterminated multi-line values); rejected requests leave `project.godot` byte-identical
+- `godotforge_core/scan/project_godot.py` — `InputAction` gains `raw` field carrying the parsed dict literal (additive, backward compatible)
+- `docs/contracts/project-settings-adapter.md` — adapter contract: no-op/no-plan, byte preservation, opaque-fragment literal rules, name/key validation, failure modes
+- `tests/unit/test_project_godot_plan.py` — validation helpers, byte preservation (LF/CRLF add/update/remove, comments, blank lines, trailing whitespace, final newline, golden fixture), determinism, literal accept/reject cases, ambiguity rejection, staleness
+- `tests/unit/test_project_godot_apply.py` — end-to-end plan → backup → apply → verify for all four adapters, cross-field isolation, stale-file protection
+
+Tests:
+- Unit: 391 passed, 5 skipped (full suite)
+- Integration: Project Blacktop read-only verification passed (profile + CLI tree-hash guard); Blacktop working tree confirmed clean
+
+Known limitations:
+- No CLI wiring for the adapters yet
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.

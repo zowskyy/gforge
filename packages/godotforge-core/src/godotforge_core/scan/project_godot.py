@@ -27,6 +27,10 @@ class InputAction:
     name: str
     deadzone: float | None
     event_count: int
+    # The raw serialized Godot dict literal this action was parsed from.
+    # Treated as an opaque fragment by the plan adapters; see
+    # docs/contracts/project-settings-adapter.md.
+    raw: str = ""
 
 
 @dataclass
@@ -130,7 +134,7 @@ def _parse_input_action(name: str, raw: str) -> InputAction:
     deadzone_match = re.search(r'"deadzone"\s*:\s*([0-9]+(?:\.[0-9]+)?)', raw)
     deadzone = float(deadzone_match.group(1)) if deadzone_match else None
     event_count = raw.count("Object(")
-    return InputAction(name=name, deadzone=deadzone, event_count=event_count)
+    return InputAction(name=name, deadzone=deadzone, event_count=event_count, raw=raw)
 
 
 def parse_project_settings(root: str | Path) -> ProjectSettings:
