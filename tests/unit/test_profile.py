@@ -131,7 +131,7 @@ def test_profile_fixture_fields(tmp_path: Path) -> None:
 def test_missing_project_godot(tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
-    with pytest.raises(ProfileError, match="missing project.godot"):
+    with pytest.raises(ProfileError, match=r"missing project\.godot"):
         build_project_profile(empty)
 
 
