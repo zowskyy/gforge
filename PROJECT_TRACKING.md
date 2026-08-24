@@ -584,7 +584,7 @@ Known limitations:
 
 ### PATCH-0008 — Deterministic project settings adapters
 
-Commit: 9b498563429f3cf04595c2e92320dea201142f0d
+Commit: 2aae33818b06e194d79bfc9d4de6b6767051c459
 Status: complete
 
 Implemented:
