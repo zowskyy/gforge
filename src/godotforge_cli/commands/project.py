@@ -84,3 +84,8 @@ def profile(ctx: click.Context, root_opt: str | None) -> None:
         reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
 
     emit(build_envelope(command="project.profile", status="ok", data=data), fmt)
+
+
+from godotforge_cli.commands.project_settings import cli as _settings_cli  # noqa: E402
+
+cli.add_command(_settings_cli)

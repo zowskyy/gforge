@@ -646,6 +646,23 @@ Tests:
 Known limitations:
 - No CLI wiring for the adapters yet
 
+### PATCH-0009 — CLI wiring for project settings adapters
+
+Status: implementation complete; commit hash recorded below
+
+Implemented:
+- `src/godotforge_cli/commands/project_settings.py` — `project settings` group with four leaf commands `autoload`, `input`, `layers`, `renderer`; adapter-specific flags only (`autoload: --add/--remove/--set-singleton`; `input: --add+--literal/--remove/--clear`; `layers/renderer: --set/--remove/--clear`); preview-only by default via `render_operation_diff`; `--apply` via `check_plan` → `create_backup` (`.godotforge/backups/<txid>`) → `apply_plan` with `ProjectGodotPatch.as_content_provider`; no automatic rollback, no new transaction states
+- Global `--project` root resolution via `find_workspace` (no per-command `--root`); `--dry-run`+`--apply` rejected before I/O with `CONFIGURATION_FAILURE` (2); envelope `project.settings.<adapter>` with `data: {applied, noop, diff}` and standard `human`/`json`/`jsonl`/`sarif` serializers; errors map `ValueError`/`AdapterError`/`ProfileError` → 2, precondition/apply failures → `PATCH_CONFLICT` (4)
+- No-op: exit 0, `noop: true`, `diff: null`, no backup/journal/write, byte-identical
+- Byte preservation and determinism inherited from PATCH-0008 targeted editor (CRLF/LF, final newline, comments/whitespace, cross-field isolation)
+- `src/godotforge_cli/commands/project.py` — registers `settings` subgroup under `project`
+- `docs/contracts/project-settings-cli.md` — CLI contract (flags, preview/apply/dry-run, envelope, exit codes, byte preservation, transactional guarantees)
+- `tests/cli/test_project_settings_cli.py` — help/preview/dry-run/conflict/no-op/apply (all four adapters on tmp fixtures)/validation/ambiguity/stale-precondition/CRLF/final-newline/determinism/format matrix + `pytest.mark.integration` blacktop preview read-only guard (bytes + `mtime_ns` unchanged, never `--apply` on blacktop)
+
+Tests:
+- Full suite: 413 passed, 5 skipped
+- New CLI: 22 tests (21 unit + 1 integration); integration guard passed against Project Blacktop (read-only)
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
