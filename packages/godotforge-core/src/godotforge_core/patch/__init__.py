@@ -31,6 +31,7 @@ from .preconditions import (
     PreconditionReport,
     check_plan,
 )
+from .rollback import RollbackResult, rollback_transaction
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -63,4 +64,6 @@ __all__ = [
     "check_plan",
     "render_operation_diff",
     "render_plan_diffs",
+    "RollbackResult",
+    "rollback_transaction",
 ]
