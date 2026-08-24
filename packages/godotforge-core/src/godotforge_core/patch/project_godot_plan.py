@@ -842,3 +842,153 @@ def plan_update_renderer_settings(
         reason=reason,
         suffix=suffix,
     )
+
+
+_ALLOWED_APPLICATION_KEYS = frozenset(
+    {
+        "config/name",
+        "config/description",
+        "config/icon",
+        "run/main_scene",
+    }
+)
+
+
+def _validate_application_value(key: str, value: str) -> None:
+    """Validate a concrete application value for *key*."""
+    if key in ("config/name", "config/description"):
+        if not value:
+            raise ValueError(f"application value for '{key}' must be non-empty")
+        if "\r" in value or "\n" in value:
+            raise ValueError(f"application value for '{key}' must not contain newlines")
+        if "\x00" in value:
+            raise ValueError(f"application value for '{key}' contains null byte")
+        return
+    if key == "config/icon":
+        if not value:
+            raise ValueError(f"application value for '{key}' must be non-empty")
+        if "\r" in value or "\n" in value or "\x00" in value:
+            raise ValueError(f"application value for '{key}' must not contain newlines")
+        if not value.startswith("res://"):
+            raise ValueError(f"application value for '{key}' must start with 'res://': '{value}'")
+        _validate_relative_path(value, f"application value for '{key}'")
+        return
+    if key == "run/main_scene":
+        if not value:
+            raise ValueError(f"application value for '{key}' must be non-empty")
+        if "\r" in value or "\n" in value or "\x00" in value:
+            raise ValueError(f"application value for '{key}' must not contain newlines")
+        if value.startswith("uid://"):
+            if "//" not in value or value == "uid://":
+                raise ValueError(  # noqa: E501
+                    f"application value for '{key}' is not a valid uid:// URI: '{value}'"
+                )
+            if "\\" in value or " " in value:  # noqa: E501
+                raise ValueError(
+                    f"application value for '{key}' must not contain spaces or backslashes"
+                )
+            return
+        if value.startswith("res://"):
+            _validate_relative_path(value, f"application value for '{key}'")
+            return
+        raise ValueError(
+            f"application value for '{key}' must be 'res://...' or 'uid://...', got '{value}'"
+        )
+    raise ValueError(f"unknown application key '{key}'")
+
+
+def plan_update_application_settings(
+    root: Path,
+    *,
+    set: dict[str, str] | None = None,
+    remove: list[str] | None = None,
+    reason: str = "update application settings",
+) -> ProjectGodotPatch:
+    """Produce a patch that sets/removes application settings.
+
+    *set*: dict of application key → value. Supported keys are
+        ``config/name``, ``config/description``, ``config/icon``,
+        and ``run/main_scene``.
+    *remove*: list of application keys to remove. ``config/name`` is
+        required and cannot be removed.
+    Only the targeted entries of ``[application]`` change; every other
+    byte of the file is preserved. A request with no effective changes
+    produces no plan. ``config_version`` and ``config/features`` remain
+    out of scope.
+    """
+    from godotforge_core.scan.project_godot import _read_sections, _unquote
+
+    root = Path(root)
+    current = _preflight(root)
+    # Existing application keys from parsed settings plus raw section for
+    # icon/description which are not stored in ProjectSettings.
+    existing: dict[str, str] = {}
+    if current.name is not None:
+        existing["config/name"] = current.name
+    if current.main_scene is not None:
+        existing["run/main_scene"] = current.main_scene
+    # Read raw application section for optional keys not in ProjectSettings
+    try:
+        sections = _read_sections(root.resolve() / "project.godot")
+        app_raw = sections.get("application", {})
+        for k in ("config/description", "config/icon"):
+            if k in app_raw:
+                v = _unquote(app_raw[k])
+                if v is not None:
+                    existing[k] = v
+    except OSError as exc:
+        from godotforge_core.scan.profile import ProfileError as _ProfileError
+
+        raise _ProfileError(f"failed to read project.godot: {exc}") from exc
+
+    if set:
+        for k in set:
+            if k not in _ALLOWED_APPLICATION_KEYS:
+                raise ValueError(f"unknown application key '{k}'")
+            _validate_application_value(k, set[k])
+
+    if remove:
+        for k in remove:
+            if k not in _ALLOWED_APPLICATION_KEYS:
+                raise ValueError(f"unknown application key '{k}'")
+            if k == "config/name":
+                raise ValueError("config/name is required and cannot be removed")
+            if k not in existing:
+                raise ValueError(f"application setting '{k}' not present; cannot remove")
+
+    removals: list[str] = []
+    replacements: dict[str, str] = {}
+    insertions: list[tuple[str, str]] = []
+
+    if remove:
+        for k in remove:
+            if k not in removals:
+                removals.append(k)
+
+    if set:
+        for k, v in set.items():
+            if k in removals:
+                raise ValueError(f"application setting '{k}' is both set and removed")
+            # No-op if already equal and not being removed
+            if k in existing and existing[k] == v:
+                continue
+            if k in existing and k not in removals:
+                replacements[k] = f'"{v}"'
+            else:
+                insertions.append((k, f'"{v}"'))
+
+    suffix = "application"
+    if set:
+        suffix += "+" + "+".join(f"{k}={v}" for k, v in sorted(set.items()))
+    if remove:
+        suffix += "-" + "-".join(remove)
+
+    return _plan_from_edits(
+        root,
+        section="application",
+        replacements=replacements,
+        removals=removals,
+        insertions=insertions,
+        reason=reason,
+        suffix=suffix,
+    )

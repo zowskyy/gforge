@@ -644,7 +644,7 @@ Tests:
 - Integration: Project Blacktop read-only verification passed (profile + CLI tree-hash guard); Blacktop working tree confirmed clean
 
 Known limitations:
-- No CLI wiring for the adapters yet
+- CLI wiring for PATCH-0008 covered `autoload`/`input`/`layers`/`rendering`; `[application]` settings remain without an adapter (see PATCH-0010).
 
 ### PATCH-0009 — CLI wiring for project settings adapters
 
@@ -663,6 +663,24 @@ Implemented:
 Tests:
 - Full suite: 413 passed, 5 skipped
 - New CLI: 22 tests (21 unit + 1 integration); integration guard passed against Project Blacktop (read-only)
+
+### PATCH-0010 — Application settings adapter (core-only)
+
+Status: implementation complete; commit hash recorded below
+
+Implemented:
+- `godotforge_core/patch/project_godot_plan.py` — add `plan_update_application_settings(root, set=, remove=, reason=)` for `[application]` with allowlist `config/name` (required, non-removable), `config/description`, `config/icon` (`res://…`), `run/main_scene` (`res://…` or `uid://…` — repository-confirmed; `local://`/`user://` not accepted); `config_version`, `config/features`, `boot_splash/*` and generic section editing remain out of scope (rejected with `ValueError` before plan). Reuses existing `_preflight` (requires valid existing `[application] config/name`; does not bootstrap a missing name — `ProfileError`, no mutation), `_validate_application_value`, `_validate_relative_path`, `_apply_section_edits`, `_plan_from_edits`, `ProjectGodotPatch` (`plan is None` no-op) and `AdapterError`/`ProfileError`/`ValueError` mapping. Setting `config/name` to its current value is a no-op (`plan is None`, original bytes), `config/name` removal always raises `ValueError` with no mutation, and missing `config/name` raises `ProfileError` with no mutation.
+- Byte preservation: line-preserving targeted editor, CRLF/LF style preserved, final-newline preserved, comments/blank lines/trailing whitespace/ordering/unrelated sections byte-identical, deterministic repeated planning, stale `expected_hash` blocked via `check_plan`.
+- No CLI, no transaction/journal changes, no new `OperationKind`/`TransactionStatus`, no Blacktop writes.
+- `docs/contracts/project-settings-adapter.md` — clarify `[application]` allowlist, `res://`/`uid://` URI rules, out-of-scope keys, conflicting `set`+`remove` handling, and that `config/name` is not bootstrapped (preflight limitation) with the three no-op/error invariants.
+- `tests/unit/test_project_godot_application.py` — set/remove/combined, required-name non-removable, optional removal, unknown keys, duplicate/conflicting, invalid name/description/icon/main_scene, confirmed URI forms (`res://`/`uid://` accept, `local://`/`user://` reject), duplicate header/keys/unterminated → `AdapterError`, LF/CRLF, comments/whitespace/final-newline, unrelated-section identity, determinism, stale hash via `check_plan`, tmp-fixture plan→backup→apply and `parse_project_settings` verification; explicit coverage for missing `config/name` → `ProfileError` no mutation, same-value `config/name` → no-op exact bytes, and `config/name` removal → `ValueError` no mutation.
+
+Tests:
+- New: 36 tests in `test_project_godot_application.py`
+- Full suite at this point: ~449 tests (prior 413 + 36), 5 skipped
+
+Known limitations:
+- CLI wiring for `[application]` deferred to PATCH-0011.
 
 ## Known Gaps
 
