@@ -16,6 +16,8 @@ from pathlib import Path
 
 @dataclass
 class Autoload:
+    """One ``[autoload]`` entry: singleton name, path, and flag."""
+
     name: str
     path: str
     singleton: bool
@@ -24,6 +26,8 @@ class Autoload:
 
 @dataclass
 class InputAction:
+    """One ``[input]`` entry: action name, deadzone, and event count."""
+
     name: str
     deadzone: float | None
     event_count: int
@@ -35,6 +39,8 @@ class InputAction:
 
 @dataclass
 class ProjectSettings:
+    """Parsed, extraction-focused view of a ``project.godot`` file."""
+
     name: str | None
     config_version: int | None
     godot_version: str | None
@@ -48,6 +54,7 @@ class ProjectSettings:
 
 
 def _bracket_depth(text: str) -> int:
+    """Return the net open-bracket count (``{``/``[`` minus ``}``/``]``)."""
     depth = 0
     for ch in text:
         if ch in "{[":
@@ -58,12 +65,18 @@ def _bracket_depth(text: str) -> int:
 
 
 def _read_sections(path: Path) -> dict[str | None, dict[str, str]]:
+    """Read an INI-like Godot config file into section -> key -> raw value.
+
+    Multi-line ``{...}``/``[...]`` values are joined into one string;
+    comments and blank lines are skipped. Tolerant and read-only.
+    """
     section: str | None = None
     data: dict[str | None, dict[str, str]] = {None: {}}
     pending: tuple[str | None, str] | None = None
     buffer: list[str] = []
 
     def flush() -> None:
+        """Store the pending multi-line value under its section and key."""
         nonlocal pending, buffer
         if pending is not None:
             sect, key = pending
@@ -100,6 +113,7 @@ def _read_sections(path: Path) -> dict[str | None, dict[str, str]]:
 
 
 def _unquote(value: str | None) -> str | None:
+    """Strip one level of matching single or double quotes, if present."""
     if value is None:
         return None
     value = value.strip()
@@ -109,6 +123,7 @@ def _unquote(value: str | None) -> str | None:
 
 
 def _parse_packed_string_array(value: str | None) -> list[str]:
+    """Parse a ``PackedStringArray(...)`` literal into a list of strings."""
     if not value:
         return []
     match = re.match(r"PackedStringArray\((.*)\)\s*$", value.strip())
@@ -119,6 +134,7 @@ def _parse_packed_string_array(value: str | None) -> list[str]:
 
 
 def _parse_autoload(name: str, raw: str) -> Autoload:
+    """Parse one autoload raw value (``"*res://x.gd"``) into an Autoload."""
     path = _unquote(raw) or ""
     singleton = path.startswith("*")
     cleaned = path[1:] if singleton else path
@@ -131,6 +147,7 @@ def _parse_autoload(name: str, raw: str) -> Autoload:
 
 
 def _parse_input_action(name: str, raw: str) -> InputAction:
+    """Parse one input-action raw dict literal into an InputAction."""
     deadzone_match = re.search(r'"deadzone"\s*:\s*([0-9]+(?:\.[0-9]+)?)', raw)
     deadzone = float(deadzone_match.group(1)) if deadzone_match else None
     event_count = raw.count("Object(")
@@ -138,6 +155,7 @@ def _parse_input_action(name: str, raw: str) -> InputAction:
 
 
 def parse_project_settings(root: str | Path) -> ProjectSettings:
+    """Parse ``project.godot`` under *root* into a ProjectSettings view."""
     project_path = Path(root) / "project.godot"
     if not project_path.is_file():
         return ProjectSettings(name=None, config_version=None, godot_version=None)
@@ -193,6 +211,7 @@ def parse_project_settings(root: str | Path) -> ProjectSettings:
 
 
 def parse_export_preset_names(root: str | Path) -> list[str]:
+    """Return export preset display names from ``export_presets.cfg``."""
     preset_path = Path(root) / "export_presets.cfg"
     if not preset_path.is_file():
         return []

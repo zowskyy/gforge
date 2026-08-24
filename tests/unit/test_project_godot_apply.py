@@ -84,7 +84,10 @@ def _write_and_apply(
 
 
 class TestApplyAutoloads:
+    """Tests for apply autoloads."""
+
     def test_add_autoload_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify add autoload applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(
             root,
@@ -102,6 +105,7 @@ class TestApplyAutoloads:
         assert sr.singleton is True
 
     def test_remove_autoload_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove autoload applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, remove=["GameState"])
         status = _write_and_apply(root, patch)
@@ -112,6 +116,7 @@ class TestApplyAutoloads:
         assert "GameState" not in names
 
     def test_set_singleton_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify set singleton applied."""
         root = _make_project_godot(tmp_path)
         (root / "project.godot").write_text(
             "config_version=5\n\n"
@@ -150,6 +155,7 @@ class TestApplyAutoloads:
         assert gs.path == "res://scripts/game_state.gd"
 
     def test_remove_and_add_autoloads(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove and add autoloads."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(
             root,
@@ -171,7 +177,10 @@ class TestApplyAutoloads:
 
 
 class TestApplyInputActions:
+    """Tests for apply input actions."""
+
     def test_add_input_action_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify add input action applied."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.25,\n"events": []\n}\n'
         patch = plan_update_input_actions(
@@ -187,6 +196,7 @@ class TestApplyInputActions:
         assert "dash" in names
 
     def test_remove_input_action_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove input action applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, remove=["jump"])
         status = _write_and_apply(root, patch)
@@ -196,6 +206,7 @@ class TestApplyInputActions:
         assert {a.name for a in new.input_actions} == set()
 
     def test_clear_and_add_input_actions(self, tmp_path: pathlib.Path) -> None:
+        """Verify clear and add input actions."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.5,\n"events": []\n}\n'
         patch = plan_update_input_actions(
@@ -211,6 +222,7 @@ class TestApplyInputActions:
         assert new.input_actions[0].name == "new_action"
 
     def test_remove_and_add_input_actions(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove and add input actions."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.5,\n"events": []\n}\n'
         patch = plan_update_input_actions(
@@ -233,7 +245,10 @@ class TestApplyInputActions:
 
 
 class TestApplyPhysicsLayerNames:
+    """Tests for apply physics layer names."""
+
     def test_set_layer_name_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify set layer name applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -249,6 +264,7 @@ class TestApplyPhysicsLayerNames:
         }
 
     def test_remove_layer_name_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove layer name applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -261,6 +277,7 @@ class TestApplyPhysicsLayerNames:
         assert dict(new.physics_layer_names) == {}
 
     def test_clear_and_set_layer_names(self, tmp_path: pathlib.Path) -> None:
+        """Verify clear and set layer names."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -276,6 +293,7 @@ class TestApplyPhysicsLayerNames:
         }
 
     def test_remove_and_set_layer_names(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove and set layer names."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -295,7 +313,10 @@ class TestApplyPhysicsLayerNames:
 
 
 class TestApplyRendererSettings:
+    """Tests for apply renderer settings."""
+
     def test_set_renderer_setting_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify set renderer setting applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -310,6 +331,7 @@ class TestApplyRendererSettings:
         }
 
     def test_remove_renderer_setting_applied(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove renderer setting applied."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -322,6 +344,7 @@ class TestApplyRendererSettings:
         assert dict(new.renderer_settings) == {}
 
     def test_clear_and_set_renderer_settings(self, tmp_path: pathlib.Path) -> None:
+        """Verify clear and set renderer settings."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -337,6 +360,7 @@ class TestApplyRendererSettings:
         }
 
     def test_remove_and_set_renderer_settings(self, tmp_path: pathlib.Path) -> None:
+        """Verify remove and set renderer settings."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -356,7 +380,10 @@ class TestApplyRendererSettings:
 
 
 class TestApplyCrossFieldIsolation:
+    """Tests for apply cross field isolation."""
+
     def test_autoload_change_does_not_touch_renderer(self, tmp_path: pathlib.Path) -> None:
+        """Verify autoload change does not touch renderer."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, add=[("New", "res://scripts/new.gd")])
         status = _write_and_apply(root, patch)
@@ -370,6 +397,7 @@ class TestApplyCrossFieldIsolation:
         assert new.main_scene == "res://scenes/main.tscn"
 
     def test_input_change_does_not_touch_autoloads(self, tmp_path: pathlib.Path) -> None:
+        """Verify input change does not touch autoloads."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone":0.25,\n"events":[]\n}\n'
         patch = plan_update_input_actions(root, add=[("dash", raw)])
@@ -380,6 +408,7 @@ class TestApplyCrossFieldIsolation:
         assert {a.name for a in new.autoloads} == {"GameState"}
 
     def test_layer_change_does_not_touch_input(self, tmp_path: pathlib.Path) -> None:
+        """Verify layer change does not touch input."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -392,6 +421,7 @@ class TestApplyCrossFieldIsolation:
         assert {a.name for a in new.input_actions} == {"jump"}
 
     def test_renderer_change_does_not_touch_layers(self, tmp_path: pathlib.Path) -> None:
+        """Verify renderer change does not touch layers."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -410,7 +440,10 @@ class TestApplyCrossFieldIsolation:
 
 
 class TestApplyStaleFileProtection:
+    """Tests for apply stale file protection."""
+
     def test_stale_file_blocks_apply(self, tmp_path: pathlib.Path) -> None:
+        """Verify stale file blocks apply."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, add=[("X", "res://x.gd")])
 

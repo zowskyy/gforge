@@ -54,6 +54,7 @@ class AdapterError(ValueError):
 
 
 def _validate_plan_id(value: str) -> None:
+    """Validate a plan id against the model pattern and pg- prefix."""
     if not value:
         raise ValueError("plan id must be non-empty")
     if not (value[:2] == PLAN_ID_PREFIX and len(value) > 2):
@@ -65,6 +66,7 @@ def _validate_plan_id(value: str) -> None:
 
 
 def _validate_relative_path(value: str, field_name: str) -> None:
+    """Validate a project-relative path (no absolute, traversal, or newlines)."""
     if not value:
         raise ValueError(f"{field_name} must be non-empty")
     if value.startswith("/") or value.startswith("\\"):
@@ -94,6 +96,7 @@ def _validate_relative_path(value: str, field_name: str) -> None:
 
 
 def _validate_hash(value: str | None, field_name: str) -> None:
+    """Validate an optional 64-character lowercase hex SHA-256 hash."""
     if value is None:
         return
     if not _HASH_PATTERN.match(value):
@@ -111,6 +114,7 @@ _AUTOLOAD_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
 
 
 def _validate_input_action_name(name: str) -> None:
+    """Validate an input action name against the safe key charset."""
     if not name:
         raise ValueError("input action name must be non-empty")
     if not _ACTION_NAME_PATTERN.match(name):
@@ -118,6 +122,7 @@ def _validate_input_action_name(name: str) -> None:
 
 
 def _validate_autoload_name(name: str) -> None:
+    """Validate an autoload name as a Godot singleton identifier."""
     if not name:
         raise ValueError("autoload name must be non-empty")
     if not _AUTOLOAD_NAME_PATTERN.match(name):
@@ -283,6 +288,8 @@ class _Entry:
 
 @dataclass
 class _SectionSpan:
+    """Line span of one ``[section]`` and its ``key=value`` entries."""
+
     name: str | None  # None = top-level (before any header)
     header: int | None  # line index of the "[name]" header line
     entries: list[_Entry] = field(default_factory=list)

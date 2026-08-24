@@ -80,16 +80,19 @@ def _make_project_godot(tmp_path: Path) -> Path:
 
 
 def _hash(s: str) -> str:
+    """Hash."""
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
 def _file_hash(root: Path, rel: str) -> str:
+    """File hash."""
     return _compute_file_hash(root, rel)
 
 
 def _assert_plan_is_update_project_godot(
     plan: PatchPlan | None, expected_owner: str = "godotforge"
 ) -> None:
+    """Assert plan is update project godot."""
     assert plan is not None, "expected a plan; no-op requests return plan=None"
     assert plan.id.startswith("pg-"), f"unexpected plan id: {plan.id!r}"
     assert len(plan.operations) == 1
@@ -104,6 +107,7 @@ def _assert_plan_is_update_project_godot(
 
 
 def _assert_patch_has_plan_and_content(patch: ProjectGodotPatch, root: Path) -> None:
+    """Assert patch has plan and content."""
     _assert_plan_is_update_project_godot(patch.plan)
     assert isinstance(patch.desired_content, bytes)
     assert patch.desired_content  # non-empty
@@ -125,25 +129,32 @@ def _write_and_parse(serialized: bytes) -> ProjectSettings:
 
 
 class TestValidationHelpers:
+    """Tests for validation helpers."""
+
     def test_validate_plan_id_accepts(self) -> None:
         # Must match the model's _PLAN_ID_PATTERN:
         #   ^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$
+        """Verify validate plan id accepts."""
         for good in ("pg-autoload", "pg-input-jump", "pg-layers-2d_physics-layer_1-World"):
             _vp_plan_id(good)
 
     def test_validate_plan_id_rejects_empty(self) -> None:
+        """Verify validate plan id rejects empty."""
         with pytest.raises(ValueError, match="non-empty"):
             _vp_plan_id("")
 
     def test_validate_plan_id_rejects_no_prefix(self) -> None:
+        """Verify validate plan id rejects no prefix."""
         with pytest.raises(ValueError, match="start with 'pg-'"):
             _vp_plan_id("autoload")
 
     def test_validate_plan_id_rejects_too_long(self) -> None:
+        """Verify validate plan id rejects too long."""
         with pytest.raises(ValueError, match="too long"):
             _vp_plan_id("pg-" + "x" * 200)
 
     def test_validate_plan_id_rejects_bad_chars(self) -> None:
+        """Verify validate plan id rejects bad chars."""
         with pytest.raises(ValueError, match="invalid characters"):
             _vp_plan_id("pg-a b")
         with pytest.raises(ValueError, match="invalid characters"):
@@ -152,66 +163,85 @@ class TestValidationHelpers:
             _vp_plan_id("pg-a=b")
 
     def test_validate_relative_path_accepts(self) -> None:
+        """Verify validate relative path accepts."""
         for good in ("project.godot", "scripts/foo.gd", "a/b/c.res"):
             _vp_relpath(good, "x")
 
     def test_validate_relative_path_rejects_absolute(self) -> None:
+        """Verify validate relative path rejects absolute."""
         for bad in ("/foo", "C:\\foo", "\\foo"):
             with pytest.raises(ValueError):
                 _vp_relpath(bad, "x")
 
     def test_validate_relative_path_rejects_traversal(self) -> None:
+        """Verify validate relative path rejects traversal."""
         with pytest.raises(ValueError, match="'\\.\\.'"):
             _vp_relpath("a/../b", "x")
 
     def test_validate_relative_path_rejects_empty(self) -> None:
+        """Verify validate relative path rejects empty."""
         with pytest.raises(ValueError, match="non-empty"):
             _vp_relpath("", "x")
 
     def test_validate_hash_accepts_64_hex(self) -> None:
+        """Verify validate hash accepts 64 hex."""
         _vp_hash("a" * 64, "x")
 
     def test_validate_hash_accepts_none(self) -> None:
+        """Verify validate hash accepts none."""
         _vp_hash(None, "x")
 
     def test_validate_hash_rejects_short(self) -> None:
+        """Verify validate hash rejects short."""
         with pytest.raises(ValueError, match="64 hex"):
             _vp_hash("a" * 63, "x")
 
     def test_validate_hash_rejects_nonhex(self) -> None:
+        """Verify validate hash rejects nonhex."""
         with pytest.raises(ValueError, match="64 hex"):
             _vp_hash("g" * 64, "x")
 
 
 class TestComputeFileHash:
+    """Tests for compute file hash."""
+
     def test_known_file(self, tmp_path: Path) -> None:
+        """Verify known file."""
         (tmp_path / "f.gd").write_text("x", encoding="utf-8")
         h = _compute_file_hash(tmp_path, "f.gd")
         assert len(h) == 64
         assert h == hashlib.sha256(b"x").hexdigest()
 
     def test_missing_file_raises(self, tmp_path: Path) -> None:
+        """Verify missing file raises."""
         with pytest.raises(FileNotFoundError):
             _compute_file_hash(tmp_path, "nope")
 
     def test_relative_only(self, tmp_path: Path) -> None:
+        """Verify relative only."""
         with pytest.raises(ValueError, match="relative"):
             _compute_file_hash(tmp_path, "/abs")
 
 
 class TestMakePlanId:
+    """Tests for make plan id."""
+
     def test_prefix_and_clean(self) -> None:
         # '+' is not allowed by the model's plan id pattern, so it is
         # sanitized to '-'.
+        """Verify prefix and clean."""
         assert _make_plan_id("autoload+GameState") == "pg-autoload-GameState"
 
     def test_special_chars_become_dashes(self) -> None:
+        """Verify special chars become dashes."""
         assert _make_plan_id("a b/c") == "pg-a-b-c"
 
     def test_empty_cleanup(self) -> None:
+        """Verify empty cleanup."""
         assert _make_plan_id("!!!") == "pg-default"
 
     def test_truncated_to_128(self) -> None:
+        """Verify truncated to 128."""
         long_suffix = "x" * 200
         pid = _make_plan_id(long_suffix)
         assert len(pid) <= 128
@@ -256,6 +286,7 @@ class TestBytePreservation:
     )
 
     def _write(self, tmp_path: Path, content: bytes) -> Path:
+        """Write."""
         root = tmp_path / "proj"
         root.mkdir()
         (root / "project.godot").write_bytes(content)
@@ -263,11 +294,13 @@ class TestBytePreservation:
 
     @staticmethod
     def _crlf(text: str) -> bytes:
+        """Crlf."""
         return text.replace("\n", "\r\n").encode()
 
     # -- no-op requests ------------------------------------------------
 
     def test_noop_produces_no_plan_and_identical_bytes_lf(self, tmp_path: Path) -> None:
+        """Verify noop produces no plan and identical bytes lf."""
         root = self._write(tmp_path, self.NONCANONICAL_LF.encode())
         original = (root / "project.godot").read_bytes()
         patch = plan_update_autoloads(root)  # no changes requested
@@ -275,6 +308,7 @@ class TestBytePreservation:
         assert patch.desired_content == original
 
     def test_noop_produces_no_plan_and_identical_bytes_crlf(self, tmp_path: Path) -> None:
+        """Verify noop produces no plan and identical bytes crlf."""
         root = self._write(tmp_path, self._crlf(self.NONCANONICAL_LF))
         original = (root / "project.godot").read_bytes()
         patch = plan_update_input_actions(root)  # no changes requested
@@ -284,6 +318,7 @@ class TestBytePreservation:
     # -- line-ending style ---------------------------------------------
 
     def test_crlf_add_update_remove(self, tmp_path: Path) -> None:
+        """Verify crlf add update remove."""
         root = self._write(tmp_path, self._crlf(self.NONCANONICAL_LF))
         patch = plan_update_autoloads(
             root,
@@ -301,6 +336,7 @@ class TestBytePreservation:
         assert b"GameState" not in out2
 
     def test_lf_add_update_remove(self, tmp_path: Path) -> None:
+        """Verify lf add update remove."""
         root = self._write(tmp_path, self.NONCANONICAL_LF.encode())
         patch = plan_update_autoloads(
             root,
@@ -318,6 +354,7 @@ class TestBytePreservation:
 
     @pytest.mark.parametrize("crlf", [False, True])
     def test_comments_blank_lines_trailing_ws_preserved(self, tmp_path: Path, crlf: bool) -> None:
+        """Verify comments blank lines trailing ws preserved."""
         content = self.NONCANONICAL_LF.encode()
         if crlf:
             content = self._crlf(self.NONCANONICAL_LF)
@@ -332,6 +369,7 @@ class TestBytePreservation:
 
     @pytest.mark.parametrize("crlf", [False, True])
     def test_only_targeted_lines_change(self, tmp_path: Path, crlf: bool) -> None:
+        """Verify only targeted lines change."""
         content = self.NONCANONICAL_LF.encode()
         if crlf:
             content = self._crlf(self.NONCANONICAL_LF)
@@ -349,6 +387,7 @@ class TestBytePreservation:
         assert b"*" not in new
 
     def test_unrelated_sections_byte_identical_on_input_change(self, tmp_path: Path) -> None:
+        """Verify unrelated sections byte identical on input change."""
         content = self.NONCANONICAL_LF.encode()
         root = self._write(tmp_path, content)
         patch = plan_update_input_actions(root, remove=["jump"])
@@ -358,6 +397,7 @@ class TestBytePreservation:
         assert out == expected
 
     def test_final_newline_behavior_preserved(self, tmp_path: Path) -> None:
+        """Verify final newline behavior preserved."""
         content = self.NONCANONICAL_LF.encode().rstrip(b"\n")  # no trailing newline
         root = self._write(tmp_path, content)
         patch = plan_update_autoloads(root, remove=["GameState"])
@@ -366,12 +406,14 @@ class TestBytePreservation:
     # -- golden fixture round trip -------------------------------------
 
     def test_golden_noop_is_byte_identical(self) -> None:
+        """Verify golden noop is byte identical."""
         original = (GOLDEN / "project.godot").read_bytes()
         patch = plan_update_autoloads(GOLDEN)
         assert patch.plan is None
         assert patch.desired_content == original
 
     def test_golden_change_preserves_everything_else(self) -> None:
+        """Verify golden change preserves everything else."""
         orig = parse_project_settings(GOLDEN)
         target = orig.autoloads[0].name if orig.autoloads else None
         patch = plan_update_input_actions(
@@ -392,6 +434,7 @@ class TestBytePreservation:
         assert target is None or target in {a.name for a in new.autoloads}
 
     def test_config_icon_preserved(self, tmp_path: Path) -> None:
+        """Verify config icon preserved."""
         root = _make_project_godot(tmp_path)
         (root / "project.godot").write_text(
             "config_version=5\n\n"
@@ -412,6 +455,7 @@ class TestBytePreservation:
         assert new_sec.get("application", {}).get("config/icon") == '"res://icon.svg"'
 
     def test_determinism(self, tmp_path: Path) -> None:
+        """Verify determinism."""
         root = _make_project_godot(tmp_path)
         a = plan_update_input_actions(
             root, add=[("dash", '{\n"deadzone": 0.25,\n"events": []\n}\n')]
@@ -431,7 +475,10 @@ class TestBytePreservation:
 
 
 class TestPlanUpdateAutoloads:
+    """Tests for plan update autoloads."""
+
     def test_add_autoload(self, tmp_path: Path) -> None:
+        """Verify add autoload."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(
             root,
@@ -441,6 +488,7 @@ class TestPlanUpdateAutoloads:
         assert patch.plan.operations[0].reason == "update autoloads"
 
     def test_remove_autoload(self, tmp_path: Path) -> None:
+        """Verify remove autoload."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, remove=["GameState"])
         _assert_patch_has_plan_and_content(patch, root)
@@ -449,6 +497,7 @@ class TestPlanUpdateAutoloads:
         assert "GameState" not in names
 
     def test_set_singleton(self, tmp_path: Path) -> None:
+        """Verify set singleton."""
         root = _make_project_godot(tmp_path)
         (root / "project.godot").write_text(
             "config_version=5\n\n"
@@ -485,6 +534,7 @@ class TestPlanUpdateAutoloads:
         assert gs.path == "res://scripts/game_state.gd"
 
     def test_add_nonexistent_path_rejected(self, tmp_path: Path) -> None:
+        """Verify add nonexistent path rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="res://"):
             plan_update_autoloads(
@@ -493,6 +543,7 @@ class TestPlanUpdateAutoloads:
             )
 
     def test_add_duplicate_rejected(self, tmp_path: Path) -> None:
+        """Verify add duplicate rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="already present"):
             plan_update_autoloads(
@@ -501,11 +552,13 @@ class TestPlanUpdateAutoloads:
             )
 
     def test_remove_nonexistent_rejected(self, tmp_path: Path) -> None:
+        """Verify remove nonexistent rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="not present"):
             plan_update_autoloads(root, remove=["NoSuch"])
 
     def test_set_singleton_nonexistent_rejected(self, tmp_path: Path) -> None:
+        """Verify set singleton nonexistent rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="not present"):
             plan_update_autoloads(
@@ -514,6 +567,7 @@ class TestPlanUpdateAutoloads:
             )
 
     def test_plan_id_derived_from_ops(self, tmp_path: Path) -> None:
+        """Verify plan id derived from ops."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(
             root,
@@ -525,6 +579,7 @@ class TestPlanUpdateAutoloads:
         assert "+" in patch.plan.id or "-" in patch.plan.id or "~" in patch.plan.id
 
     def test_preserves_unrelated_settings(self, tmp_path: Path) -> None:
+        """Verify preserves unrelated settings."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, remove=["GameState"])
         new = _write_and_parse(patch.desired_content)
@@ -535,6 +590,7 @@ class TestPlanUpdateAutoloads:
         assert dict(new.renderer_settings) == {"renderer/rendering_method": "gl_compatibility"}
 
     def test_noop_produces_no_plan_and_original_bytes(self, tmp_path: Path) -> None:
+        """Verify noop produces no plan and original bytes."""
         root = _make_project_godot(tmp_path)
         original = (root / "project.godot").read_bytes()
         patch = plan_update_autoloads(root)  # no ops → no plan
@@ -549,7 +605,10 @@ class TestPlanUpdateAutoloads:
 
 
 class TestPlanUpdateInputActions:
+    """Tests for plan update input actions."""
+
     def test_add_action(self, tmp_path: Path) -> None:
+        """Verify add action."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.25,\n"events": []\n}\n'
         patch = plan_update_input_actions(
@@ -559,6 +618,7 @@ class TestPlanUpdateInputActions:
         _assert_patch_has_plan_and_content(patch, root)
 
     def test_remove_action(self, tmp_path: Path) -> None:
+        """Verify remove action."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, remove=["jump"])
         _assert_patch_has_plan_and_content(patch, root)
@@ -566,6 +626,7 @@ class TestPlanUpdateInputActions:
         assert {a.name for a in new.input_actions} == set()
 
     def test_clear_and_add(self, tmp_path: Path) -> None:
+        """Verify clear and add."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.5,\n"events": []\n}\n'
         patch = plan_update_input_actions(
@@ -579,11 +640,13 @@ class TestPlanUpdateInputActions:
         assert new.input_actions[0].name == "new_action"
 
     def test_remove_nonexistent_rejected(self, tmp_path: Path) -> None:
+        """Verify remove nonexistent rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="not present"):
             plan_update_input_actions(root, remove=["NoSuch"])
 
     def test_add_duplicate_without_clear_rejected(self, tmp_path: Path) -> None:
+        """Verify add duplicate without clear rejected."""
         root = _make_project_godot(tmp_path)
         raw = '{\n"deadzone": 0.5,\n"events": []\n}\n'
         with pytest.raises(ValueError, match="already present"):
@@ -593,6 +656,7 @@ class TestPlanUpdateInputActions:
             )
 
     def test_preserves_unrelated(self, tmp_path: Path) -> None:
+        """Verify preserves unrelated."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, remove=["jump"])
         new = _write_and_parse(patch.desired_content)
@@ -623,6 +687,7 @@ class TestInputActionLiteralValidation:
     GOOD_NESTED = '{"deadzone": 0.1, "events": [Object(InputEventJoypadButton,"a":(1))]}'
 
     def _sections(self, patch: ProjectGodotPatch) -> dict:
+        """Sections."""
         with tempfile.TemporaryDirectory() as td:
             t = Path(td)
             (t / "project.godot").write_bytes(patch.desired_content)
@@ -631,6 +696,7 @@ class TestInputActionLiteralValidation:
     # -- accepted ------------------------------------------------------
 
     def test_accepts_minimal_empty_events(self, tmp_path: Path) -> None:
+        """Verify accepts minimal empty events."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, add=[("dash", self.GOOD_MINIMAL)])
         _assert_patch_has_plan_and_content(patch, root)
@@ -640,6 +706,7 @@ class TestInputActionLiteralValidation:
         assert dash.event_count == 0
 
     def test_accepts_literal_with_object_event(self, tmp_path: Path) -> None:
+        """Verify accepts literal with object event."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, add=[("dash", self.GOOD_WITH_EVENT)])
         new = _write_and_parse(patch.desired_content)
@@ -648,6 +715,7 @@ class TestInputActionLiteralValidation:
         assert dash.event_count == 1
 
     def test_accepts_nested_delimiters(self, tmp_path: Path) -> None:
+        """Verify accepts nested delimiters."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, add=[("dash", self.GOOD_NESTED)])
         _assert_patch_has_plan_and_content(patch, root)
@@ -672,6 +740,7 @@ class TestInputActionLiteralValidation:
         assert patch1.plan.operations[0].desired_hash == patch2.plan.operations[0].desired_hash
 
     def test_unrelated_actions_and_settings_preserved(self, tmp_path: Path) -> None:
+        """Verify unrelated actions and settings preserved."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_input_actions(root, add=[("dash", self.GOOD_WITH_EVENT)])
         sections = self._sections(patch)
@@ -687,11 +756,13 @@ class TestInputActionLiteralValidation:
 
     @pytest.mark.parametrize("raw", ["", "   ", "\n\n"])
     def test_rejects_empty_literal(self, tmp_path: Path, raw: str) -> None:
+        """Verify rejects empty literal."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="non-empty"):
             plan_update_input_actions(root, add=[("dash", raw)])
 
     def test_rejects_carriage_return(self, tmp_path: Path) -> None:
+        """Verify rejects carriage return."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="carriage return"):
             plan_update_input_actions(
@@ -699,6 +770,7 @@ class TestInputActionLiteralValidation:
             )
 
     def test_rejects_not_a_dict(self, tmp_path: Path) -> None:
+        """Verify rejects not a dict."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="dict literal"):
             plan_update_input_actions(root, add=[("dash", '["deadzone"]')])
@@ -713,6 +785,7 @@ class TestInputActionLiteralValidation:
         ],
     )
     def test_rejects_unbalanced_brackets(self, tmp_path: Path, raw: str) -> None:
+        """Verify rejects unbalanced brackets."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="unbalanced|closing brace"):
             plan_update_input_actions(root, add=[("dash", raw)])
@@ -727,6 +800,7 @@ class TestInputActionLiteralValidation:
         ],
     )
     def test_rejects_malformed_object_expression(self, tmp_path: Path, raw: str) -> None:
+        """Verify rejects malformed object expression."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="malformed Object"):
             plan_update_input_actions(root, add=[("dash", raw)])
@@ -742,12 +816,14 @@ class TestInputActionLiteralValidation:
         assert "evil" not in (root / "project.godot").read_text(encoding="utf-8")
 
     def test_rejects_key_injection_after_dict(self, tmp_path: Path) -> None:
+        """Verify rejects key injection after dict."""
         root = _make_project_godot(tmp_path)
         raw = '{"deadzone": 0.5, "events": []}\nother_key="evil"'
         with pytest.raises(ValueError, match="content after the closing brace"):
             plan_update_input_actions(root, add=[("dash", raw)])
 
     def test_rejects_unterminated_string(self, tmp_path: Path) -> None:
+        """Verify rejects unterminated string."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="unterminated string"):
             plan_update_input_actions(root, add=[("dash", '{"deadzone": "0.5}')])
@@ -767,11 +843,13 @@ class TestInputActionLiteralValidation:
         ],
     )
     def test_rejects_invalid_action_names(self, tmp_path: Path, name: str) -> None:
+        """Verify rejects invalid action names."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="input action name"):
             plan_update_input_actions(root, add=[(name, self.GOOD_MINIMAL)])
 
     def test_rejected_plan_leaves_file_untouched(self, tmp_path: Path) -> None:
+        """Verify rejected plan leaves file untouched."""
         root = _make_project_godot(tmp_path)
         before = (root / "project.godot").read_bytes()
         with pytest.raises(ValueError):
@@ -781,21 +859,25 @@ class TestInputActionLiteralValidation:
     # -- sibling-adapter key safety ------------------------------------
 
     def test_rejects_invalid_autoload_name(self, tmp_path: Path) -> None:
+        """Verify rejects invalid autoload name."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="autoload name"):
             plan_update_autoloads(root, add=[("Bad\n[x]", "res://a.gd")])
 
     def test_rejects_newline_in_layer_key(self, tmp_path: Path) -> None:
+        """Verify rejects newline in layer key."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="newlines"):
             plan_update_physics_layer_names(root, set={"a\nb": "World"})
 
     def test_rejects_newline_in_layer_value(self, tmp_path: Path) -> None:
+        """Verify rejects newline in layer value."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="newlines"):
             plan_update_physics_layer_names(root, set={"2d_physics/layer_1": "A\n[evil]"})
 
     def test_rejects_newline_in_renderer_value(self, tmp_path: Path) -> None:
+        """Verify rejects newline in renderer value."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="newlines"):
             plan_update_renderer_settings(root, set={"renderer/rendering_method": "a\n[evil]"})
@@ -807,7 +889,10 @@ class TestInputActionLiteralValidation:
 
 
 class TestPlanUpdatePhysicsLayerNames:
+    """Tests for plan update physics layer names."""
+
     def test_set_layer(self, tmp_path: Path) -> None:
+        """Verify set layer."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -816,6 +901,7 @@ class TestPlanUpdatePhysicsLayerNames:
         _assert_patch_has_plan_and_content(patch, root)
 
     def test_remove_layer(self, tmp_path: Path) -> None:
+        """Verify remove layer."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(root, remove=["2d_physics/layer_1"])
         _assert_patch_has_plan_and_content(patch, root)
@@ -823,6 +909,7 @@ class TestPlanUpdatePhysicsLayerNames:
         assert dict(new.physics_layer_names) == {}
 
     def test_clear_and_set(self, tmp_path: Path) -> None:
+        """Verify clear and set."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(
             root,
@@ -834,11 +921,13 @@ class TestPlanUpdatePhysicsLayerNames:
         assert dict(new.physics_layer_names) == {"3d_physics/layer_1": "World"}
 
     def test_remove_nonexistent_rejected(self, tmp_path: Path) -> None:
+        """Verify remove nonexistent rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="not present"):
             plan_update_physics_layer_names(root, remove=["NoSuch"])
 
     def test_set_empty_value_rejected(self, tmp_path: Path) -> None:
+        """Verify set empty value rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="non-empty"):
             plan_update_physics_layer_names(
@@ -847,6 +936,7 @@ class TestPlanUpdatePhysicsLayerNames:
             )
 
     def test_preserves_unrelated(self, tmp_path: Path) -> None:
+        """Verify preserves unrelated."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_physics_layer_names(root, set={"2d_physics/layer_1": "Ground"})
         new = _write_and_parse(patch.desired_content)
@@ -860,7 +950,10 @@ class TestPlanUpdatePhysicsLayerNames:
 
 
 class TestPlanUpdateRendererSettings:
+    """Tests for plan update renderer settings."""
+
     def test_set_setting(self, tmp_path: Path) -> None:
+        """Verify set setting."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -869,6 +962,7 @@ class TestPlanUpdateRendererSettings:
         _assert_patch_has_plan_and_content(patch, root)
 
     def test_remove_setting(self, tmp_path: Path) -> None:
+        """Verify remove setting."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -879,6 +973,7 @@ class TestPlanUpdateRendererSettings:
         assert dict(new.renderer_settings) == {}
 
     def test_clear_and_set(self, tmp_path: Path) -> None:
+        """Verify clear and set."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -890,11 +985,13 @@ class TestPlanUpdateRendererSettings:
         assert dict(new.renderer_settings) == {"renderer/rendering_method": "gl_compatibility"}
 
     def test_remove_nonexistent_rejected(self, tmp_path: Path) -> None:
+        """Verify remove nonexistent rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="not present"):
             plan_update_renderer_settings(root, remove=["NoSuch"])
 
     def test_set_empty_value_rejected(self, tmp_path: Path) -> None:
+        """Verify set empty value rejected."""
         root = _make_project_godot(tmp_path)
         with pytest.raises(ValueError, match="non-empty"):
             plan_update_renderer_settings(
@@ -903,6 +1000,7 @@ class TestPlanUpdateRendererSettings:
             )
 
     def test_preserves_unrelated(self, tmp_path: Path) -> None:
+        """Verify preserves unrelated."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_renderer_settings(
             root,
@@ -919,7 +1017,10 @@ class TestPlanUpdateRendererSettings:
 
 
 class TestPlanStructure:
+    """Tests for plan structure."""
+
     def test_all_adapters_produce_update_on_project_godot(self, tmp_path: Path) -> None:
+        """Verify all adapters produce update on project godot."""
         root = _make_project_godot(tmp_path)
         patches = [
             plan_update_autoloads(root, add=[("X", "res://x.gd")]),
@@ -934,12 +1035,14 @@ class TestPlanStructure:
             _assert_plan_is_update_project_godot(p.plan)
 
     def test_patch_desired_hash_matches_content(self, tmp_path: Path) -> None:
+        """Verify patch desired hash matches content."""
         root = _make_project_godot(tmp_path)
         patch = plan_update_autoloads(root, add=[("X", "res://x.gd")])
         want = hashlib.sha256(patch.desired_content).hexdigest()
         assert patch.plan.operations[0].desired_hash == want
 
     def test_expected_hash_matches_current_file(self, tmp_path: Path) -> None:
+        """Verify expected hash matches current file."""
         root = _make_project_godot(tmp_path)
         current = _file_hash(root, "project.godot")
         patch = plan_update_autoloads(root, add=[("X", "res://x.gd")])
@@ -952,7 +1055,10 @@ class TestPlanStructure:
 
 
 class TestStalenessAndPreconditions:
+    """Tests for staleness and preconditions."""
+
     def test_malformed_config_name_rejected_at_plan_time(self, tmp_path: Path) -> None:
+        """Verify malformed config name rejected at plan time."""
         from godotforge_core.scan.profile import ProfileError
 
         root = tmp_path / "bad"
@@ -965,6 +1071,7 @@ class TestStalenessAndPreconditions:
             plan_update_autoloads(root)
 
     def test_missing_project_godot_rejected(self, tmp_path: Path) -> None:
+        """Verify missing project godot rejected."""
         from godotforge_core.scan.profile import ProfileError
 
         empty = tmp_path / "empty"
@@ -997,12 +1104,14 @@ class TestAmbiguityRejection:
     """Ambiguous or malformed targeted sections are rejected, not rewritten."""
 
     def _write(self, tmp_path: Path, content: str) -> Path:
+        """Write."""
         root = tmp_path / "proj"
         root.mkdir()
         (root / "project.godot").write_text(content, encoding="utf-8")
         return root
 
     def test_duplicate_section_header_rejected(self, tmp_path: Path) -> None:
+        """Verify duplicate section header rejected."""
         from godotforge_core.patch.project_godot_plan import AdapterError
 
         root = self._write(
@@ -1021,6 +1130,7 @@ class TestAmbiguityRejection:
             plan_update_autoloads(root, remove=["GameState"])
 
     def test_duplicate_key_in_targeted_section_rejected(self, tmp_path: Path) -> None:
+        """Verify duplicate key in targeted section rejected."""
         from godotforge_core.patch.project_godot_plan import AdapterError
 
         root = self._write(
@@ -1057,6 +1167,7 @@ class TestAmbiguityRejection:
         assert patch.desired_content.count(b"renderer/x=") == 2
 
     def test_unterminated_multiline_value_rejected(self, tmp_path: Path) -> None:
+        """Verify unterminated multiline value rejected."""
         from godotforge_core.patch.project_godot_plan import AdapterError
 
         root = self._write(
@@ -1074,6 +1185,7 @@ class TestAmbiguityRejection:
             plan_update_input_actions(root, remove=["jump"])
 
     def test_rejected_ambiguous_request_leaves_file_byte_identical(self, tmp_path: Path) -> None:
+        """Verify rejected ambiguous request leaves file byte identical."""
         from godotforge_core.patch.project_godot_plan import AdapterError
 
         content = (
