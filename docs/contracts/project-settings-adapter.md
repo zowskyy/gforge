@@ -1,4 +1,4 @@
-# Project settings adapters (PATCH-0008)
+# Project settings adapters (PATCH-0008 / PATCH-0010)
 
 Deterministic plan adapters in
 `packages/godotforge-core/src/godotforge_core/patch/project_godot_plan.py`
@@ -9,10 +9,11 @@ the existing patch engine (`check_plan` → `create_backup` → `apply_plan`).
 
 Adapters:
 
-- `plan_update_autoloads(root, add=, remove=, set_singleton=, reason=)`
-- `plan_update_input_actions(root, add=, remove=, clear=, reason=)`
-- `plan_update_physics_layer_names(root, set=, remove=, clear=, reason=)`
-- `plan_update_renderer_settings(root, set=, remove=, clear=, reason=)`
+- `plan_update_autoloads(root, add=, remove=, set_singleton=, reason=)` — `[autoload]`
+- `plan_update_input_actions(root, add=, remove=, clear=, reason=)` — `[input]`
+- `plan_update_physics_layer_names(root, set=, remove=, clear=, reason=)` — `[layer_names]`
+- `plan_update_renderer_settings(root, set=, remove=, clear=, reason=)` — `[rendering]`
+- `plan_update_application_settings(root, set=, remove=, reason=)` — `[application]` (PATCH-0010, core-only)
 
 Each plan is a single `UPDATE` operation on `project.godot` whose
 `expected_hash` is the file's current SHA-256 and whose `desired_hash` is
@@ -114,6 +115,19 @@ name (`_validate_serialized_key`) and raises if one contains a CR, LF,
 null byte, `=`, `[`, or `]`. Public adapters validate before this point,
 so this guard only fires for future callers that bypass them.
 
+## Application settings allowlist (PATCH-0010)
+
+`plan_update_application_settings` targets `[application]` and accepts only:
+
+- `config/name` — required, non-empty, no CR/LF/NUL; cannot be removed
+- `config/description` — optional, non-empty when set, no CR/LF/NUL
+- `config/icon` — optional, `res://…` URI, validated via `_validate_relative_path`, no CR/LF/NUL
+- `run/main_scene` — optional, `res://…` or `uid://…` URI (repository-confirmed forms), validated, no CR/LF/NUL
+
+`local://`/`user://` are not accepted for `run/main_scene` — only `res://` and `uid://` have been observed in `fixtures/golden-2d/project.godot:8-11` and `project-blacktop/project.godot:15-19` and the parser contract. Setting a value equal to the current value is a no-op (`plan is None`). Removing a missing optional key raises `ValueError`; removing `config/name` always raises `ValueError`. Unknown keys, `config_version`, `config/features`, and `boot_splash/*` remain out of scope and are rejected before plan creation. Conflicting `set`+`remove` on the same key raises `ValueError`.
+
+PATCH-0010 does not bootstrap `config/name`: it reuses the existing `_preflight` which requires a valid existing `[application] config/name`. If `config/name` is absent, the adapter raises `ProfileError` and leaves `project.godot` byte-identical; a project lacking `config/name` must first be repaired outside Forge. `config/name` removal is always rejected with `ValueError` and no mutation, and setting `config/name` to its current value is a no-op returning the original bytes unchanged.
+
 ## Failure modes
 
 - missing `project.godot`, symlinked `project.godot`, or a `project.godot`
@@ -122,5 +136,7 @@ so this guard only fires for future callers that bypass them.
   configuration)
 - duplicate add, removing a nonexistent entry, invalid name/key/value, or
   an invalid input-action literal → `ValueError`
+- unknown application key or `config_version`/`config/features`/`boot_splash/*` → `ValueError` (out of scope)
+- conflicting `set`+`remove` on the same key → `ValueError`
 - duplicate section headers, duplicate keys, or unterminated multi-line
   values in the targeted section → `AdapterError`
