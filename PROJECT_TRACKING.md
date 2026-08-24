@@ -666,6 +666,7 @@ Tests:
 
 ### PATCH-0010 — Application settings adapter (core-only)
 
+Commit: fbda9b4abdebe193a66b7446ca43f73053f0e78c
 Status: implementation complete; commit hash recorded below
 
 Implemented:
@@ -676,8 +677,8 @@ Implemented:
 - `tests/unit/test_project_godot_application.py` — set/remove/combined, required-name non-removable, optional removal, unknown keys, duplicate/conflicting, invalid name/description/icon/main_scene, confirmed URI forms (`res://`/`uid://` accept, `local://`/`user://` reject), duplicate header/keys/unterminated → `AdapterError`, LF/CRLF, comments/whitespace/final-newline, unrelated-section identity, determinism, stale hash via `check_plan`, tmp-fixture plan→backup→apply and `parse_project_settings` verification; explicit coverage for missing `config/name` → `ProfileError` no mutation, same-value `config/name` → no-op exact bytes, and `config/name` removal → `ValueError` no mutation.
 
 Tests:
-- New: 36 tests in `test_project_godot_application.py`
-- Full suite at this point: ~449 tests (prior 413 + 36), 5 skipped
+- New: 37 tests in `test_project_godot_application.py`
+- Full suite at this point: 450 passed, 5 skipped (prior 413 + 37)
 
 Known limitations:
 - CLI wiring for `[application]` deferred to PATCH-0011.
