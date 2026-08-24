@@ -4,6 +4,15 @@ from .apply import apply_plan
 from .backup import BackupManifest, create_backup
 from .diff import DiffEntry, render_operation_diff, render_plan_diffs
 from .hashing import compute_plan_hash, hash_bytes, hash_file
+from .journal import (
+    ApplyJournal,
+    JournalEntry,
+    JournalState,
+    load_journal,
+    new_journal,
+    update_entry,
+    write_journal,
+)
 from .models import (
     ALLOWED_TRANSITIONS,
     BackupRecord,
@@ -25,6 +34,13 @@ from .preconditions import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "ApplyJournal",
+    "JournalEntry",
+    "JournalState",
+    "load_journal",
+    "new_journal",
+    "update_entry",
+    "write_journal",
     "BackupManifest",
     "BackupRecord",
     "Conflict",
