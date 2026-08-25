@@ -304,11 +304,15 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
     manifest_hash = payload.get("manifest_hash")
     plan_id = payload.get("plan_id")
     plan_hash = payload.get("plan_hash")
+    if not isinstance(goal_hash, str) or not isinstance(manifest_hash, str):
+        raise ValueError("run_started payload requires goal_hash and manifest_hash strings")
     _check_hash(goal_hash, field="goal_hash")
     _check_hash(manifest_hash, field="manifest_hash")
     if not isinstance(plan_id, str) or not plan_id:
         raise ValueError("run_started payload requires non-empty plan_id")
     if plan_hash is not None:
+        if not isinstance(plan_hash, str):
+            raise ValueError(f"plan_hash must be string or null, got {plan_hash!r}")
         _check_hash(plan_hash, field="plan_hash")
 
     authorization: Authorization | None = None
@@ -368,6 +372,8 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
         if validation_event is None:
             raise ValueError(f"run {run_id} finalized without validation_completed")
         proof = finalized_event.payload.get("proof_hash")
+        if not isinstance(proof, str):
+            raise ValueError(f"proof_hash must be a string, got {proof!r}")
         _check_hash(proof, field="proof_hash")
         proof_hash = proof
         outcome = str(finalized_event.payload.get("outcome"))
