@@ -3,6 +3,29 @@
 Deterministic, offline, AI-free. See ``docs/contracts/hub-v1.md``.
 """
 
+from godotforge_core.hub.definitions import (
+    SPOKE_DEFINITION_SCHEMA_VERSION,
+    Capability,
+    Permission,
+    ProviderDescriptor,
+    SpokeDefinition,
+)
+from godotforge_core.hub.registry import (
+    SPOKE_LEDGER_SCHEMA_VERSION,
+    ActiveRegistration,
+    LedgerAction,
+    RegistryState,
+    SpokeEvent,
+    compute_spoke_event_hash,
+    deregister_spoke,
+    fold_registry,
+    invoke,
+    ledger_path,
+    read_ledger,
+    register_spoke,
+    resolve_capability,
+    verify_ledger,
+)
 from godotforge_core.hub.run_record import (
     RUN_RECORD_SCHEMA_VERSION,
     Authorization,
@@ -21,16 +44,35 @@ from godotforge_core.hub.run_record import (
 
 __all__ = [
     "RUN_RECORD_SCHEMA_VERSION",
+    "SPOKE_DEFINITION_SCHEMA_VERSION",
+    "SPOKE_LEDGER_SCHEMA_VERSION",
+    "ActiveRegistration",
     "Authorization",
+    "Capability",
+    "LedgerAction",
+    "Permission",
+    "ProviderDescriptor",
+    "RegistryState",
     "RunEvent",
     "RunEventKind",
     "RunRecord",
     "RunState",
+    "SpokeDefinition",
+    "SpokeEvent",
     "append_event",
     "compute_event_hash",
     "compute_proof_hash",
+    "compute_spoke_event_hash",
+    "deregister_spoke",
+    "fold_registry",
     "fold_run",
+    "invoke",
+    "ledger_path",
     "read_events",
+    "read_ledger",
+    "register_spoke",
+    "resolve_capability",
     "run_store_path",
     "verify_chain",
+    "verify_ledger",
 ]
