@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.dev/schemas/goal.schema.json",
+  "title": "GodotForge Hub Goal",
+  "description": "User-facing goal document. Compiles deterministically into a CreatorManifest (schema_version 2); the goal is never a second authority on behavior identity or version.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "game"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "game": {
+      "type": "object",
+      "required": [
+        "name",
+        "template"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9 _-]{1,64}$"
+        },
+        "template": {
+          "type": "string",
+          "const": "2d-platformer-minimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "platformer_controller": {
+          "type": "object",
+          "properties": {
+            "speed": {
+              "type": "number",
+              "minimum": 50.0,
+              "maximum": 500.0
+            },
+            "jump_velocity": {
+              "type": "number",
+              "minimum": -1000.0,
+              "maximum": -100.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

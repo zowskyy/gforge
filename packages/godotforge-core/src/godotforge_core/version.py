@@ -7,4 +7,8 @@ SCHEMA_VERSIONS = {
     "project_contract": 1,
     "lock_contract": 1,
     "diagnostic_contract": 1,
+    "goal": 1,
+    "run_record": 1,
+    "spoke_definition": 1,
+    "spoke_ledger": 1,
 }
