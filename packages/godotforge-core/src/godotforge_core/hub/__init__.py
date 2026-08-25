@@ -10,6 +10,16 @@ from godotforge_core.hub.definitions import (
     ProviderDescriptor,
     SpokeDefinition,
 )
+from godotforge_core.hub.goal import (
+    GOAL_SCHEMA_VERSION,
+    ClarificationIssue,
+    GoalCompilation,
+    GoalSpec,
+    compile_goal,
+    compute_goal_hash,
+    load_goal_text,
+    registered_templates,
+)
 from godotforge_core.hub.registry import (
     SPOKE_LEDGER_SCHEMA_VERSION,
     ActiveRegistration,
@@ -43,12 +53,16 @@ from godotforge_core.hub.run_record import (
 )
 
 __all__ = [
+    "GOAL_SCHEMA_VERSION",
     "RUN_RECORD_SCHEMA_VERSION",
     "SPOKE_DEFINITION_SCHEMA_VERSION",
     "SPOKE_LEDGER_SCHEMA_VERSION",
     "ActiveRegistration",
     "Authorization",
     "Capability",
+    "ClarificationIssue",
+    "GoalCompilation",
+    "GoalSpec",
     "LedgerAction",
     "Permission",
     "ProviderDescriptor",
@@ -60,7 +74,9 @@ __all__ = [
     "SpokeDefinition",
     "SpokeEvent",
     "append_event",
+    "compile_goal",
     "compute_event_hash",
+    "compute_goal_hash",
     "compute_proof_hash",
     "compute_spoke_event_hash",
     "deregister_spoke",
@@ -68,9 +84,11 @@ __all__ = [
     "fold_run",
     "invoke",
     "ledger_path",
+    "load_goal_text",
     "read_events",
     "read_ledger",
     "register_spoke",
+    "registered_templates",
     "resolve_capability",
     "run_store_path",
     "verify_chain",
