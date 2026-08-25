@@ -2,13 +2,15 @@
 
 ## Purpose
 
-Godot Forge is a deterministic, version-aware, transaction-safe production
-workbench for building and maintaining Godot games. It orchestrates VS Code,
-the Godot engine, GDScript Toolkit, and GUT around a single project contract
-rather than replacing them. This repository currently contains **Phase 1: the
-Core CLI** — workspace detection, engine discovery, structured configuration,
-versioned JSON output, stable exit codes, and the golden 2D fixture that every
-later subsystem is validated against.
+**Direction (locked): Godot Forge is a non-coder Godot game creator powered by a deterministic patch engine** — it creates playable Godot games from deterministic creator manifests with no coding required (forms/templates/fixtures → manifest → previewable `PatchPlan` → safe apply → `engine validate`). The patch engine is the foundation; the creator is the product.
+
+**North star:** any non-coder can describe a playable Godot game and receive a deterministic, previewable, safely-applied, verifiably-runnable project — every change reversible.
+
+**No-AI invariant (absolute):** PATCH-0012 and all required creator-MVP paths run with no LLM, model runtime, network, API key, telemetry, or generated source. A future natural-language adapter, if added, may output only a candidate `CreatorManifest` that must pass the same schema validation, deterministic planning, preview, approval, apply, and verification pipeline. Planner, template registry, behavior library, scene emitter, `PatchPlan`, transaction engine, and verification have no AI dependency.
+
+North star and manifest/creator contracts: `docs/contracts/creator-manifest.md`. Legacy workbench baseline was `8157c1f`; creator-first repositioning is now locked.
+
+Prior Phase 1 baseline: workspace detection, engine discovery, structured configuration, versioned JSON output, stable exit codes, and the golden 2D fixture that every subsystem is validated against.
 
 ## Build Order (locked decisions)
 
@@ -699,6 +701,14 @@ Tests:
 
 Known limitations:
 - None for application settings; next patch may extend `config/features` or `config_version` handling.
+
+## Direction Change (approved)
+
+- **Strategic repositioning:** from "Godot project patch engine" to "non-coder Godot game creator powered by a deterministic patch engine" (PATCH-0012 planning onwards). North star and No-AI invariant recorded in `README.md:2` and `docs/contracts/creator-manifest.md:1`.
+- PATCH-0012 is the Creator Manifest Planning Slice — six-operation, planning-only (`MKDIR scenes`, `MKDIR scripts`, `CREATE project.godot`, `CREATE scenes/main.tscn`, `CREATE scripts/player_controller.gd`, `CREATE scripts/coin.gd`).
+- No `apply`/`backup`/`rollback`/CLI wiring in PATCH-0012; deterministic TSCN order (`gd_scene` → `ext_resource` → `sub_resource` → `node`, `load_steps=6`), `Polygon2D` visuals, `Player (0,48)` center 64px above ground top (`Ground (0,128)` 800×32 → top 112), `Coin (160,100)` resting, fixed `move_left→ui_left` / `move_right→ui_right` / `jump→ui_accept`, empty/template preflight states A/B/C, UID proof gate via pinned Godot import.
+- `PATCH-0012` and creator-MVP follow-ups remain offline/AI-free; natural-language, if added later, outputs only candidate manifests.
+- No adapter-only expansion; do not silently alter UID/scene output on Godot rejection — pause and report failing evidence.
 
 ## Known Gaps
 

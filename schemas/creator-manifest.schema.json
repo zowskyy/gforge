@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.local/schemas/creator-manifest.schema.json",
+  "title": "GodotForge CreatorManifest v1 (internal contract)",
+  "description": "Deterministic, offline, AI-free manifest for the Creator Manifest Planning Slice (PATCH-0012). No LLM, network, telemetry, or generated source is used. Manifests are produced by forms/templates/fixtures.",
+  "type": "object",
+  "required": ["schema_version", "game", "input"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version — must be 1 for PATCH-0012."
+    },
+    "game": {
+      "type": "object",
+      "required": ["name", "template"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9 _-]+$",
+          "description": "Game name — validated no CR/LF/NUL, used for project.godot config/name."
+        },
+        "template": {
+          "type": "string",
+          "const": "2d-platformer-minimal",
+          "description": "Allowed template in PATCH-0012."
+        }
+      }
+    },
+    "input": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Exactly three inputs — move_left, move_right, jump — each once, fixed bindings.",
+      "items": {
+        "type": "object",
+        "required": ["name", "binding"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["move_left", "move_right", "jump"]
+          },
+          "binding": {
+            "type": "string",
+            "description": "Fixed v1 binding per name."
+          }
+        }
+      }
+    }
+  },
+  "creator_fixed_bindings_note": "Fixed v1 bindings (enforced in godotforge_core/creator/manifest.py, not in JSON Schema alone): move_left→ui_left, move_right→ui_right, jump→ui_accept. Exactly one of each, no duplicates/omissions/unknown names."
+}
