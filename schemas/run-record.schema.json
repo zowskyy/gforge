@@ -34,6 +34,7 @@
         "authorized",
         "needs_validation",
         "finalized",
+        "failed",
         "interrupted"
       ]
     },

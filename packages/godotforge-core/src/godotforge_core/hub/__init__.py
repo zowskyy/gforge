@@ -3,6 +3,12 @@
 Deterministic, offline, AI-free. See ``docs/contracts/hub-v1.md``.
 """
 
+from godotforge_core.hub.approval import (
+    APPROVAL_MODE_EXPLICIT_CLI,
+    APPROVAL_SCOPE_APPLY,
+    record_explicit_cli_authorization,
+    require_authorization,
+)
 from godotforge_core.hub.definitions import (
     SPOKE_DEFINITION_SCHEMA_VERSION,
     Capability,
@@ -53,6 +59,8 @@ from godotforge_core.hub.run_record import (
 )
 
 __all__ = [
+    "APPROVAL_MODE_EXPLICIT_CLI",
+    "APPROVAL_SCOPE_APPLY",
     "GOAL_SCHEMA_VERSION",
     "RUN_RECORD_SCHEMA_VERSION",
     "SPOKE_DEFINITION_SCHEMA_VERSION",
@@ -87,8 +95,10 @@ __all__ = [
     "load_goal_text",
     "read_events",
     "read_ledger",
+    "record_explicit_cli_authorization",
     "register_spoke",
     "registered_templates",
+    "require_authorization",
     "resolve_capability",
     "run_store_path",
     "verify_chain",

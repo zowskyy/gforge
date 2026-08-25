@@ -16,7 +16,7 @@ import click
 from godotforge_core.creator.loading import load_json_manifest, load_yaml_manifest
 from godotforge_core.creator.manifest import CreatorPreflightError
 from godotforge_core.creator.plan import plan_creator_manifest
-from godotforge_core.detection.workspace import find_workspace
+from godotforge_core.detection.workspace import resolve_forge_project_root
 from godotforge_core.exit_codes import ForgeExitCode
 from godotforge_core.output import OutputFormat, build_envelope
 from godotforge_core.patch.apply import apply_plan
@@ -41,28 +41,18 @@ except ImportError:
 def _resolve_root(ctx: click.Context) -> Path:
     """_resolve_root — production helper.
 
-    F-002: a user-supplied ``--project`` root that is itself a symlink is
-    rejected before any resolve()/workspace discovery, matching the core
-    ``verify_creator_project``/``_secure_copy`` invariant.
+    Delegates to the shared Forge root resolver
+    (:func:`godotforge_core.detection.workspace.resolve_forge_project_root`),
+    which rejects an unresolved symlink root before any resolve()/workspace
+    discovery (F-002) and preserves the State A/B template-root fallback.
     """
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
-    if start.is_symlink():
-        reraise(
-            ValueError(f"symlink project root rejected: {start}"),
-            code=ForgeExitCode.CONFIGURATION_FAILURE,
-        )
-    # Creator supports empty/template roots (State A/B) where no
-    # project.godot/.godotforge/project.yaml exists yet; find_workspace
-    # would return None there. Fall back to the explicit start dir.
-    found = find_workspace(start)
-    if found is not None:
-        return found
-    start_resolved = start.resolve()
-    if start_resolved.is_dir():
-        return start_resolved
-    click.echo("no Godot project found", err=True)
-    raise click.exceptions.Exit(int(ForgeExitCode.CONFIGURATION_FAILURE))
+    try:
+        return resolve_forge_project_root(start)
+    except ValueError as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+        return start  # unreachable: reraise always raises
 
 
 def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:

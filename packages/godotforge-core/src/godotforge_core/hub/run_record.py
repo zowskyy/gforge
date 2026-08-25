@@ -40,28 +40,40 @@ class RunState(StrEnum):
     AUTHORIZED = "authorized"
     NEEDS_VALIDATION = "needs_validation"
     FINALIZED = "finalized"
+    FAILED = "failed"
     INTERRUPTED = "interrupted"
 
 
 class RunEventKind(StrEnum):
-    """RunEventKind — append-only event kinds in lifecycle order."""
+    """RunEventKind — append-only event kinds in lifecycle order.
+
+    ``run_failed`` closes a run from any pre-final state for known safe
+    failures (demonstrably non-mutating, or fully evidenced rejections);
+    ``run_interrupted`` is reserved for ambiguous crash/process-loss states.
+    """
 
     RUN_STARTED = "run_started"
     AUTHORIZATION_RECORDED = "authorization_recorded"
     APPLY_COMMITTED = "apply_committed"
     VALIDATION_COMPLETED = "validation_completed"
     RUN_FINALIZED = "run_finalized"
+    RUN_FAILED = "run_failed"
     RUN_INTERRUPTED = "run_interrupted"
 
 
 # Strict lifecycle order; each kind may appear at most once per run, and
-# run_interrupted terminates the run from any pre-final state.
+# run_failed / run_interrupted terminate the run from any pre-final state.
 _EVENT_ORDER: tuple[RunEventKind, ...] = (
     RunEventKind.RUN_STARTED,
     RunEventKind.AUTHORIZATION_RECORDED,
     RunEventKind.APPLY_COMMITTED,
     RunEventKind.VALIDATION_COMPLETED,
     RunEventKind.RUN_FINALIZED,
+)
+
+# Terminal event kinds — at most one may appear per run.
+_TERMINAL_KINDS = frozenset(
+    {RunEventKind.RUN_FINALIZED, RunEventKind.RUN_FAILED, RunEventKind.RUN_INTERRUPTED}
 )
 
 _AUTHORIZATION_MODES = frozenset({"explicit_cli", "human_interactive", "ci_token"})
@@ -269,9 +281,13 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
     """fold_run — fold one run's events into its current RunRecord state.
 
     Enforces lifecycle order (each kind at most once, in ``_EVENT_ORDER``
-    sequence, ``run_interrupted`` terminal from any pre-final state) and the
-    authorization binding: the recorded authorization ``plan_hash`` must equal
-    the run's plan hash. Raises ``ValueError`` on unknown runs or violations.
+    sequence), terminal exclusivity (at most one of ``run_finalized`` /
+    ``run_failed`` / ``run_interrupted``, from any pre-final state), the
+    authorization binding (the recorded authorization ``plan_hash`` must
+    equal the run's plan hash), and no-op purity (a null-``plan_hash`` run
+    carries no authorization/apply/validation events and may finalize
+    without ``validation_completed``). Raises ``ValueError`` on unknown runs
+    or violations.
     """
     _check_run_id(run_id)
     mine = [event for event in events if event.run_id == run_id]
@@ -280,12 +296,17 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
 
     seen: dict[RunEventKind, RunEvent] = {}
     highest = -1
+    terminal: RunEventKind | None = None
     for event in mine:
         if event.kind in seen:
             raise ValueError(f"duplicate event kind {event.kind.value!r} in {run_id}")
-        if event.kind == RunEventKind.RUN_INTERRUPTED:
-            if RunEventKind.RUN_FINALIZED in seen:
-                raise ValueError(f"run {run_id} interrupted after finalize")
+        if event.kind in (RunEventKind.RUN_FAILED, RunEventKind.RUN_INTERRUPTED):
+            if terminal is not None:
+                raise ValueError(
+                    f"run {run_id} has multiple terminal events: "
+                    f"{terminal.value!r} then {event.kind.value!r}"
+                )
+            terminal = event.kind
             seen[event.kind] = event
             continue
         order = _EVENT_ORDER.index(event.kind)
@@ -294,6 +315,13 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
                 f"event {event.kind.value!r} out of lifecycle order in {run_id}"
             )
         highest = order
+        if event.kind in _TERMINAL_KINDS:
+            if terminal is not None:
+                raise ValueError(
+                    f"run {run_id} has multiple terminal events: "
+                    f"{terminal.value!r} then {event.kind.value!r}"
+                )
+            terminal = event.kind
         seen[event.kind] = event
 
     started = seen.get(RunEventKind.RUN_STARTED)
@@ -314,6 +342,19 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
         if not isinstance(plan_hash, str):
             raise ValueError(f"plan_hash must be string or null, got {plan_hash!r}")
         _check_hash(plan_hash, field="plan_hash")
+
+    # No-op purity: a null-planHash run records goal/manifest/plan identity
+    # plus a direct finalize only — never authorization, apply, or validation.
+    if plan_hash is None:
+        for forbidden in (
+            RunEventKind.AUTHORIZATION_RECORDED,
+            RunEventKind.APPLY_COMMITTED,
+            RunEventKind.VALIDATION_COMPLETED,
+        ):
+            if forbidden in seen:
+                raise ValueError(
+                    f"no-op run {run_id} (plan_hash null) must not contain {forbidden.value!r}"
+                )
 
     authorization: Authorization | None = None
     auth_event = seen.get(RunEventKind.AUTHORIZATION_RECORDED)
@@ -369,7 +410,9 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
     outcome: str | None = None
     finalized_event = seen.get(RunEventKind.RUN_FINALIZED)
     if finalized_event is not None:
-        if validation_event is None:
+        # No-op runs (plan_hash null) finalize directly; mutating runs must
+        # record validation evidence before finalization.
+        if validation_event is None and plan_hash is not None:
             raise ValueError(f"run {run_id} finalized without validation_completed")
         proof = finalized_event.payload.get("proof_hash")
         if not isinstance(proof, str):
@@ -378,7 +421,15 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
         proof_hash = proof
         outcome = str(finalized_event.payload.get("outcome"))
 
-    if RunEventKind.RUN_INTERRUPTED in seen:
+    failed_event = seen.get(RunEventKind.RUN_FAILED)
+    if failed_event is not None:
+        reason = failed_event.payload.get("reason")
+        if not isinstance(reason, str) or not reason:
+            raise ValueError("run_failed payload requires a non-empty reason string")
+
+    if RunEventKind.RUN_FAILED in seen:
+        state = RunState.FAILED
+    elif RunEventKind.RUN_INTERRUPTED in seen:
         state = RunState.INTERRUPTED
     elif finalized_event is not None:
         state = RunState.FINALIZED

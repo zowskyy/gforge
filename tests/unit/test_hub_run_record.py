@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from godotforge_core.hub.run_record import (
@@ -280,3 +281,121 @@ def test_null_plan_hash_allowed_for_noop(tmp_path: Path) -> None:
     record = fold_run(read_events(tmp_path), RUN)
     assert record.plan_hash is None
     assert record.state == RunState.STARTED
+
+
+def test_fold_failed_state(tmp_path: Path) -> None:
+    """run_failed closes a run from a pre-final state; failed runs unprovable."""
+    _start(tmp_path)
+    append_event(tmp_path, RUN, RunEventKind.AUTHORIZATION_RECORDED, AUTH_PAYLOAD)
+    append_event(
+        tmp_path,
+        RUN,
+        RunEventKind.RUN_FAILED,
+        {"reason": "precondition_conflict", "stage": "preconditions"},
+    )
+    record = fold_run(read_events(tmp_path), RUN)
+    assert record.state == RunState.FAILED
+    assert record.proof_hash is None
+    with pytest.raises(ValueError, match="finalized"):
+        compute_proof_hash(record)
+
+
+def test_terminal_exclusivity_failed_then_interrupted(tmp_path: Path) -> None:
+    """At most one terminal event per run: failed then interrupted rejected."""
+    _start(tmp_path)
+    append_event(tmp_path, RUN, RunEventKind.RUN_FAILED, {"reason": "apply_failed"})
+    append_event(tmp_path, RUN, RunEventKind.RUN_INTERRUPTED, {"reason": "crash"})
+    with pytest.raises(ValueError, match="multiple terminal events"):
+        fold_run(read_events(tmp_path), RUN)
+
+
+def test_terminal_exclusivity_finalized_then_failed(tmp_path: Path) -> None:
+    """At most one terminal event per run: finalized then failed rejected."""
+    _full_run(tmp_path)
+    record = fold_run(read_events(tmp_path), RUN)
+    proof = compute_proof_hash_forced(record)
+    append_event(tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof})
+    append_event(tmp_path, RUN, RunEventKind.RUN_FAILED, {"reason": "apply_failed"})
+    with pytest.raises(ValueError, match="multiple terminal events"):
+        fold_run(read_events(tmp_path), RUN)
+
+
+def test_terminal_exclusivity_interrupted_after_finalize(tmp_path: Path) -> None:
+    """Interrupted after finalize remains rejected under the generalized rule."""
+    _full_run(tmp_path)
+    record = fold_run(read_events(tmp_path), RUN)
+    proof = compute_proof_hash_forced(record)
+    append_event(tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof})
+    append_event(tmp_path, RUN, RunEventKind.RUN_INTERRUPTED, {"reason": "crash"})
+    with pytest.raises(ValueError, match="multiple terminal events"):
+        fold_run(read_events(tmp_path), RUN)
+
+
+def test_run_failed_requires_reason(tmp_path: Path) -> None:
+    """run_failed without a non-empty reason is a fold error."""
+    _start(tmp_path)
+    append_event(tmp_path, RUN, RunEventKind.RUN_FAILED, {"stage": "apply"})
+    with pytest.raises(ValueError, match="reason"):
+        fold_run(read_events(tmp_path), RUN)
+
+
+def _noop_proof(record) -> str:
+    """_noop_proof — expected proof body for a no-op finalized run."""
+    import hashlib
+
+    body = {
+        "schema_version": RUN_RECORD_SCHEMA_VERSION,
+        "goal_hash": record.goal_hash,
+        "manifest_hash": record.manifest_hash,
+        "plan_id": record.plan_id,
+        "plan_hash": record.plan_hash,
+        "artifact_hash": record.artifact_hash,
+        "engine": record.engine,
+        "validation": record.validation,
+        "outcome": "noop",
+    }
+    canon = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def test_noop_finalize_without_validation_allowed(tmp_path: Path) -> None:
+    """Null-planHash no-op run finalizes directly with outcome noop and proof."""
+    payload: dict[str, Any] = dict(START_PAYLOAD)
+    payload["plan_hash"] = None
+    append_event(tmp_path, RUN, RunEventKind.RUN_STARTED, payload)
+    record = fold_run(read_events(tmp_path), RUN)
+    proof = _noop_proof(record)
+    append_event(
+        tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "noop", "proof_hash": proof}
+    )
+    final = fold_run(read_events(tmp_path), RUN)
+    assert final.state == RunState.FINALIZED
+    assert final.outcome == "noop"
+    assert final.validation is None
+    assert compute_proof_hash(final) == proof
+    # The folded no-op record validates against the packaged schema.
+    from importlib.resources import files
+
+    import jsonschema
+
+    schema = json.loads(
+        (files("godotforge_core") / "schemas" / "run-record.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    jsonschema.validate(final.as_dict(), schema)
+
+
+def test_noop_purity_rejects_authorization_apply_validation(tmp_path: Path) -> None:
+    """A null-planHash run must not contain authorization/apply/validation."""
+    payload: dict[str, Any] = dict(START_PAYLOAD)
+    payload["plan_hash"] = None
+    for run_id, kind, event_payload in (
+        ("run-000000000001", RunEventKind.AUTHORIZATION_RECORDED, AUTH_PAYLOAD),
+        ("run-000000000002", RunEventKind.APPLY_COMMITTED, APPLY_PAYLOAD),
+        ("run-000000000003", RunEventKind.VALIDATION_COMPLETED, VALIDATION_PAYLOAD),
+    ):
+        append_event(tmp_path, run_id, RunEventKind.RUN_STARTED, payload)
+        append_event(tmp_path, run_id, kind, event_payload)
+        with pytest.raises(ValueError, match="no-op run"):
+            fold_run(read_events(tmp_path), run_id)

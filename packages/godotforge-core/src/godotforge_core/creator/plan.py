@@ -68,6 +68,19 @@ def _plan_id_for(manifest: CreatorManifest) -> str:
     return f"cr-{short}"
 
 
+def plan_id_for(manifest: CreatorManifest) -> str:
+    """plan_id_for — public manifest-derived plan id for Hub/CLI seams."""
+    return _plan_id_for(manifest)
+
+
+def canonical_manifest_hash(manifest: CreatorManifest) -> str:
+    """canonical_manifest_hash — SHA-256 of the canonical manifest JSON.
+
+    This is the ``manifestHash`` recorded in Hub run records (hub-v1 §4).
+    """
+    return hashlib.sha256(_canonical_manifest_json(manifest).encode("utf-8")).hexdigest()
+
+
 def _emit_project_godot(manifest: CreatorManifest) -> bytes:
     """_emit_project_godot — production helper."""
     lines = [
