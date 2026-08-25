@@ -15,6 +15,7 @@ from godotforge_core.patch.diff import render_operation_diff
 from godotforge_core.patch.preconditions import check_plan
 from godotforge_core.patch.project_godot_plan import (
     AdapterError,
+    plan_update_application_settings,
     plan_update_autoloads,
     plan_update_input_actions,
     plan_update_physics_layer_names,
@@ -399,3 +400,41 @@ def renderer(
         _emit_preview(ctx, "project.settings.renderer", patch, original)
         return
     _emit_applied(ctx, "project.settings.renderer", patch, original)
+
+
+@cli.command("application")
+@click.option("--set", "sets", multiple=True, help="Set KEY=VALUE (repeatable).")
+@click.option("--remove", "removes", multiple=True, help="Remove KEY (repeatable).")
+@click.option(
+    "--reason", default="update application settings", show_default=True, help="Patch reason."
+)
+@click.option("--apply", is_flag=True, help="Apply the change (default is preview).")
+@click.pass_context
+def application(
+    ctx: click.Context,
+    sets: tuple[str, ...],
+    removes: tuple[str, ...],
+    reason: str,
+    apply: bool,
+) -> None:
+    """Preview or apply application settings changes."""
+    _check_dry_run_conflict(ctx, apply)
+    root = _resolve_root(ctx)
+    try:
+        set_dict = dict(_parse_key_value(v) for v in sets) if sets else None
+        patch = plan_update_application_settings(
+            root,
+            set=set_dict,
+            remove=list(removes) or None,
+            reason=reason,
+        )
+        original = (root / "project.godot").read_bytes()
+    except (ValueError, ProfileError, AdapterError) as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+    if patch.plan is None:
+        _emit_preview(ctx, "project.settings.application", patch, original)
+        return
+    if not apply:
+        _emit_preview(ctx, "project.settings.application", patch, original)
+        return
+    _emit_applied(ctx, "project.settings.application", patch, original)

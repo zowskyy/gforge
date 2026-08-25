@@ -681,7 +681,24 @@ Tests:
 - Full suite at this point: 450 passed, 5 skipped (prior 413 + 37)
 
 Known limitations:
-- CLI wiring for `[application]` deferred to PATCH-0011.
+- CLI wiring for `[application]` now complete via PATCH-0011.
+
+### PATCH-0011 — CLI wiring for application settings adapter
+
+Commit: b81977f57e5a5ade0c5526d27a6dc2132e92e6a8
+Status: implementation complete; commit hash recorded below
+
+Implemented:
+- `src/godotforge_cli/commands/project_settings.py` — add `application` leaf (`--set KEY=VALUE` repeatable via first-`=` split with last-value-wins, `--remove KEY` repeatable deduplicated, `--reason`, `--apply`) reusing existing helpers `_check_dry_run_conflict`, `_resolve_root`, `_emit_preview`, `_emit_applied`, `_parse_key_value`, `check_plan` → `create_backup` → `apply_plan`; preview default zero writes, `--dry-run` ≡ preview, `--dry-run`+`--apply` → `CONFIGURATION_FAILURE (2)` before I/O, no-op `applied=false noop=true diff=null` exit 0, unknown/invalid/config/name preflight → `2`, stale/apply fail → `4`, envelope `project.settings.application {applied,noop,diff}` across `human/json/jsonl/sarif`, byte-preserving CRLF/LF/final-newline, deterministic diff; no behavior change for `autoload`/`input`/`layers`/`renderer`.
+- `docs/contracts/project-settings-cli.md` — add `application` command shape, `--set` first-`=`/last-wins/`--remove` dedup, 4-key allowlist, and failure-mode note for `config/name`.
+- `tests/cli/test_project_settings_cli.py` — application registration/help, preview/dry-run/conflict/no-op (empty + same-value), set/remove/combined, `=` in value, last-wins, dedup, unknown/invalid, `config/name` missing/same/removal, `res://`/`uid://` vs `local://`/`user://`, ambiguity, stale precondition via `check_plan`, output formats, tmp-fixture apply, byte preservation/determinism, plus `pytest.mark.integration` Blacktop `application` preview read-only guard (`--project` Blacktop, no `--apply`, byte + `mtime_ns` unchanged).
+
+Tests:
+- New CLI: 22 application tests (help through Blacktop guard) added to `test_project_settings_cli.py` (now 44 total); prior 37 core application tests remain.
+- Full suite at this point: 472 passed, 5 skipped (prior 450 + 22)
+
+Known limitations:
+- None for application settings; next patch may extend `config/features` or `config_version` handling.
 
 ## Known Gaps
 

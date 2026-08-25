@@ -1,6 +1,6 @@
-# Project settings CLI (PATCH-0009)
+# Project settings CLI (PATCH-0009 / PATCH-0011)
 
-Deterministic CLI wiring for the four adapters defined in
+Deterministic CLI wiring for the adapters defined in
 `docs/contracts/project-settings-adapter.md`. The CLI is additive and
 read-only by default; only `--apply` performs writes via the existing
 patch engine chain `check_plan` → `create_backup` → `apply_plan`.
@@ -8,10 +8,11 @@ patch engine chain `check_plan` → `create_backup` → `apply_plan`.
 ## Command shape
 
 ```text
-godotforge project settings autoload [--add NAME=res://path] [--remove NAME] [--set-singleton NAME=0|1] [--reason TEXT] [--apply]
-godotforge project settings input    [--add NAME --literal '{...}'] [--remove NAME] [--clear] [--reason TEXT] [--apply]
-godotforge project settings layers   [--set key=value] [--remove KEY] [--clear] [--reason TEXT] [--apply]
-godotforge project settings renderer [--set key=value] [--remove KEY] [--clear] [--reason TEXT] [--apply]
+godotforge project settings autoload    [--add NAME=res://path] [--remove NAME] [--set-singleton NAME=0|1] [--reason TEXT] [--apply]
+godotforge project settings input       [--add NAME --literal '{...}'] [--remove NAME] [--clear] [--reason TEXT] [--apply]
+godotforge project settings layers      [--set key=value] [--remove KEY] [--clear] [--reason TEXT] [--apply]
+godotforge project settings renderer    [--set key=value] [--remove KEY] [--clear] [--reason TEXT] [--apply]
+godotforge project settings application [--set KEY=VALUE] [--remove KEY] [--reason TEXT] [--apply]
 ```
 
 - `--add` (autoload): repeatable `NAME=res://path.gd`; autoload path must be `res://`.
@@ -21,6 +22,8 @@ godotforge project settings renderer [--set key=value] [--remove KEY] [--clear] 
   (see `project-settings-adapter.md`).
 - `--set` (layers/renderer): repeatable `key=value`; keys and values reuse the adapter
   validators (`_validate_relative_path`, no CR/LF, etc.).
+- `--set` (application): repeatable `KEY=VALUE`; `VALUE` may contain `=` (split on first `=` only); duplicate `KEY` uses last-value-wins; keys limited to `config/name`, `config/description`, `config/icon` (`res://`), `run/main_scene` (`res://` or `uid://`).
+- `--remove` (application): repeatable `KEY`; deduplicated; `config/name` cannot be removed.
 - Project root is resolved from the global `--project` via `find_workspace` (same as
   `project inventory`/`profile`/`scan`). No per-command `--root`.
 - `--reason` is forwarded to the adapter `reason` field.
@@ -49,7 +52,7 @@ Commands emit the standard envelope (`schema_version`, `command`, `status`,
 (`human`/`json`/`jsonl`/`sarif`).
 
 ```text
-command: project.settings.<autoload|input|layers|renderer>
+command: project.settings.<autoload|input|layers|renderer|application>
 status:  ok | fail
 data:    { applied: bool, noop: bool, diff: string | null }
 diagnostics: [{ rule, severity, message }] on failure
@@ -92,7 +95,8 @@ are byte-identical. Repeated previews produce identical `diff` bytes.
 ## Failure modes
 
 - missing/escaped `project.godot` or missing `config/name` → `ProfileError` → exit 2
-- duplicate add, missing remove, invalid name/key/value/literal → `ValueError` → exit 2
+  (PATCH-0010/0011 do not bootstrap `config/name`; `config/name` removal always → `ValueError` 2)
+- duplicate add, missing remove, invalid name/key/value/literal, unknown application key → `ValueError` → exit 2
 - duplicate section headers/keys or unterminated multiline in targeted section
   → `AdapterError` → exit 2 (file byte-identical)
 - stale `expected_hash` / precondition mismatch on `--apply` → exit 4
