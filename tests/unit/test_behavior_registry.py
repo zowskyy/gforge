@@ -28,29 +28,25 @@ BASELINE_PLAYER = (
     b"\n"
     b"func _physics_process(_delta: float) -> void:\n"
     b"\tvar direction := 0\n"
-    b"\tif Input.is_action_pressed(\"move_left\"):\n"
+    b'\tif Input.is_action_pressed("move_left"):\n'
     b"\t\tdirection -= 1\n"
-    b"\tif Input.is_action_pressed(\"move_right\"):\n"
+    b'\tif Input.is_action_pressed("move_right"):\n'
     b"\t\tdirection += 1\n"
     b"\tvelocity.x = direction * SPEED\n"
-    b"\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n"
+    b'\tif Input.is_action_just_pressed("jump") and is_on_floor():\n'
     b"\t\tvelocity.y = JUMP_VELOCITY\n"
     b"\tvelocity.y += 980.0 * _delta\n"
     b"\tmove_and_slide()\n"
 )
-BASELINE_COIN = (
-    b"extends Area2D\n"
-    b"\n"
-    b"func _on_body_entered(_body: Node) -> void:\n"
-    b"\tqueue_free()\n"
-)
+BASELINE_COIN = b"extends Area2D\n\nfunc _on_body_entered(_body: Node) -> void:\n\tqueue_free()\n"
 
 
-def test_allowlist_exactly_two() -> None:
-    """Allowlist contains exactly platformer_controller and collectible, sorted."""
+def test_allowlist_exactly_three() -> None:
+    """Allowlist: v1 platformer_controller + collectible, plus v2 controller (PATCH-0016)."""
     ids = allowed_behavior_ids()
-    assert ids == ("collectible", "platformer_controller")
+    assert ids == ("collectible", "platformer_controller", "platformer_controller_v2")
     assert is_allowlisted("platformer_controller") is True
+    assert is_allowlisted("platformer_controller_v2") is True
     assert is_allowlisted("collectible") is True
     assert is_allowlisted("evil") is False
 
@@ -65,8 +61,14 @@ def test_pinned_hashes_match_baseline() -> None:
     """Pinned hashes must equal baseline bytes hashes."""
     assert pinned_hash("platformer_controller") == hashlib.sha256(BASELINE_PLAYER).hexdigest()
     assert pinned_hash("collectible") == hashlib.sha256(BASELINE_COIN).hexdigest()
-    assert PINNED_HASHES["platformer_controller"] == "59449f62b5371e7c255583f2932a75e88ebc91531c1986113c518c824ae9ee0e"  # noqa: E501
-    assert PINNED_HASHES["collectible"] == "c80b9f8d4463739bb9db90b0d5caf4b05ff34db22b84a625774da63a0b6b8f16"  # noqa: E501
+    assert (
+        PINNED_HASHES["platformer_controller"]
+        == "59449f62b5371e7c255583f2932a75e88ebc91531c1986113c518c824ae9ee0e"
+    )  # noqa: E501
+    assert (
+        PINNED_HASHES["collectible"]
+        == "c80b9f8d4463739bb9db90b0d5caf4b05ff34db22b84a625774da63a0b6b8f16"
+    )  # noqa: E501
 
 
 def test_load_unknown_rejected() -> None:
@@ -90,7 +92,11 @@ def test_load_returns_baseline_bytes() -> None:
 def test_resource_presence_source_checkout() -> None:
     """Source checkout resource lookup via importlib.resources.files must succeed."""
     pkg = importlib.resources.files("godotforge_core.behaviors.resources")
-    for fid, fname in [("platformer_controller", "platformer_controller.gd"), ("collectible", "collectible.gd")]:  # noqa: E501
+    for fid, fname in [
+        ("platformer_controller", "platformer_controller.gd"),
+        ("platformer_controller_v2", "platformer_controller_v2.gd"),
+        ("collectible", "collectible.gd"),
+    ]:  # noqa: E501
         res = pkg.joinpath(fname)
         assert res.is_file(), f"missing resource {fname} in source checkout"
         data = res.read_bytes()  # type: ignore[attr-defined]
@@ -102,7 +108,11 @@ def test_resource_presence_installed_wheel() -> None:
     pkg = importlib.resources.files("godotforge_core.behaviors.resources")
     import importlib.resources as res
 
-    for fid, fname in [("platformer_controller", "platformer_controller.gd"), ("collectible", "collectible.gd")]:  # noqa: E501
+    for fid, fname in [
+        ("platformer_controller", "platformer_controller.gd"),
+        ("platformer_controller_v2", "platformer_controller_v2.gd"),
+        ("collectible", "collectible.gd"),
+    ]:  # noqa: E501
         traversable = pkg.joinpath(fname)
         with res.as_file(traversable) as p:
             assert pathlib.Path(p).is_file()
@@ -120,12 +130,20 @@ def test_sdist_resource_parity() -> None:
     with tarfile.open(sdist, "r:gz") as tf:
         names = tf.getnames()
         # sdist contains src/godotforge_core/behaviors/resources/*.gd
-        for fname in ["platformer_controller.gd", "collectible.gd"]:
-            assert any(f.endswith(f"behaviors/resources/{fname}") for f in names), f"missing {fname} in sdist"  # noqa: E501
+        for fid, fname in [
+            ("platformer_controller", "platformer_controller.gd"),
+            ("platformer_controller_v2", "platformer_controller_v2.gd"),
+            ("collectible", "collectible.gd"),
+        ]:  # noqa: E501
+            matches = [f for f in names if f.endswith(f"behaviors/resources/{fname}")]
+            assert matches, f"missing {fname} in sdist"
+            data = tf.extractfile(matches[0])
+            assert data is not None
+            assert hashlib.sha256(data.read()).hexdigest() == PINNED_HASHES[fid]
 
 
 def test_wheel_resource_parity() -> None:
-    """Wheel must contain same resources."""
+    """Wheel must contain same resources with identical pinned bytes."""
     dist = pathlib.Path("dist")
     wheels = sorted(dist.glob("godotforge_core-*.whl"), key=lambda p: p.stat().st_mtime)
     if not wheels:
@@ -133,8 +151,14 @@ def test_wheel_resource_parity() -> None:
     wheel = wheels[-1]
     with zipfile.ZipFile(wheel) as zf:
         names = zf.namelist()
-        for fname in ["platformer_controller.gd", "collectible.gd"]:
-            assert f"godotforge_core/behaviors/resources/{fname}" in names
+        for fid, fname in [
+            ("platformer_controller", "platformer_controller.gd"),
+            ("platformer_controller_v2", "platformer_controller_v2.gd"),
+            ("collectible", "collectible.gd"),
+        ]:  # noqa: E501
+            arcname = f"godotforge_core/behaviors/resources/{fname}"
+            assert arcname in names, f"missing {fname} in wheel"
+            assert hashlib.sha256(zf.read(arcname)).hexdigest() == PINNED_HASHES[fid]
 
 
 def test_no_arbitrary_script_path() -> None:
@@ -149,6 +173,10 @@ def test_no_arbitrary_script_path() -> None:
 
 def test_injection_rejection() -> None:
     """GDScript injection via behavior ID must be rejected (no eval)."""
-    for evil in ["platformer_controller; DROP", "collectible\nqueue_free", "platformer_controller\x00"]:  # noqa: E501
+    for evil in [
+        "platformer_controller; DROP",
+        "collectible\nqueue_free",
+        "platformer_controller\x00",
+    ]:  # noqa: E501
         with pytest.raises(ValueError, match="unknown"):
             load_behavior(evil)

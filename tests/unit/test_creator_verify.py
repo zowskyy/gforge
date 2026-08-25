@@ -37,6 +37,19 @@ def test_validator_source_package_and_hash() -> None:
     assert hashlib.sha256(data).hexdigest() == PINNED_VALIDATOR_SHA256
 
 
+def test_validator_pin_unchanged_by_patch_0016() -> None:
+    """PATCH-0016 §10: PINNED_VALIDATOR_SHA256 holds its pre-PATCH-0016 value.
+
+    v2 parameter inspection uses the temporary-project harness
+    (tests/integration/test_creator_v2_godot.py), never validate_boot.gd.
+    Changing this literal requires an explicit validator version/hash update
+    per the contract amendment procedure.
+    """
+    assert PINNED_VALIDATOR_SHA256 == (
+        "1e01c7a59baa856ebeb4a14d2f39d143640e2162f1fc31aee2d80df69cbd525c"
+    )
+
+
 def test_validator_installed_lookup() -> None:
     """Installed-package lookup via importlib.resources.files must succeed."""
     pkg = importlib.resources.files("godotforge_core.engine") / "validate_boot.gd"

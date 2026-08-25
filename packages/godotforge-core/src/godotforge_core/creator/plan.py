@@ -95,10 +95,19 @@ def _emit_project_godot(manifest: CreatorManifest) -> bytes:
     return text.encode("utf-8")
 
 
-def _emit_player_controller() -> bytes:
-    """_emit_player_controller — production helper."""
+def _emit_player_controller(manifest: CreatorManifest) -> bytes:
+    """_emit_player_controller — production helper.
+
+    v1 manifests emit the pinned v1 resource bytes unchanged; v2 manifests
+    emit the pinned v2 resource bytes unchanged. The planner never alters
+    script source bytes — v2 parameter values live in ``scenes/main.tscn``
+    as ``@export`` property assignments, so the v2 script hash is constant
+    across all valid parameter values. No generated source, no substitution.
+    """
     from godotforge_core.behaviors.registry import load_behavior
 
+    if manifest.schema_version == 2:
+        return load_behavior("platformer_controller_v2")
     return load_behavior("platformer_controller")
 
 
@@ -109,9 +118,18 @@ def _emit_coin() -> bytes:
     return load_behavior("collectible")
 
 
-def _emit_scene_tscn() -> bytes:
-    """_emit_scene_tscn — production helper."""
-    uid = deterministic_uid(TEMPLATE_ID, SCHEMA_VERSION, "scenes/main.tscn")
+def _emit_scene_tscn(manifest: CreatorManifest) -> bytes:
+    """_emit_scene_tscn — production helper.
+
+    v1 scenes are byte-identical to the PATCH-0012 baseline. v2 scenes
+    additionally carry the canonical ``speed`` / ``jump_velocity`` property
+    assignments on the ``Player`` node (values for the fixed v2 script's
+    ``@export`` properties) and use the manifest's schema version in the
+    deterministic scene UID. No other scene content changes.
+    """
+    from godotforge_core.creator.numfmt import format_canonical
+
+    uid = deterministic_uid(TEMPLATE_ID, manifest.schema_version, "scenes/main.tscn")
     # load_steps = 1 + ext_resource_count(2) + sub_resource_count(3) = 6
     lines: list[str] = []
     lines.append(f'[gd_scene load_steps=6 format=3 uid="{uid}"]')
@@ -139,6 +157,15 @@ def _emit_scene_tscn() -> bytes:
     lines.append('[node name="Player" type="CharacterBody2D" parent="."]')
     lines.append(f"position = Vector2({PLAYER_POS[0]}, {PLAYER_POS[1]})")
     lines.append('script = ExtResource("1_script")')
+    if manifest.schema_version == 2:
+        assert manifest.parameters is not None
+        lines.append(
+            f"speed = {format_canonical(manifest.parameters.speed, name='speed')}"
+        )
+        lines.append(
+            "jump_velocity = "
+            f"{format_canonical(manifest.parameters.jump_velocity, name='jump_velocity')}"
+        )
     lines.append("")
     lines.append('[node name="Camera2D" type="Camera2D" parent="Player"]')
     lines.append("current = true")
@@ -307,8 +334,8 @@ def _desired_contents_for(manifest: CreatorManifest) -> dict[str, bytes]:
     """_desired_contents_for — production helper."""
     return {
         "project.godot": _emit_project_godot(manifest),
-        "scenes/main.tscn": _emit_scene_tscn(),
-        "scripts/player_controller.gd": _emit_player_controller(),
+        "scenes/main.tscn": _emit_scene_tscn(manifest),
+        "scripts/player_controller.gd": _emit_player_controller(manifest),
         "scripts/coin.gd": _emit_coin(),
     }
 

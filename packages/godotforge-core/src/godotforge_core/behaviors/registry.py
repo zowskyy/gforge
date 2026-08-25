@@ -10,11 +10,13 @@ BEHAVIOR_VERSION = 1
 
 _ALLOWLIST: dict[str, str] = {
     "platformer_controller": "platformer_controller.gd",
+    "platformer_controller_v2": "platformer_controller_v2.gd",
     "collectible": "collectible.gd",
 }
 
 PINNED_HASHES: dict[str, str] = {
     "platformer_controller": "59449f62b5371e7c255583f2932a75e88ebc91531c1986113c518c824ae9ee0e",
+    "platformer_controller_v2": "1a7f8aa5c7ebd8bcf23a6ff818de6faa58a534722b7e3983b8b1b01fd532e1a0",
     "collectible": "c80b9f8d4463739bb9db90b0d5caf4b05ff34db22b84a625774da63a0b6b8f16",
 }
 
