@@ -150,17 +150,35 @@ def new_journal(
     )
 
 
+class _KeepPostHash:
+    """Sentinel type: leave the entry's post_hash unchanged on state update."""
+
+
+_KEEP_POST_HASH = _KeepPostHash()
+
+
 def update_entry(
     journal: ApplyJournal,
     operation_index: int,
     state: JournalState,
+    *,
+    post_hash: str | None | _KeepPostHash = _KEEP_POST_HASH,
 ) -> ApplyJournal:
-    """update_entry — production helper."""
+    """update_entry — production helper.
+
+    ``post_hash`` defaults to a keep-sentinel so existing callers preserve the
+    planned value; pass an explicit hash to record the actual verified
+    post-write SHA-256 for completed CREATE/UPDATE operations (F-009).
+    """
     if operation_index < 0 or operation_index >= len(journal.entries):
         raise IndexError(f"unknown operation index: {operation_index}")
 
     updated = list(journal.entries)
     entry = updated[operation_index]
+    if isinstance(post_hash, _KeepPostHash):
+        resolved_post_hash = entry.post_hash
+    else:
+        resolved_post_hash = post_hash
     updated[operation_index] = JournalEntry(
         operation_index=entry.operation_index,
         operation_kind=entry.operation_kind,
@@ -169,7 +187,7 @@ def update_entry(
         from_path=entry.from_path,
         to_path=entry.to_path,
         pre_hash=entry.pre_hash,
-        post_hash=entry.post_hash,
+        post_hash=resolved_post_hash,
     )
 
     return ApplyJournal(
