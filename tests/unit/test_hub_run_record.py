@@ -59,7 +59,7 @@ def _full_run(root: Path, run_id: str = RUN) -> None:
 
 
 def test_append_and_read_roundtrip(tmp_path: Path) -> None:
-    event = _start(tmp_path) or None
+    _start(tmp_path)
     events = read_events(tmp_path)
     assert len(events) == 1
     assert events[0].seq == 1
@@ -254,8 +254,9 @@ def test_run_id_validation(tmp_path: Path) -> None:
 
 
 def test_as_dict_matches_schema(tmp_path: Path) -> None:
-    import jsonschema
     from importlib.resources import files
+
+    import jsonschema
 
     _full_run(tmp_path)
     record = fold_run(read_events(tmp_path), RUN)
