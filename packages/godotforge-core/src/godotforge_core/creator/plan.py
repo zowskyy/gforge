@@ -353,10 +353,13 @@ def plan_creator_manifest(root: Path | str, manifest_dict: dict) -> CreatorPatch
     if files_ok and dirs_ok:
         return CreatorPatch(plan=None, desired_contents=desired, manifest=manifest)
 
-    # Build 6 ops in (MKDIR=0, CREATE=1, path) order — amendment 4
+    # Build ops in (MKDIR=0, CREATE=1, path) order — MKDIR
+    # suppressed for existing non-symlink dirs (State B → 4 CREATE only)
     ops: list[PatchOperation] = []
-    # MKDIRs sorted by path
     for d in sorted(_G_DIRS):
+        dir_path = root / d
+        if dir_path.is_dir() and not dir_path.is_symlink():
+            continue
         ops.append(
             PatchOperation(
                 kind=OperationKind.MKDIR,

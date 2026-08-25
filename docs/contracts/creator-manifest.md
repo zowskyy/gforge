@@ -27,23 +27,21 @@ Refs: `packages/godotforge-core/src/godotforge_core/creator/manifest.py:1`,
 * `input` exactly 3 entries, names exactly `{move_left, move_right, jump}` each once, no duplicates/omissions/unknowns, fixed bindings `move_left→ui_left` / `move_right→ui_right` / `jump→ui_accept` (`manifest.py:13`). Any other name/binding/count → `ValueError`.
 * Behavior wiring fixed by template: `Player→scripts/player_controller.gd`, `Coin→scripts/coin.gd` — manifest carries no per-node targets in v1.
 
-## Six operations — one ordering rule
+## Operations — MKDIR suppression, one ordering rule
 
-Planning-only `PatchPlan` with **6 ops** in strict `(kind_rank, path)` order
-(`MKDIR=0 < CREATE=1`, then lexicographic `path`, `plan.py:44`):
+Planning-only `PatchPlan` in strict `(kind_rank, path)` order
+(`MKDIR=0 < CREATE=1`, then lexicographic `path`, `plan.py:44`).
+`MKDIR` suppressed for existing non-symlink dirs (State B). No `.godotforge` mkdir.
 
 ```
-1 MKDIR  scenes
-2 MKDIR  scripts
-3 CREATE project.godot
-4 CREATE scenes/main.tscn
-5 CREATE scripts/coin.gd
-6 CREATE scripts/player_controller.gd
+State A (empty root):          6 ops — MKDIR scenes, MKDIR scripts, CREATE project.godot, CREATE scenes/main.tscn, CREATE scripts/coin.gd, CREATE scripts/player_controller.gd
+State B (skeleton + empty dirs): 4 ops — CREATE ×4 only
+State C (fully materialized):    0 ops — plan is None (no-op)
 ```
 
-No `.godotforge` mkdir (skeleton pre-exists), no `.gd.uid` (see UID section), no `apply`.
+No `.gd.uid` (see UID section), no `apply` inside planner.
 
-Plan id `cr-<sha256(canonical_manifest_json)[:8]>` (`plan.py:38`), `compute_plan_hash` preserves order (`patch/hashing.py:25`). Repeat manifest → identical plan id, bytes, diffs.
+Plan id `cr-<sha256(canonical_manifest_json)[:8]>` (`plan.py:38`) is manifest-derived and invariant across states. `compute_plan_hash` (`patch/hashing.py:25`) is root-specific (includes MKDIR presence); never called with `None` — CLI assigns `planHash null` for no-op.
 
 ## TSCN — canonical order and `load_steps`
 
@@ -95,7 +93,9 @@ C: B + G_files with byte-exact hashes for current manifest
    G_dirs  = {scenes, scripts}
 ```
 
-Any `creator_owned` file outside A/B/C (`scan/profile.py:62`), non-empty `scenes/`/`scripts/` with stray content, or symlink escape (`profile.py:25` shape) → `CreatorPreflightError`. Dir vs file distinguished: `scripts/foo.gd.uid` is a file under `scripts/` and not accepted without explicit policy (see UID). `.godotforge/project.yaml` non-empty allowed only as skeleton in B/C, preserved verbatim.
+Any `creator_owned` file outside A/B/C (`scan/profile.py:62`), non-empty `scenes/`/`scripts/` with stray content, or symlink escape (`profile.py:25` shape) → `CreatorPreflightError` (`2`). Divergent fully-materialized `G_files` (bytes differ) is valid creator shape and returns desired `CREATE` plan to allow `check_plan` → `already_exists` → `4` (no overwrite). Partial materialization or unexpected files → `CreatorPreflightError` `2`.
+
+Dir vs file distinguished: `scripts/foo.gd.uid` is a file under `scripts/` and not accepted without explicit policy (see UID). Allowed engine-managed `.godotforge/*` are only `project.yaml`, `project.lock`, `backups/**`, `cache/**`, `reports/**`. `.godotforge/project.yaml` non-empty allowed only as skeleton in B/C, preserved verbatim.
 
 ## No-op — separated file/dir checks
 
@@ -105,7 +105,9 @@ dirs_ok  = all(is_dir(d) and not is_symlink(d) for d in G_dirs)
 plan is None iff files_ok and dirs_ok
 ```
 
-No `expected_hash` on `CREATE`; `desired_hash` is `hash_bytes(desired[rel])` (`patch/models.py:283`).
+Engine-managed paths are never creator-owned: `.godotforge/backups/**`, `.godotforge/cache/**`, `.godotforge/reports/**` are pruned from preflight (`plan.py:240`) and remain allowed post-apply, so `apply→noop` holds with backups preserved. Unknown `.godotforge/*` outside `{project.yaml,project.lock,backups,cache,reports}` is still `unexpected file` → `CreatorPreflightError` `2`.
+
+No `expected_hash` on `CREATE`; `desired_hash` is `hash_bytes(desired[rel])` (`patch/models.py:283`). `compute_plan_hash` never receives `None`; CLI emits `planHash null` for no-op.
 
 ## UID — deterministic, 13-char, proof required before merge
 
@@ -127,6 +129,12 @@ Engine empirically creates `scripts/*.gd.uid` one-line `uid://...` on import for
 
 See `README.md:2` and header above — offline, deterministic, no LLM/network/telemetry.
 
+## PATCH-0013 CLI — preview vs apply
+
+* `godotforge creator preview --manifest creator-manifest.yaml [--project PATH] [--format human|json|jsonl|sarif]` — `validate→preflight→plan→render` only; no `check_plan`/`backup`/`apply`/`journal`; `data{applied false,noop,diff,planId,planHash}` canonical (see below).
+* `godotforge creator apply --manifest creator-manifest.yaml --apply [--project PATH] [--format …]` — same preview without `--apply` (`applied false` identical diff); with `--apply` fresh `check_plan` immediately before `create_backup` → `apply_plan` with `MKDIR` suppression; `check_plan` `already_exists` or divergent `G_files` → `4` no overwrite; `CreatorPreflightError` partial/unexpected → `2`; success `applied true` `0`; journal `.godotforge/backups/<txid>/apply_journal.json` preserved for `inspect_recovery`/`rollback`.
+* Canonical envelope `data{applied,noop,diff,planId,planHash}` identical across `human/json/jsonl/sarif` (`output.py:28`); `diff` concatenates `CREATE` diffs only (`MKDIR` produces no diff, never lookup `desired_contents`), `planHash null` when `plan is None`.
+
 ## Future
 
-PATCH-0013+ will wire `check_plan→create_backup→apply_plan` and `engine validate`; PATCH-0012 remains planning-only.
+PATCH-0014 will add `engine validate`; PATCH-0013 remains preview/apply only, no Godot invocation, no AI/network/telemetry.

@@ -22,6 +22,7 @@ LAZY_SUBCOMMANDS = {
     "project": "godotforge_cli.commands.project.cli",
     "graph": "godotforge_cli.commands.graph.cli",
     "engine": "godotforge_cli.commands.engine.cli",
+    "creator": "godotforge_cli.commands.creator.cli",
 }
 
 
