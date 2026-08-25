@@ -35,6 +35,7 @@ AUTOLOAD_REF_RE = re.compile(r'get_node_or_null\(\s*"/root/(\w+)"')
 
 @dataclass
 class ScriptDependency:
+    """ScriptDependency — production class."""
     kind: str
     expression: str
     target: str | None
@@ -45,6 +46,7 @@ class ScriptDependency:
 
 @dataclass
 class ScriptModel:
+    """ScriptModel — production class."""
     path: str
     class_name: str | None
     extends: str | None
@@ -60,14 +62,17 @@ class ScriptModel:
 
 
 def _strip_comments(text: str) -> str:
+    """_strip_comments — production helper."""
     return re.sub(r"#.*$", "", text, flags=re.MULTILINE)
 
 
 def _line_at(text: str, pos: int) -> int:
+    """_line_at — production helper."""
     return text.count("\n", 0, pos) + 1
 
 
 def parse_with_fallback(text: str, path: str) -> ScriptModel:
+    """parse_with_fallback — production helper."""
     source = _strip_comments(text)
     class_name: str | None = None
     extends: str | None = None
@@ -147,6 +152,7 @@ def parse_with_fallback(text: str, path: str) -> ScriptModel:
 
 
 def load_optional_gdtoolkit() -> Any | None:
+    """load_optional_gdtoolkit — production helper."""
     try:
         return importlib.import_module("gdtoolkit")
     except ModuleNotFoundError as exc:
@@ -156,6 +162,7 @@ def load_optional_gdtoolkit() -> Any | None:
 
 
 def parse_with_gdtoolkit(text: str, path: str) -> ScriptModel | None:
+    """parse_with_gdtoolkit — production helper."""
     toolkit = load_optional_gdtoolkit()
     if toolkit is None:
         return None
@@ -233,6 +240,7 @@ def parse_with_gdtoolkit(text: str, path: str) -> ScriptModel | None:
 
 
 def parse_script(text: str, path: str) -> ScriptModel:
+    """parse_script — production helper."""
     optional = parse_with_gdtoolkit(text, path)
     if optional is not None:
         return optional
@@ -243,10 +251,12 @@ def parse_script(text: str, path: str) -> ScriptModel:
 
 
 def script_dependency_paths(model: ScriptModel) -> list[str]:
+    """script_dependency_paths — production helper."""
     return [dep.target for dep in model.dependencies if dep.target and dep.resolution == "static"]
 
 
 def index_scripts(root: str | Path) -> list[ScriptModel]:
+    """index_scripts — production helper."""
     inventory = inventory_project(root)
     scripts: list[ScriptModel] = []
     for rel in inventory.files.get("script", []):

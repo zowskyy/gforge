@@ -31,6 +31,7 @@ GRAPH_SCHEMA_VERSION = 1
 
 
 def classify_resource(path: str) -> str:
+    """classify_resource — production helper."""
     if path.endswith(".gd"):
         return "script"
     if path.endswith(".tscn"):
@@ -41,6 +42,7 @@ def classify_resource(path: str) -> str:
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
+    """_ensure_schema — production helper."""
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS meta (
@@ -70,6 +72,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def open_writer(path: str | Path) -> sqlite3.Connection:
+    """open_writer — production helper."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path))
@@ -81,6 +84,7 @@ def open_writer(path: str | Path) -> sqlite3.Connection:
 
 
 def open_readonly(path: str | Path) -> sqlite3.Connection:
+    """open_readonly — production helper."""
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(str(path))
@@ -91,6 +95,7 @@ def open_readonly(path: str | Path) -> sqlite3.Connection:
 
 
 def _upsert_graph(conn: sqlite3.Connection, graph: ProjectGraph, meta: dict[str, str]) -> None:
+    """_upsert_graph — production helper."""
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     conn.execute("DELETE FROM edges")
     conn.executemany(
@@ -112,6 +117,7 @@ def _upsert_graph(conn: sqlite3.Connection, graph: ProjectGraph, meta: dict[str,
 
 
 def build_graph(root: str | Path) -> ProjectGraph:
+    """build_graph — production helper."""
     root = Path(root)
     graph = ProjectGraph()
     seen: dict[str, GraphNode] = {}
@@ -193,6 +199,7 @@ def build_graph(root: str | Path) -> ProjectGraph:
 
 
 def graph_from_store(conn: sqlite3.Connection) -> ProjectGraph:
+    """graph_from_store — production helper."""
     graph = ProjectGraph()
     for row in conn.execute("SELECT id, kind, label, checksum, status FROM nodes"):
         graph.nodes.append(
@@ -204,6 +211,7 @@ def graph_from_store(conn: sqlite3.Connection) -> ProjectGraph:
 
 
 def rebuild(root: str | Path, store_path: str | Path) -> ProjectGraph:
+    """rebuild — production helper."""
     graph = build_graph(root)
     store_path = Path(store_path)
     temp = store_path.with_suffix(store_path.suffix + ".new")
@@ -231,6 +239,7 @@ def rebuild(root: str | Path, store_path: str | Path) -> ProjectGraph:
 
 
 def status(conn: sqlite3.Connection) -> dict:
+    """status — production helper."""
     counts: dict[str, int] = {}
     for status_value, count in conn.execute("SELECT status, COUNT(*) FROM nodes GROUP BY status"):
         counts[status_value] = count
@@ -248,6 +257,7 @@ def status(conn: sqlite3.Connection) -> dict:
 
 
 def validate(conn: sqlite3.Connection) -> list[dict]:
+    """validate — production helper."""
     issues: list[dict] = []
     for source, target, kind in conn.execute(
         "SELECT e.source, e.target, e.kind FROM edges e "
@@ -283,6 +293,7 @@ def query(
     node_id: str | None = None,
     kind: str | None = None,
 ) -> dict:
+    """query — production helper."""
     if node_id is not None:
         row = conn.execute(
             "SELECT id, kind, label, checksum, status FROM nodes WHERE id = ?",
@@ -344,6 +355,7 @@ def query(
 
 
 def stats(conn: sqlite3.Connection) -> dict:
+    """stats — production helper."""
     by_kind: dict[str, int] = {}
     for kind, count in conn.execute("SELECT kind, COUNT(*) FROM nodes GROUP BY kind"):
         by_kind[kind] = count
@@ -359,9 +371,11 @@ def stats(conn: sqlite3.Connection) -> dict:
 
 
 def vacuum(conn: sqlite3.Connection) -> None:
+    """vacuum — production helper."""
     conn.execute("VACUUM")
     conn.commit()
 
 
 def default_store_path(project_root: str | Path) -> Path:
+    """default_store_path — production helper."""
     return Path(project_root) / ".godotforge" / "index.sqlite"

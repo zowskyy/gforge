@@ -16,6 +16,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class CaptureConfig:
+    """CaptureConfig — production class."""
     max_retained_stdout: int = 1024 * 1024
     max_retained_stderr: int = 1024 * 1024
     capture_stdout: bool = True
@@ -24,6 +25,7 @@ class CaptureConfig:
 
 @dataclass(frozen=True)
 class ProcessResult:
+    """ProcessResult — production class."""
     executable: str
     args: tuple[str, ...]
     exit_code: int
@@ -41,6 +43,7 @@ def _apply_capture(
     stderr: str,
     config: CaptureConfig | None,
 ) -> tuple[str, str, bool, bool]:
+    """_apply_capture — production helper."""
     if config is None:
         config = CaptureConfig()
     out = stdout if config.capture_stdout else ""

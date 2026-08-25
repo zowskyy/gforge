@@ -17,6 +17,7 @@ JOURNAL_SCHEMA_VERSION = 1
 
 
 class JournalState(StrEnum):
+    """JournalState — production class."""
     PENDING = "pending"
     STARTED = "started"
     COMPLETED = "completed"
@@ -24,6 +25,7 @@ class JournalState(StrEnum):
 
 @dataclass(frozen=True)
 class JournalEntry:
+    """JournalEntry — production class."""
     operation_index: int
     operation_kind: OperationKind
     state: JournalState
@@ -34,6 +36,7 @@ class JournalEntry:
     post_hash: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "operation_index": self.operation_index,
             "operation_kind": self.operation_kind.value,
@@ -47,6 +50,7 @@ class JournalEntry:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> JournalEntry:
+        """from_dict — production method."""
         return cls(
             operation_index=int(data["operation_index"]),
             operation_kind=OperationKind(data["operation_kind"]),
@@ -61,6 +65,7 @@ class JournalEntry:
 
 @dataclass(frozen=True)
 class ApplyJournal:
+    """ApplyJournal — production class."""
     transaction_id: str
     plan_id: str
     plan_hash: str
@@ -68,6 +73,7 @@ class ApplyJournal:
     schema_version: int = JOURNAL_SCHEMA_VERSION
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "schema_version": self.schema_version,
             "transaction_id": self.transaction_id,
@@ -78,6 +84,7 @@ class ApplyJournal:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ApplyJournal:
+        """from_dict — production method."""
         return cls(
             transaction_id=data["transaction_id"],
             plan_id=data["plan_id"],
@@ -88,6 +95,7 @@ class ApplyJournal:
 
 
 def journal_path(root: Path, transaction_id: str) -> Path:
+    """journal_path — production helper."""
     if (
         not transaction_id
         or "/" in transaction_id
@@ -100,6 +108,7 @@ def journal_path(root: Path, transaction_id: str) -> Path:
 
 
 def _entry_for_operation(index: int, operation: Any) -> JournalEntry:
+    """_entry_for_operation — production helper."""
     if operation.kind == OperationKind.RENAME:
         return JournalEntry(
             operation_index=index,
@@ -129,6 +138,7 @@ def new_journal(
     transaction_id: str,
     plan: PatchPlan,
 ) -> ApplyJournal:
+    """new_journal — production helper."""
     return ApplyJournal(
         transaction_id=transaction_id,
         plan_id=plan.id,
@@ -145,6 +155,7 @@ def update_entry(
     operation_index: int,
     state: JournalState,
 ) -> ApplyJournal:
+    """update_entry — production helper."""
     if operation_index < 0 or operation_index >= len(journal.entries):
         raise IndexError(f"unknown operation index: {operation_index}")
 
@@ -171,6 +182,7 @@ def update_entry(
 
 
 def write_journal(root: Path, journal: ApplyJournal) -> None:
+    """write_journal — production helper."""
     destination = journal_path(root, journal.transaction_id)
 
     if not destination.parent.is_dir():
@@ -206,6 +218,7 @@ def write_journal(root: Path, journal: ApplyJournal) -> None:
 
 
 def load_journal(root: Path, transaction_id: str) -> ApplyJournal:
+    """load_journal — production helper."""
     path = journal_path(root, transaction_id)
 
     if not path.is_file():

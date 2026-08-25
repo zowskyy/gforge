@@ -28,6 +28,7 @@ from godotforge_cli.output import emit
 
 
 def _resolve_root(ctx: click.Context) -> Path:
+    """_resolve_root — production helper."""
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
     found = find_workspace(start)
@@ -38,6 +39,7 @@ def _resolve_root(ctx: click.Context) -> Path:
 
 
 def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:
+    """_check_dry_run_conflict — production helper."""
     if ctx.obj.get("dry_run") and apply:
         reraise(
             ValueError("--dry-run and --apply are mutually exclusive"),
@@ -51,6 +53,7 @@ def _emit_preview(
     patch,
     original_bytes: bytes,
 ) -> None:
+    """_emit_preview — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     if patch.plan is None:
         emit(
@@ -88,6 +91,7 @@ def _emit_applied(
     patch,
     original_bytes: bytes,
 ) -> None:
+    """_emit_applied — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     if patch.plan is None:
         emit(
@@ -174,6 +178,7 @@ def _emit_applied(
 
 
 def _parse_add_pair(value: str) -> tuple[str, str]:
+    """_parse_add_pair — production helper."""
     if "=" not in value:
         raise ValueError(f"--add expects NAME=VALUE, got '{value}'")
     name, _, val = value.partition("=")
@@ -185,6 +190,7 @@ def _parse_add_pair(value: str) -> tuple[str, str]:
 
 
 def _parse_singleton_pair(value: str) -> tuple[str, bool]:
+    """_parse_singleton_pair — production helper."""
     if "=" not in value:
         raise ValueError(f"--set-singleton expects NAME=0|1|true|false, got '{value}'")
     name, _, raw = value.partition("=")
@@ -202,6 +208,7 @@ def _parse_singleton_pair(value: str) -> tuple[str, bool]:
 
 
 def _parse_key_value(value: str) -> tuple[str, str]:
+    """_parse_key_value — production helper."""
     if "=" not in value:
         raise ValueError(f"--set expects key=value, got '{value}'")
     k, _, v = value.partition("=")

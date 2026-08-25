@@ -24,6 +24,7 @@ ContentProvider = Callable[[PatchOperation], bytes | None]
 
 
 def _validate_manifest(root: Path, plan: PatchPlan, manifest: BackupManifest) -> str | None:
+    """_validate_manifest — production helper."""
     tid = manifest.transaction_id
     if not tid or "/" in tid or "\\" in tid:
         return "invalid transaction_id in manifest"
@@ -57,6 +58,7 @@ def _validate_manifest(root: Path, plan: PatchPlan, manifest: BackupManifest) ->
 
 
 def _check_overlap(plan: PatchPlan) -> str | None:
+    """_check_overlap — production helper."""
     # Track logical paths
     seen: dict[str, str] = {}  # path -> operation description
     # For rename, track from and to separately
@@ -95,6 +97,7 @@ def _check_overlap(plan: PatchPlan) -> str | None:
 
 
 def _atomic_write(dest: Path, data: bytes, transaction_id: str, idx: int) -> None:
+    """_atomic_write — production helper."""
     parent = dest.parent
     if not parent.is_dir():
         raise FileNotFoundError(f"parent directory does not exist: '{parent}'")

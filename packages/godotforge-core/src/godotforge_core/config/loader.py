@@ -35,6 +35,7 @@ _USER_CONFIG_PATH = Path.home() / ".godotforge" / "config.yaml"
 
 
 def _schema_dict() -> dict[str, Any]:
+    """_schema_dict — production helper."""
     raw = (files("godotforge_core") / "schemas" / "project.schema.json").read_text(encoding="utf-8")
     return json.loads(raw)
 
@@ -64,6 +65,7 @@ def parse_project_godot(project_root: Path) -> dict[str, Any]:
 
 
 def load_project_yaml(project_root: Path) -> dict[str, Any]:
+    """load_project_yaml — production helper."""
     path = project_root / ".godotforge" / "project.yaml"
     if not path.is_file():
         return {}
@@ -80,6 +82,7 @@ def load_project_yaml(project_root: Path) -> dict[str, Any]:
 
 
 def load_user_config() -> dict[str, Any]:
+    """load_user_config — production helper."""
     if not _USER_CONFIG_PATH.is_file():
         return {}
     raw = _USER_CONFIG_PATH.read_text(encoding="utf-8")
@@ -88,6 +91,7 @@ def load_user_config() -> dict[str, Any]:
 
 
 def build_env_layer(env: Mapping[str, str]) -> ConfigLayer:
+    """build_env_layer — production helper."""
     data: dict[str, Any] = {}
     if path := env.get("FORGE_GODOT_PATH"):
         data.setdefault("engine", {})["executable"] = path
@@ -97,6 +101,7 @@ def build_env_layer(env: Mapping[str, str]) -> ConfigLayer:
 
 
 def _deep_merge(base: Any, override: Any) -> Any:
+    """_deep_merge — production helper."""
     if isinstance(base, dict) and isinstance(override, dict):
         merged = dict(base)
         for key, value in override.items():
@@ -109,6 +114,7 @@ def _deep_merge(base: Any, override: Any) -> Any:
 
 
 def merge_layers(layers: list[dict[str, Any]]) -> dict[str, Any]:
+    """merge_layers — production helper."""
     merged: dict[str, Any] = {}
     for layer in layers:
         merged = _deep_merge(merged, layer)
@@ -121,6 +127,7 @@ def build_config(
     cli_overrides: dict[str, Any] | None = None,
     env: Mapping[str, str] | None = None,
 ) -> ResolvedConfig:
+    """build_config — production helper."""
     env = env if env is not None else os.environ
     root = find_workspace(start)
 

@@ -56,17 +56,20 @@ _G_DIRS = ("scenes", "scripts")
 
 
 def _canonical_manifest_json(manifest: CreatorManifest) -> str:
+    """_canonical_manifest_json — production helper."""
     payload = manifest.as_dict()
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _plan_id_for(manifest: CreatorManifest) -> str:
+    """_plan_id_for — production helper."""
     canon = _canonical_manifest_json(manifest)
     short = hashlib.sha256(canon.encode("utf-8")).hexdigest()[:8]
     return f"cr-{short}"
 
 
 def _emit_project_godot(manifest: CreatorManifest) -> bytes:
+    """_emit_project_godot — production helper."""
     lines = [
         "; Engine configuration file.",
         "; It's best edited using the editor UI; changes to this file may cause errors.",
@@ -93,6 +96,7 @@ def _emit_project_godot(manifest: CreatorManifest) -> bytes:
 
 
 def _emit_player_controller() -> bytes:
+    """_emit_player_controller — production helper."""
     return (
         b"extends CharacterBody2D\n"
         b"\n"
@@ -114,6 +118,7 @@ def _emit_player_controller() -> bytes:
 
 
 def _emit_coin() -> bytes:
+    """_emit_coin — production helper."""
     return (
         b"extends Area2D\n"
         b"\n"
@@ -123,6 +128,7 @@ def _emit_coin() -> bytes:
 
 
 def _emit_scene_tscn() -> bytes:
+    """_emit_scene_tscn — production helper."""
     uid = deterministic_uid(TEMPLATE_ID, SCHEMA_VERSION, "scenes/main.tscn")
     # load_steps = 1 + ext_resource_count(2) + sub_resource_count(3) = 6
     lines: list[str] = []
@@ -193,6 +199,7 @@ def _emit_scene_tscn() -> bytes:
 
 
 def _is_empty_dir(path: Path) -> bool:
+    """_is_empty_dir — production helper."""
     try:
         return path.is_dir() and not any(path.iterdir())
     except OSError:
@@ -301,6 +308,7 @@ class CreatorPatch:
     reason: str = "creator manifest"
 
     def content_provider(self):
+        """content_provider — production method."""
         desired = self.desired_contents
 
         def _provider(op) -> bytes | None:
@@ -314,6 +322,7 @@ class CreatorPatch:
 
 
 def _desired_contents_for(manifest: CreatorManifest) -> dict[str, bytes]:
+    """_desired_contents_for — production helper."""
     return {
         "project.godot": _emit_project_godot(manifest),
         "scenes/main.tscn": _emit_scene_tscn(),

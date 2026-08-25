@@ -18,6 +18,7 @@ OUTPUT_SCHEMA_VERSION = 1
 
 
 class OutputFormat(StrEnum):
+    """OutputFormat — production class."""
     HUMAN = "human"
     JSON = "json"
     JSONL = "jsonl"
@@ -26,6 +27,7 @@ class OutputFormat(StrEnum):
 
 @dataclass
 class Envelope:
+    """Envelope — production class."""
     schema_version: int = OUTPUT_SCHEMA_VERSION
     command: str = ""
     status: str = "ok"
@@ -42,6 +44,7 @@ def build_envelope(
     diagnostics: list[dict[str, Any]] | None = None,
     meta: dict[str, Any] | None = None,
 ) -> Envelope:
+    """build_envelope — production helper."""
     return Envelope(
         schema_version=OUTPUT_SCHEMA_VERSION,
         command=command,
@@ -78,6 +81,7 @@ def to_sarif(envelope: Envelope) -> dict[str, Any]:
 
 
 def serialize(envelope: Envelope, fmt: OutputFormat) -> str:
+    """serialize — production helper."""
     if fmt is OutputFormat.JSON:
         return json.dumps(asdict(envelope), indent=2, sort_keys=False)
 
@@ -112,5 +116,6 @@ def serialize(envelope: Envelope, fmt: OutputFormat) -> str:
 
 
 def emit(envelope: Envelope, fmt: OutputFormat, *, stream: Any = None) -> None:
+    """emit — production helper."""
     stream = stream or sys.stdout
     stream.write(serialize(envelope, fmt) + "\n")

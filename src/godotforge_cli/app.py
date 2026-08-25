@@ -75,6 +75,7 @@ def cli(
     dry_run: bool,
     strict: bool,
 ) -> None:
+    """cli — production helper."""
     ctx.ensure_object(dict)
     ctx.obj.update(
         project=project,
@@ -94,6 +95,7 @@ def cli(
 
 
 def main() -> None:
+    """main — production helper."""
     cli(obj={})
 
 

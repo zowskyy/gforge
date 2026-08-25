@@ -13,6 +13,7 @@ _HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
 class OperationKind(StrEnum):
+    """OperationKind — production class."""
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
@@ -21,6 +22,7 @@ class OperationKind(StrEnum):
 
 
 class TransactionStatus(StrEnum):
+    """TransactionStatus — production class."""
     PLANNED = "planned"
     PREVIEWED = "previewed"
     APPROVED = "approved"
@@ -62,20 +64,24 @@ ALLOWED_TRANSITIONS: dict[TransactionStatus, set[TransactionStatus]] = {
 
 
 def can_transition(current: TransactionStatus, target: TransactionStatus) -> bool:
+    """can_transition — production helper."""
     return target in ALLOWED_TRANSITIONS.get(current, set())
 
 
 def _validate_owner(value: str) -> None:
+    """_validate_owner — production helper."""
     if not value or not _OWNER_PATTERN.match(value):
         raise ValueError(f"invalid owner '{value}'")
 
 
 def _validate_plan_id(value: str) -> None:
+    """_validate_plan_id — production helper."""
     if not value or not _PLAN_ID_PATTERN.match(value):
         raise ValueError(f"invalid plan id '{value}'")
 
 
 def _validate_hash(value: str | None, field_name: str) -> None:
+    """_validate_hash — production helper."""
     if value is None:
         return
     if not _HASH_PATTERN.match(value):
@@ -83,6 +89,7 @@ def _validate_hash(value: str | None, field_name: str) -> None:
 
 
 def _validate_relative_path(value: str | None, field_name: str) -> None:
+    """_validate_relative_path — production helper."""
     if value is None:
         return
     if not value:
@@ -111,6 +118,7 @@ def _validate_relative_path(value: str | None, field_name: str) -> None:
 
 @dataclass(frozen=True)
 class PatchOperation:
+    """PatchOperation — production class."""
     kind: OperationKind
     path: str | None = None
     from_path: str | None = None
@@ -155,6 +163,7 @@ class PatchOperation:
             _validate_relative_path(self.path, "path")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         data: dict[str, Any] = {
             "kind": self.kind.value,
             "owner": self.owner,
@@ -175,6 +184,7 @@ class PatchOperation:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatchOperation:
+        """from_dict — production method."""
         kind = OperationKind(data["kind"])
         # Support both internal and external rename names
         from_path = data.get("from_path", data.get("from"))
@@ -195,6 +205,7 @@ class PatchOperation:
 
 @dataclass(frozen=True)
 class PatchPlan:
+    """PatchPlan — production class."""
     id: str
     operations: tuple[PatchOperation, ...]
     created_at: str | None = None
@@ -209,6 +220,7 @@ class PatchPlan:
                 raise ValueError(f"operations must be PatchOperation, got {op!r}")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "id": self.id,
             "operations": [op.as_dict() for op in self.operations],
@@ -217,6 +229,7 @@ class PatchPlan:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatchPlan:
+        """from_dict — production method."""
         ops = tuple(PatchOperation.from_dict(o) for o in data.get("operations", []))
         return cls(
             id=data["id"],
@@ -227,6 +240,7 @@ class PatchPlan:
 
 @dataclass(frozen=True)
 class BackupRecord:
+    """BackupRecord — production class."""
     path: str
     backup_path: str
     hash: str | None
@@ -240,6 +254,7 @@ class BackupRecord:
         _validate_hash(self.hash, "hash")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "path": self.path,
             "backup_path": self.backup_path,
@@ -249,6 +264,7 @@ class BackupRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BackupRecord:
+        """from_dict — production method."""
         return cls(
             path=data["path"],
             backup_path=data["backup_path"],
@@ -259,6 +275,7 @@ class BackupRecord:
 
 @dataclass(frozen=True)
 class Transaction:
+    """Transaction — production class."""
     id: str
     plan: PatchPlan
     status: TransactionStatus
@@ -285,6 +302,7 @@ class Transaction:
                 raise ValueError(f"backups must be BackupRecord, got {b!r}")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "id": self.id,
             "plan": self.plan.as_dict(),
@@ -296,6 +314,7 @@ class Transaction:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Transaction:
+        """from_dict — production method."""
         return cls(
             id=data["id"],
             plan=PatchPlan.from_dict(data["plan"]),
@@ -308,6 +327,7 @@ class Transaction:
 
 @dataclass(frozen=True)
 class Conflict:
+    """Conflict — production class."""
     path: str
     expected_hash: str | None
     actual_hash: str | None
@@ -324,6 +344,7 @@ class Conflict:
             raise ValueError("conflict reason must be non-empty")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "path": self.path,
             "expected_hash": self.expected_hash,
@@ -334,6 +355,7 @@ class Conflict:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Conflict:
+        """from_dict — production method."""
         return cls(
             path=data["path"],
             expected_hash=data.get("expected_hash"),
@@ -345,6 +367,7 @@ class Conflict:
 
 @dataclass(frozen=True)
 class PatchResult:
+    """PatchResult — production class."""
     transaction_id: str
     status: TransactionStatus
     conflicts: tuple[Conflict, ...] = field(default_factory=tuple)
@@ -370,6 +393,7 @@ class PatchResult:
             raise ValueError("applied/skipped must be >=0")
 
     def as_dict(self) -> dict[str, Any]:
+        """as_dict — production method."""
         return {
             "transaction_id": self.transaction_id,
             "status": self.status.value,
@@ -380,6 +404,7 @@ class PatchResult:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatchResult:
+        """from_dict — production method."""
         return cls(
             transaction_id=data["transaction_id"],
             status=TransactionStatus(data["status"]),

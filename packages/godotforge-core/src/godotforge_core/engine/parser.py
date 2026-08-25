@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class EngineDiagnostic:
+    """EngineDiagnostic — production class."""
     severity: str  # error | warning | info
     code: str | None
     message: str
@@ -67,6 +68,7 @@ def parse_engine_output(
     stream: str | None = None,
     engine_version: str | None = None,
 ) -> list[EngineDiagnostic]:
+    """parse_engine_output — production helper."""
     if not text:
         return []
 

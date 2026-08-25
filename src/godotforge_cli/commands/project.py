@@ -24,6 +24,7 @@ def cli() -> None:
 @cli.command("inventory")
 @click.pass_context
 def inventory(ctx: click.Context) -> None:
+    """inventory — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
@@ -46,6 +47,7 @@ def inventory(ctx: click.Context) -> None:
 @cli.command("scan")
 @click.pass_context
 def scan(ctx: click.Context) -> None:
+    """scan — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()

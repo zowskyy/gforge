@@ -20,6 +20,7 @@ BACKUP_ROOT_NAME = ".godotforge/backups"
 
 @dataclass(frozen=True)
 class BackupManifest:
+    """BackupManifest — production class."""
     transaction_id: str
     plan_id: str
     plan_hash: str
@@ -28,6 +29,7 @@ class BackupManifest:
     schema_version: int = BACKUP_SCHEMA_VERSION
 
     def as_dict(self) -> dict:
+        """as_dict — production method."""
         return {
             "schema_version": self.schema_version,
             "transaction_id": self.transaction_id,
@@ -39,6 +41,7 @@ class BackupManifest:
 
     @classmethod
     def from_dict(cls, data: dict) -> BackupManifest:
+        """from_dict — production method."""
         return cls(
             transaction_id=data["transaction_id"],
             plan_id=data["plan_id"],
@@ -50,6 +53,7 @@ class BackupManifest:
 
 
 def _validate_transaction_id(tid: str) -> None:
+    """_validate_transaction_id — production helper."""
     if not tid:
         raise ValueError("transaction_id must be non-empty")
     if "/" in tid or "\\" in tid or ".." in tid:
@@ -60,10 +64,12 @@ def _validate_transaction_id(tid: str) -> None:
 
 
 def _backup_file_path(index: int) -> str:
+    """_backup_file_path — production helper."""
     return f"files/{index:06d}.bin"
 
 
 def _ensure_not_in_backup_root(rel: str) -> None:
+    """_ensure_not_in_backup_root — production helper."""
     # Prevent patch from targeting backup directory itself
     if rel == ".godotforge/backups" or rel.startswith(".godotforge/backups/"):
         raise ValueError(f"operation path must not be inside backup root: '{rel}'")

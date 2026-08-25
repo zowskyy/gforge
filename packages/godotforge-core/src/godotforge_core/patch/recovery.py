@@ -15,6 +15,7 @@ from .models import OperationKind, PatchOperation, PatchPlan
 
 
 class RecoveryState(StrEnum):
+    """RecoveryState — production class."""
     NOT_APPLIED = "not_applied"
     APPLIED = "applied"
     UNKNOWN = "unknown"
@@ -22,6 +23,7 @@ class RecoveryState(StrEnum):
 
 @dataclass(frozen=True)
 class RecoveryEntry:
+    """RecoveryEntry — production class."""
     operation_index: int
     operation: PatchOperation
     journal_state: JournalState
@@ -31,6 +33,7 @@ class RecoveryEntry:
 
 @dataclass(frozen=True)
 class RecoveryReport:
+    """RecoveryReport — production class."""
     transaction_id: str
     plan_id: str
     plan_hash: str
@@ -39,12 +42,14 @@ class RecoveryReport:
 
     @property
     def ok(self) -> bool:
+        """ok — production method."""
         return not self.errors and all(
             entry.state != RecoveryState.UNKNOWN for entry in self.entries
         )
 
 
 def _safe_path(root: Path, relative: str) -> Path:
+    """_safe_path — production helper."""
     root = root.resolve()
     candidate = root / Path(relative)
 
@@ -57,6 +62,7 @@ def _safe_path(root: Path, relative: str) -> Path:
 
 
 def _file_hash(path: Path) -> str | None:
+    """_file_hash — production helper."""
     try:
         info = path.lstat()
     except FileNotFoundError:
@@ -69,6 +75,7 @@ def _file_hash(path: Path) -> str | None:
 
 
 def _is_regular_directory(path: Path) -> bool:
+    """_is_regular_directory — production helper."""
     try:
         info = path.lstat()
     except FileNotFoundError:
@@ -78,6 +85,7 @@ def _is_regular_directory(path: Path) -> bool:
 
 
 def _is_empty_directory(path: Path) -> bool:
+    """_is_empty_directory — production helper."""
     if not _is_regular_directory(path):
         return False
 
@@ -92,6 +100,7 @@ def _is_empty_directory(path: Path) -> bool:
 
 
 def _path_exists(root: Path, relative: str) -> bool:
+    """_path_exists — production helper."""
     path = _safe_path(root, relative)
 
     try:
@@ -106,6 +115,7 @@ def _pre_state_matches(
     root: Path,
     operation: PatchOperation,
 ) -> bool:
+    """_pre_state_matches — production helper."""
     if operation.kind == OperationKind.RENAME:
         assert operation.from_path is not None
         assert operation.to_path is not None
@@ -133,6 +143,7 @@ def _post_state_matches(
     operation: PatchOperation,
     post_hash: str | None,
 ) -> bool:
+    """_post_state_matches — production helper."""
     if operation.kind == OperationKind.RENAME:
         assert operation.from_path is not None
         assert operation.to_path is not None
@@ -160,6 +171,7 @@ def _verify_backup_directory(
     root: Path,
     manifest: BackupManifest,
 ) -> list[str]:
+    """_verify_backup_directory — production helper."""
     errors: list[str] = []
     backup_root = (root / BACKUP_ROOT_NAME / manifest.transaction_id).resolve()
 

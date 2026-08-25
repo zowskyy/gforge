@@ -34,6 +34,7 @@ def cli() -> None:
 )
 @click.pass_context
 def validate_cmd(ctx: click.Context, mode: str, timeout: float) -> None:
+    """validate_cmd — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     project: str | None = ctx.obj.get("project")
     engine: Path | None = ctx.obj.get("engine")

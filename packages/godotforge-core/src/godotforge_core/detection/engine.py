@@ -13,11 +13,13 @@ from pathlib import Path
 
 
 class Flavor(StrEnum):
+    """Flavor — production class."""
     STANDARD = "standard"
     MONO = "mono"
 
 
 class EngineInfo:
+    """EngineInfo — production class."""
     __slots__ = ("executable", "raw_version", "version", "flavor")
 
     def __init__(self, executable: Path, raw_version: str, version: str, flavor: str) -> None:
@@ -27,6 +29,7 @@ class EngineInfo:
         self.flavor = flavor  # "mono" | "standard"
 
     def as_dict(self) -> dict:
+        """as_dict — production method."""
         return {
             "executable": str(self.executable),
             "raw_version": self.raw_version,
@@ -37,6 +40,7 @@ class EngineInfo:
 
 @dataclass(frozen=True)
 class EngineProbeResult:
+    """EngineProbeResult — production class."""
     executable: str
     version: str
     flavor: str
@@ -45,6 +49,7 @@ class EngineProbeResult:
     probe_duration_ms: float
 
     def as_dict(self) -> dict:
+        """as_dict — production method."""
         return {
             "executable": self.executable,
             "version": self.version,
@@ -78,6 +83,7 @@ def _prefer_console(executable: Path) -> Path:
 
 
 def _search_common_dirs() -> list[Path]:
+    """_search_common_dirs — production helper."""
     found: list[Path] = []
     for root in _COMMON_WINDOWS_ROOTS:
         if not root.is_dir():
@@ -89,6 +95,7 @@ def _search_common_dirs() -> list[Path]:
 
 
 def _config_engine(config: dict | None) -> list[Path]:
+    """_config_engine — production helper."""
     paths: list[Path] = []
     if not config:
         return paths

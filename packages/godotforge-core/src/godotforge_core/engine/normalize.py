@@ -43,6 +43,7 @@ IGNORED_SHUTDOWN_PATTERNS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True)
 class NormalizedDiagnostic:
+    """NormalizedDiagnostic — production class."""
     severity: str  # error | warning | info
     code: str | None
     message: str
@@ -56,6 +57,7 @@ class NormalizedDiagnostic:
 
 @dataclass(frozen=True)
 class NormalizedResult:
+    """NormalizedResult — production class."""
     status: str  # ok | fail | warn | inconclusive
     exit_code: int
     duration_ms: float
@@ -64,6 +66,7 @@ class NormalizedResult:
 
 
 def _is_known_shutdown_noise(text: str, engine_version: str) -> tuple[bool, str | None]:
+    """_is_known_shutdown_noise — production helper."""
     patterns = IGNORED_SHUTDOWN_PATTERNS.get(engine_version, ())
     for pat in patterns:
         if pat in text:
@@ -72,6 +75,7 @@ def _is_known_shutdown_noise(text: str, engine_version: str) -> tuple[bool, str 
 
 
 def _detect_crash(text: str) -> bool:
+    """_detect_crash — production helper."""
     markers = ("SIGSEGV", "Segmentation fault", "SIGABRT", "crashed", "stack overflow")
     low = text.lower()
     return any(m.lower() in low for m in markers)
@@ -123,6 +127,7 @@ def normalize_process(
     stage: str,
     engine_version: str,
 ) -> NormalizedResult:
+    """normalize_process — production helper."""
     combined = f"{stdout}\n{stderr}"
     diagnostics: list[NormalizedDiagnostic] = []
 

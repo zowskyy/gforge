@@ -14,6 +14,7 @@ import click
 
 
 class LazyGroup(click.Group):
+    """LazyGroup — production class."""
     def __init__(
         self,
         *args: Any,
@@ -24,11 +25,13 @@ class LazyGroup(click.Group):
         self.lazy_subcommands = lazy_subcommands or {}
 
     def list_commands(self, ctx: click.Context) -> list[str]:
+        """list_commands — production method."""
         names = set(super().list_commands(ctx))
         names.update(self.lazy_subcommands)
         return sorted(names)
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        """get_command — production method."""
         if cmd_name not in self.lazy_subcommands:
             return super().get_command(ctx, cmd_name)
 

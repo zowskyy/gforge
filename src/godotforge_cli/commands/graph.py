@@ -31,6 +31,7 @@ from godotforge_cli.output import emit
 
 
 def _resolve(ctx: click.Context) -> tuple[Path, Path]:
+    """_resolve — production helper."""
     project = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
     root = find_workspace(start) or start
@@ -39,6 +40,7 @@ def _resolve(ctx: click.Context) -> tuple[Path, Path]:
 
 
 def _read_store(store: Path) -> sqlite3.Connection | None:
+    """_read_store — production helper."""
     try:
         return open_readonly(store)
     except FileNotFoundError:
@@ -53,6 +55,7 @@ def cli() -> None:
 @cli.command("status")
 @click.pass_context
 def status_cmd(ctx: click.Context) -> None:
+    """status_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = _read_store(store)
@@ -89,6 +92,7 @@ def status_cmd(ctx: click.Context) -> None:
 @cli.command("validate")
 @click.pass_context
 def validate_cmd(ctx: click.Context) -> None:
+    """validate_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = _read_store(store)
@@ -129,6 +133,7 @@ def validate_cmd(ctx: click.Context) -> None:
 @click.option("--kind", default=None, help="Filter nodes by kind.")
 @click.pass_context
 def query_cmd(ctx: click.Context, node: str | None, kind: str | None) -> None:
+    """query_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = _read_store(store)
@@ -155,6 +160,7 @@ def query_cmd(ctx: click.Context, node: str | None, kind: str | None) -> None:
 @click.option("--output", "-o", default="-", help="Output file ('-' for stdout).")
 @click.pass_context
 def export_cmd(ctx: click.Context, output: str) -> None:
+    """export_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = _read_store(store)
@@ -188,6 +194,7 @@ def export_cmd(ctx: click.Context, output: str) -> None:
 @cli.command("stats")
 @click.pass_context
 def stats_cmd(ctx: click.Context) -> None:
+    """stats_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = _read_store(store)
@@ -212,6 +219,7 @@ def stats_cmd(ctx: click.Context) -> None:
 @cli.command("rebuild")
 @click.pass_context
 def rebuild_cmd(ctx: click.Context) -> None:
+    """rebuild_cmd — production helper."""
     root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     graph = rebuild(root, store)
@@ -232,6 +240,7 @@ def rebuild_cmd(ctx: click.Context) -> None:
 @cli.command("refresh")
 @click.pass_context
 def refresh_cmd(ctx: click.Context) -> None:
+    """refresh_cmd — production helper."""
     root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     graph = rebuild(root, store)
@@ -252,6 +261,7 @@ def refresh_cmd(ctx: click.Context) -> None:
 @cli.command("vacuum")
 @click.pass_context
 def vacuum_cmd(ctx: click.Context) -> None:
+    """vacuum_cmd — production helper."""
     _root, store = _resolve(ctx)
     fmt: OutputFormat = ctx.obj["output_format"]
     conn = open_writer(store)

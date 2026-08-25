@@ -22,6 +22,7 @@ from .models import (
 
 @dataclass(frozen=True)
 class RollbackResult:
+    """RollbackResult — production class."""
     transaction_id: str
     status: TransactionStatus
     restored: int = 0
@@ -31,10 +32,12 @@ class RollbackResult:
 
     @property
     def ok(self) -> bool:
+        """ok — production method."""
         return self.status == TransactionStatus.ROLLED_BACK and not self.conflicts
 
 
 def _relative_path(operation: PatchOperation) -> str:
+    """_relative_path — production helper."""
     if operation.kind == OperationKind.RENAME:
         assert operation.from_path is not None
         return operation.from_path
@@ -44,6 +47,7 @@ def _relative_path(operation: PatchOperation) -> str:
 
 
 def _workspace_path(root: Path, relative: str) -> Path:
+    """_workspace_path — production helper."""
     root_resolved = root.resolve()
     candidate = root / Path(relative)
 
@@ -56,6 +60,7 @@ def _workspace_path(root: Path, relative: str) -> Path:
 
 
 def _hash_regular_file(path: Path) -> str | None:
+    """_hash_regular_file — production helper."""
     try:
         path.lstat()
     except FileNotFoundError:
@@ -68,6 +73,7 @@ def _hash_regular_file(path: Path) -> str | None:
 
 
 def _fsync_parent(path: Path) -> None:
+    """_fsync_parent — production helper."""
     try:
         flags = getattr(os, "O_DIRECTORY", 0)
         descriptor = os.open(path, flags)
@@ -85,6 +91,7 @@ def _backup_bytes(
     manifest: BackupManifest,
     entry: dict,
 ) -> bytes:
+    """_backup_bytes — production helper."""
     backup_root = (root / BACKUP_ROOT_NAME / manifest.transaction_id).resolve()
 
     relative_backup = entry.get("backup_path")
@@ -117,6 +124,7 @@ def _conflict(
     expected: str | None = None,
     actual: str | None = None,
 ) -> Conflict:
+    """_conflict — production helper."""
     return Conflict(
         path=path,
         expected_hash=expected,
@@ -132,6 +140,7 @@ def _validate_identity(
     manifest: BackupManifest,
     journal: ApplyJournal,
 ) -> None:
+    """_validate_identity — production helper."""
     if manifest.transaction_id != journal.transaction_id:
         raise ValueError("manifest and journal transaction IDs differ")
 
@@ -156,6 +165,7 @@ def _rollback_create(
     operation: PatchOperation,
     post_hash: str | None,
 ) -> tuple[int, int, Conflict | None]:
+    """_rollback_create — production helper."""
     assert operation.path is not None
     target = _workspace_path(root, operation.path)
     actual = _hash_regular_file(target)
@@ -196,6 +206,7 @@ def _rollback_update(
     entry: dict,
     post_hash: str | None,
 ) -> tuple[int, int, Conflict | None]:
+    """_rollback_update — production helper."""
     assert operation.path is not None
     target = _workspace_path(root, operation.path)
     actual = _hash_regular_file(target)
@@ -240,6 +251,7 @@ def _rollback_delete(
     operation: PatchOperation,
     entry: dict,
 ) -> tuple[int, int, Conflict | None]:
+    """_rollback_delete — production helper."""
     assert operation.path is not None
     target = _workspace_path(root, operation.path)
 
@@ -269,6 +281,7 @@ def _rollback_rename(
     operation: PatchOperation,
     post_hash: str | None,
 ) -> tuple[int, int, Conflict | None]:
+    """_rollback_rename — production helper."""
     assert operation.from_path is not None
     assert operation.to_path is not None
 
@@ -311,6 +324,7 @@ def _rollback_mkdir(
     root: Path,
     operation: PatchOperation,
 ) -> tuple[int, int, Conflict | None]:
+    """_rollback_mkdir — production helper."""
     assert operation.path is not None
     target = _workspace_path(root, operation.path)
 

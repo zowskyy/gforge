@@ -19,6 +19,7 @@ def cli() -> None:
 @cli.command("show")
 @click.pass_context
 def show(ctx: click.Context) -> None:
+    """show — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()

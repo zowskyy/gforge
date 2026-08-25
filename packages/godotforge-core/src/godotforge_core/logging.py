@@ -14,12 +14,14 @@ from typing import Any, TextIO
 
 
 class JsonlHandler(logging.Handler):
+    """JsonlHandler — production class."""
     def __init__(self, stream: TextIO | None = None) -> None:
         super().__init__()
         self.setFormatter(logging.Formatter())
         self.stream = stream or sys.stderr
 
     def emit(self, record: logging.LogRecord) -> None:
+        """emit — production method."""
         timestamp = datetime.fromtimestamp(record.created, UTC).isoformat()
         entry: dict[str, Any] = {
             "ts": timestamp,
@@ -40,6 +42,7 @@ class JsonlHandler(logging.Handler):
 
 
 def configure_logging(level: str = "WARNING", *, stream: TextIO | None = None) -> logging.Logger:
+    """configure_logging — production helper."""
     logger = logging.getLogger("godotforge")
     logger.handlers.clear()
     logger.setLevel(level)
@@ -49,4 +52,5 @@ def configure_logging(level: str = "WARNING", *, stream: TextIO | None = None) -
 
 
 def get_logger() -> logging.Logger:
+    """get_logger — production helper."""
     return logging.getLogger("godotforge")

@@ -19,6 +19,7 @@ def hash_file(path: Path) -> str:
 
 
 def hash_bytes(data: bytes) -> str:
+    """hash_bytes — production helper."""
     return hashlib.sha256(data).hexdigest()
 
 

@@ -18,6 +18,7 @@ from .tscn import index_scenes
 
 
 def build_scan_report(root: str | Path) -> dict:
+    """build_scan_report — production helper."""
     # Local import to avoid circular init between scan and graph
     # (graph.store -> scan.gdscript -> scan.__init__ -> report -> graph).
     from ..graph.store import build_graph

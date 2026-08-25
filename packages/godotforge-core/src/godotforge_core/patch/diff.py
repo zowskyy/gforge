@@ -10,6 +10,7 @@ from .models import OperationKind, PatchOperation, PatchPlan
 
 
 def _is_binary(data: bytes | None) -> bool:
+    """_is_binary — production helper."""
     if data is None:
         return False
     if b"\x00" in data:
@@ -22,10 +23,12 @@ def _is_binary(data: bytes | None) -> bool:
 
 
 def _decode_text(data: bytes) -> str:
+    """_decode_text — production helper."""
     return data.decode("utf-8")
 
 
 def _split_for_diff(text: str) -> list[str]:
+    """_split_for_diff — production helper."""
     # Preserve line endings; difflib expects lines with terminators.
     # Use splitlines(keepends=True) which handles LF, CRLF, and missing final newline.
     lines = text.splitlines(keepends=True)
@@ -38,6 +41,7 @@ def _render_text_diff(
     from_file: str,
     to_file: str,
 ) -> str:
+    """_render_text_diff — production helper."""
     orig_text = _decode_text(original)
     desired_text = _decode_text(desired)
     orig_lines = _split_for_diff(orig_text)
@@ -61,6 +65,7 @@ def _render_text_diff(
 
 @dataclass(frozen=True)
 class DiffEntry:
+    """DiffEntry — production class."""
     operation_index: int
     kind: OperationKind
     path: str
@@ -77,6 +82,7 @@ def render_operation_diff(
     original: bytes | None,
     desired: bytes | None,
 ) -> DiffEntry:
+    """render_operation_diff — production helper."""
     kind = operation.kind
     idx = -1  # caller sets index via render_plan_diffs; for direct call use -1
 

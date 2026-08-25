@@ -16,6 +16,7 @@ from ..version import __version__
 
 @dataclass
 class DoctorCheck:
+    """DoctorCheck — production class."""
     name: str
     status: str  # "ok" | "warn" | "fail"
     detail: str
@@ -24,12 +25,14 @@ class DoctorCheck:
 
 @dataclass
 class DoctorResult:
+    """DoctorResult — production class."""
     status: str  # "ok" | "warn" | "fail"
     checks: list[DoctorCheck]
     exit_code: int = 0
 
 
 def check_dotnet() -> DoctorCheck:
+    """check_dotnet — production helper."""
     executable = shutil.which("dotnet")
     present = executable is not None
     return DoctorCheck(
@@ -41,6 +44,7 @@ def check_dotnet() -> DoctorCheck:
 
 
 def check_git() -> DoctorCheck:
+    """check_git — production helper."""
     executable = shutil.which("git")
     present = executable is not None
     return DoctorCheck(
@@ -59,6 +63,7 @@ def run_doctor(
     strict: bool = False,
     explicit_engine: str | Path | None = None,
 ) -> DoctorResult:
+    """run_doctor — production helper."""
     checks: list[DoctorCheck] = []
 
     checks.append(

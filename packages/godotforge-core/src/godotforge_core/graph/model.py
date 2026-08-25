@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class GraphNode:
+    """GraphNode — production class."""
     id: str
     kind: str
     label: str
@@ -16,6 +17,7 @@ class GraphNode:
 
 @dataclass
 class GraphEdge:
+    """GraphEdge — production class."""
     source: str
     target: str
     kind: str
@@ -24,6 +26,7 @@ class GraphEdge:
 
 @dataclass
 class ProjectGraph:
+    """ProjectGraph — production class."""
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
     main_scene: str | None = None

@@ -14,6 +14,7 @@ from godotforge_cli.output import emit
 @click.command("doctor")
 @click.pass_context
 def cli(ctx: click.Context) -> None:
+    """cli — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()

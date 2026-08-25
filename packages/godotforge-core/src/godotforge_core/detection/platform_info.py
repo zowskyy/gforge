@@ -7,6 +7,7 @@ import sys
 
 
 def platform_info() -> dict:
+    """platform_info — production helper."""
     return {
         "os": platform.system(),
         "os_version": platform.version(),
@@ -19,6 +20,7 @@ def platform_info() -> dict:
 
 
 def os_name_is_nt() -> bool:
+    """os_name_is_nt — production helper."""
     import os
 
     return os.name == "nt"

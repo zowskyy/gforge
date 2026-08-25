@@ -20,6 +20,7 @@ from .runner import CaptureConfig, ProcessResult, run_process
 
 
 class ValidateMode(StrEnum):
+    """ValidateMode — production class."""
     IMPORT = "import"
     LOAD = "load"
     BOOT = "boot"
@@ -28,6 +29,7 @@ class ValidateMode(StrEnum):
 
 @dataclass(frozen=True)
 class StageResult:
+    """StageResult — production class."""
     stage: str
     command: tuple[str, ...]
     process: ProcessResult
@@ -38,6 +40,7 @@ class StageResult:
 
 @dataclass(frozen=True)
 class ValidationResult:
+    """ValidationResult — production class."""
     project_root: str
     engine: EngineProbeResult | None
     mode: str
@@ -48,6 +51,7 @@ class ValidationResult:
 
 
 def _graph_state(project_root: Path) -> dict:
+    """_graph_state — production helper."""
     from ..graph.store import default_store_path
 
     store = default_store_path(project_root)
@@ -67,6 +71,7 @@ def _run_stage(
     engine_version: str,
     capture_config: CaptureConfig | None = None,
 ) -> StageResult:
+    """_run_stage — production helper."""
     command: tuple[str, ...] = (executable, *tuple(args))
     process = run_process(executable, args, timeout=timeout, capture_config=capture_config)
     # Process-level normalization (ENGINE-0005). Text-level parsing
@@ -129,6 +134,7 @@ def _run_stage(
 
 
 def _boot_args(project_root: Path) -> list[str]:
+    """_boot_args — production helper."""
     settings = parse_project_settings(project_root)
     main_scene = settings.main_scene or "res://scenes/main.tscn"
     autoload_names = [a.name for a in settings.autoloads if a.name]

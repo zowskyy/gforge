@@ -19,6 +19,7 @@ _EXT_RE = re.compile(r'ExtResource\(\s*"([^"]*)"\s*\)')
 
 @dataclass
 class ExtResourceRef:
+    """ExtResourceRef — production class."""
     id: str
     type: str | None
     path: str | None
@@ -26,12 +27,14 @@ class ExtResourceRef:
 
 @dataclass
 class SubResourceRef:
+    """SubResourceRef — production class."""
     id: str
     type: str | None
 
 
 @dataclass
 class NodeRef:
+    """NodeRef — production class."""
     name: str
     type: str | None
     parent: str | None
@@ -41,6 +44,7 @@ class NodeRef:
 
 @dataclass
 class SceneModel:
+    """SceneModel — production class."""
     path: str
     format: int | None
     uid: str | None
@@ -51,6 +55,7 @@ class SceneModel:
 
 
 def _parse_bracket(line: str) -> tuple[str, dict[str, str]]:
+    """_parse_bracket — production helper."""
     end = line.rfind("]")
     inner = line[1:end] if end != -1 else line[1:]
     parts = inner.split(None, 1)
@@ -65,6 +70,7 @@ def _parse_bracket(line: str) -> tuple[str, dict[str, str]]:
 
 
 def _ext_id(value: str | None) -> str | None:
+    """_ext_id — production helper."""
     if not value:
         return None
     match = _EXT_RE.match(value)
@@ -72,6 +78,7 @@ def _ext_id(value: str | None) -> str | None:
 
 
 def parse_scene(path: str | Path) -> SceneModel:
+    """parse_scene — production helper."""
     path = Path(path)
     rel = path.name
     scene = SceneModel(path=rel, format=None, uid=None)
@@ -115,6 +122,7 @@ def parse_scene(path: str | Path) -> SceneModel:
 
 
 def scene_dependencies(scene: SceneModel) -> list[str]:
+    """scene_dependencies — production helper."""
     ext_by_id = {ref.id: ref for ref in scene.ext_resources}
     deps: set[str] = set()
     for ref in scene.ext_resources:
@@ -130,6 +138,7 @@ def scene_dependencies(scene: SceneModel) -> list[str]:
 
 
 def index_scenes(root: str | Path) -> list[SceneModel]:
+    """index_scenes — production helper."""
     inventory = inventory_project(root)
     scenes: list[SceneModel] = []
     for relative_path in inventory.files.get("scene", []):

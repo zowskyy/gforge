@@ -27,6 +27,7 @@ CATEGORY_ORDER = (
 
 
 def _classify(rel_posix: str) -> str:
+    """_classify — production helper."""
     parts = rel_posix.split("/")
     name = parts[-1]
 
@@ -55,6 +56,7 @@ def _classify(rel_posix: str) -> str:
 
 
 def inventory_project(root: str | Path) -> InventoryResult:
+    """inventory_project — production helper."""
     root_path = Path(root).resolve()
     files: dict[str, list[str]] = {}
     fingerprints: dict[str, str] = {}

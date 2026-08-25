@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 def res_path(value: str | Path) -> str:
+    """res_path — production helper."""
     raw = str(value).replace("\\", "/")
     if raw.startswith("res://"):
         return "res://" + raw.removeprefix("res://").lstrip("/")
@@ -19,9 +20,11 @@ def res_path(value: str | Path) -> str:
 
 
 def filesystem_path(root: str | Path, resource_path: str) -> Path:
+    """filesystem_path — production helper."""
     relative = resource_path.removeprefix("res://")
     return Path(root).joinpath(*relative.split("/"))
 
 
 def exists(root: str | Path, resource_path: str) -> bool:
+    """exists — production helper."""
     return filesystem_path(root, resource_path).exists()

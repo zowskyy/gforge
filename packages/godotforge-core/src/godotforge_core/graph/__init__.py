@@ -1,3 +1,5 @@
+"""Graph package — re-exports for project graph."""
+
 from .model import VALID_STATUSES, GraphEdge, GraphNode, ProjectGraph
 from .store import (
     GRAPH_SCHEMA_VERSION,

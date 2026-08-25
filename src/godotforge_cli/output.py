@@ -6,6 +6,7 @@ from godotforge_core.output import Envelope, OutputFormat, serialize
 
 
 def emit(envelope: Envelope, fmt: OutputFormat) -> None:
+    """emit — production helper."""
     import sys
 
     sys.stdout.write(serialize(envelope, fmt) + "\n")

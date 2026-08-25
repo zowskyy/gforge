@@ -13,6 +13,7 @@ from .models import OperationKind, PatchPlan
 
 @dataclass(frozen=True)
 class PathSnapshot:
+    """PathSnapshot — production class."""
     path: str
     exists: bool
     is_file: bool
@@ -23,6 +24,7 @@ class PathSnapshot:
 
 @dataclass(frozen=True)
 class PreconditionIssue:
+    """PreconditionIssue — production class."""
     path: str
     code: str
     expected_hash: str | None
@@ -32,6 +34,7 @@ class PreconditionIssue:
 
 @dataclass(frozen=True)
 class PreconditionReport:
+    """PreconditionReport — production class."""
     plan_id: str
     plan_hash: str
     snapshots: tuple[PathSnapshot, ...]
@@ -39,10 +42,12 @@ class PreconditionReport:
 
     @property
     def ok(self) -> bool:
+        """ok — production method."""
         return not self.issues
 
 
 def _hash_file_if_regular(path: Path) -> str | None:
+    """_hash_file_if_regular — production helper."""
     try:
         # Use lstat to avoid following symlink; caller already checks symlink
         st = path.lstat()
@@ -83,6 +88,7 @@ def _is_unsupported_type(p: Path) -> str | None:
 
 
 def _is_inside_root(root_resolved: Path, candidate: Path) -> bool:
+    """_is_inside_root — production helper."""
     try:
         # candidate may not exist; check parent
         # Resolve root
@@ -201,6 +207,7 @@ def _check_symlink_escape(root: Path, rel: str) -> str | None:
 
 
 def _snapshot_for(root: Path, rel: str) -> PathSnapshot:
+    """_snapshot_for — production helper."""
     abs_path = root / Path(rel)
     # Check if exists via lstat first to detect symlink
     try:
@@ -248,6 +255,7 @@ def _snapshot_for(root: Path, rel: str) -> PathSnapshot:
 def _check_kind_preconditions(
     root: Path, op, snapshot: PathSnapshot, snapshots: dict[str, PathSnapshot]
 ) -> list[PreconditionIssue]:
+    """_check_kind_preconditions — production helper."""
     issues: list[PreconditionIssue] = []
     kind = op.kind
 

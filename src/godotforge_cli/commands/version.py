@@ -13,6 +13,7 @@ from godotforge_cli.output import emit
 @click.command("version")
 @click.pass_context
 def cli(ctx: click.Context) -> None:
+    """cli — production helper."""
     fmt: OutputFormat = ctx.obj["output_format"]
 
     data: dict = {

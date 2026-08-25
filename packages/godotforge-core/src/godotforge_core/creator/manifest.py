@@ -27,18 +27,21 @@ class CreatorPreflightError(ValueError):
 
 @dataclass(frozen=True)
 class CreatorInput:
+    """CreatorInput — production class."""
     name: str
     binding: str
 
 
 @dataclass(frozen=True)
 class CreatorManifest:
+    """CreatorManifest — production class."""
     schema_version: int
     game_name: str
     template: str
     inputs: tuple[CreatorInput, ...]
 
     def as_dict(self) -> dict:
+        """as_dict — production method."""
         return {
             "schema_version": self.schema_version,
             "game": {"name": self.game_name, "template": self.template},
@@ -47,6 +50,7 @@ class CreatorManifest:
 
 
 def _validate_game_name(name: str) -> None:
+    """_validate_game_name — production helper."""
     if not isinstance(name, str) or not name:
         raise ValueError("game.name must be non-empty string")
     if len(name) > 64:

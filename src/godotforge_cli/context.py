@@ -10,6 +10,7 @@ from godotforge_core.output import OutputFormat
 
 @dataclass(frozen=True)
 class ForgeContext:
+    """ForgeContext — production class."""
     project_root: Path | None
     output_format: OutputFormat
     engine_executable: Path | None
