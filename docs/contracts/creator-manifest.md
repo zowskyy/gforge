@@ -137,4 +137,4 @@ See `README.md:2` and header above — offline, deterministic, no LLM/network/te
 
 ## Future
 
-PATCH-0014 will add `engine validate`; PATCH-0013 remains preview/apply only, no Godot invocation, no AI/network/telemetry.
+PATCH-0016 adds the `schema_version: 2` manifest surface (optional typed behavior parameters) — see `docs/contracts/patch-0016.md`; this document's v1 text is unchanged and remains the v1 baseline. PATCH-0014 will add `engine validate`; PATCH-0013 remains preview/apply only, no Godot invocation, no AI/network/telemetry.
