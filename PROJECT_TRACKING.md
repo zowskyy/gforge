@@ -685,6 +685,7 @@ Known limitations:
 
 ### PATCH-0011 — CLI wiring for application settings adapter
 
+Commit: b81977f57e5a5ade0c5526d27a6dc2132e92e6a8
 Status: implementation complete; commit hash recorded below
 
 Implemented:
