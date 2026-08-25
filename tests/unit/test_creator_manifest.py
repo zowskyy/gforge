@@ -140,6 +140,9 @@ def test_inputs_sorted_deterministically() -> None:
     assert [i.name for i in m.inputs] == ["move_left", "move_right", "jump"]
 
 
-def test_schema_version_must_be_1() -> None:
-    with pytest.raises(ValueError, match="schema_version"):
-        validate_manifest_dict(_base_manifest(schema_version=2))
+def test_schema_version_must_be_1_or_2() -> None:
+    """PATCH-0016: schema_version accepts int 1 or 2, rejects everything else."""
+    for bad in [0, 3, "1", True, None]:
+        with pytest.raises(ValueError, match="schema_version"):
+            validate_manifest_dict(_base_manifest(schema_version=bad))
+    assert validate_manifest_dict(_base_manifest(schema_version=2)).schema_version == 2
