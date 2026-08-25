@@ -110,10 +110,12 @@ def _secure_copy(src: Path, dst: Path) -> None:
     Bounds file count and total bytes.
     Never follows symlinks (follow_symlinks=False).
     """
-    src = src.resolve()
-    dst = dst.resolve()
+    # F-002: reject a symlinked root on the *unresolved* user-supplied path;
+    # resolve() would silently dereference it and defeat this check.
     if src.is_symlink():
         raise ValueError(f"symlink project root rejected: {src}")
+    src = src.resolve()
+    dst = dst.resolve()
     total_files = 0
     total_bytes = 0
     for dirpath, dirnames, filenames in os.walk(src, topdown=True, followlinks=False):
@@ -257,9 +259,12 @@ def verify_creator_project(
 
     Returns VerifyResult with source_unchanged flag.
     """
-    src_root = Path(src_root).resolve()
+    # F-002: check the user-supplied path for a symlink *before* resolve();
+    # resolve() dereferences symlinks and would silently accept a linked root.
+    src_root = Path(src_root)
     if src_root.is_symlink():
         raise ValueError(f"symlink project root rejected: {src_root}")
+    src_root = src_root.resolve()
     manifest = validate_manifest_dict(manifest_dict)
     # planId manifest-derived, planHash null for verify per contract
 

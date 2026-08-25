@@ -39,9 +39,19 @@ except ImportError:
 
 
 def _resolve_root(ctx: click.Context) -> Path:
-    """_resolve_root — production helper."""
+    """_resolve_root — production helper.
+
+    F-002: a user-supplied ``--project`` root that is itself a symlink is
+    rejected before any resolve()/workspace discovery, matching the core
+    ``verify_creator_project``/``_secure_copy`` invariant.
+    """
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
+    if start.is_symlink():
+        reraise(
+            ValueError(f"symlink project root rejected: {start}"),
+            code=ForgeExitCode.CONFIGURATION_FAILURE,
+        )
     # Creator supports empty/template roots (State A/B) where no
     # project.godot/.godotforge/project.yaml exists yet; find_workspace
     # would return None there. Fall back to the explicit start dir.

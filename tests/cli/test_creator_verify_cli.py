@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from click.testing import CliRunner, Result
 from godotforge_core.creator.plan import plan_creator_manifest
@@ -114,12 +115,34 @@ def test_verify_symlink_rejected(tmp_path: Path) -> None:
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
-        import pytest
-
-        pytest.skip("symlink not supported")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     mf = _write_manifest(tmp_path)
     r = _invoke(["--project", str(link), "--format", "json", "creator", "verify", "--manifest", str(mf)])  # noqa: E501
     assert r.exit_code == 2
+
+
+def test_verify_symlink_rejected_before_resolve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F-002: CLI rejects a symlinked --project root with exit 2 before any
+    resolve()/workspace discovery, matching the core invariant.
+
+    ``is_symlink`` is simulated via monkeypatch so this regression runs on
+    hosts without symlink privileges; real-symlink coverage is in
+    ``test_verify_symlink_rejected``.
+    """
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.mkdir()  # must exist for click.Path(exists=True); simulated as symlink below
+    monkeypatch.setattr(Path, "is_symlink", lambda self: self == link)
+    mf = _write_manifest(tmp_path)
+    r = _invoke(
+        ["--project", str(link), "--format", "json", "creator", "verify", "--manifest", str(mf)]
+    )  # noqa: E501
+    assert r.exit_code == 2
+    assert "symlink project root rejected" in r.output
 
 
 def test_verify_plan_id_manifest_only(tmp_path: Path) -> None:

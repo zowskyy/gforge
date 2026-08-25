@@ -70,11 +70,32 @@ def test_secure_copy_rejects_symlink_root(tmp_path: Path) -> None:
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
-        pytest.skip("symlink not supported on this platform")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     dst = tmp_path / "dst"
     dst.mkdir()
     with pytest.raises(ValueError, match="symlink project root"):
         _secure_copy(link, dst)
+
+
+def test_secure_copy_rejects_symlink_root_before_resolve(tmp_path: Path) -> None:
+    """F-002: the root symlink check must run on the *unresolved* path.
+
+    Simulated via a Path subclass so this regression runs on hosts without
+    symlink privileges; real-symlink coverage is in
+    ``test_secure_copy_rejects_symlink_root``.
+    """
+
+    class _FakeSymlinkRoot(Path):
+        """Simulated symlink root: is_symlink() True without OS support."""
+
+        def is_symlink(self) -> bool:  # type: ignore[override]
+            return True
+
+    src = _FakeSymlinkRoot(tmp_path / "link")
+    dst = tmp_path / "dst"
+    dst.mkdir()
+    with pytest.raises(ValueError, match="symlink project root rejected"):
+        _secure_copy(src, dst)
 
 
 def test_secure_copy_rejects_nested_symlink(tmp_path: Path) -> None:
@@ -89,7 +110,7 @@ def test_secure_copy_rejects_nested_symlink(tmp_path: Path) -> None:
     try:
         link.symlink_to(target)
     except OSError:
-        pytest.skip("symlink not supported")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     dst = tmp_path / "dst"
     dst.mkdir()
     with pytest.raises(ValueError, match="symlink"):
@@ -210,6 +231,24 @@ def test_verify_rejects_symlink_root_cli_level(tmp_path: Path) -> None:
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
-        pytest.skip("symlink not supported")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     with pytest.raises(ValueError, match="symlink"):
+        verify_creator_project(link, MANIFEST, engine_path=None, timeout=1, mode="import")
+
+
+def test_verify_rejects_symlink_root_before_resolve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F-002: core verify rejects a symlinked root before resolve()/copy/Godot.
+
+    ``is_symlink`` is simulated via monkeypatch so this regression runs on
+    hosts without symlink privileges; real-symlink coverage is in
+    ``test_verify_rejects_symlink_root_cli_level``.
+    """
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    link = tmp_path / "link"
+    monkeypatch.setattr(Path, "is_symlink", lambda self: self == link)
+    with pytest.raises(ValueError, match="symlink project root rejected"):
         verify_creator_project(link, MANIFEST, engine_path=None, timeout=1, mode="import")
