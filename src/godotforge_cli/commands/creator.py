@@ -8,12 +8,12 @@ validator injection and strict symlink rejection.
 
 from __future__ import annotations
 
-import json
 import uuid
 from pathlib import Path
 from typing import Any
 
 import click
+from godotforge_core.creator.loading import load_json_manifest, load_yaml_manifest
 from godotforge_core.creator.manifest import CreatorPreflightError
 from godotforge_core.creator.plan import plan_creator_manifest
 from godotforge_core.detection.workspace import find_workspace
@@ -65,15 +65,18 @@ def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, Any]:
-    """_load_manifest — production helper."""
+    """_load_manifest — production helper.
+
+    Numeric scalars are preserved as Decimal via the creator ingestion
+    boundary (``creator/loading.py``); binary float never enters the manifest.
+    """
     text = manifest_path.read_text(encoding="utf-8")
     if manifest_path.suffix.lower() in {".yaml", ".yml"}:
         if not _HAS_YAML:
             raise ValueError("YAML manifest requires pyyaml (install pyyaml)")
-        assert yaml is not None
-        data = yaml.safe_load(text)
+        data = load_yaml_manifest(text)
     else:
-        data = json.loads(text)
+        data = load_json_manifest(text)
     if not isinstance(data, dict):
         raise ValueError("manifest must be a mapping")
     return data
