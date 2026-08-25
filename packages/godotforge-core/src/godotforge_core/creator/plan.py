@@ -97,34 +97,16 @@ def _emit_project_godot(manifest: CreatorManifest) -> bytes:
 
 def _emit_player_controller() -> bytes:
     """_emit_player_controller — production helper."""
-    return (
-        b"extends CharacterBody2D\n"
-        b"\n"
-        b"const SPEED := 200.0\n"
-        b"const JUMP_VELOCITY := -350.0\n"
-        b"\n"
-        b"func _physics_process(_delta: float) -> void:\n"
-        b"\tvar direction := 0\n"
-        b"\tif Input.is_action_pressed(\"move_left\"):\n"
-        b"\t\tdirection -= 1\n"
-        b"\tif Input.is_action_pressed(\"move_right\"):\n"
-        b"\t\tdirection += 1\n"
-        b"\tvelocity.x = direction * SPEED\n"
-        b"\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n"
-        b"\t\tvelocity.y = JUMP_VELOCITY\n"
-        b"\tvelocity.y += 980.0 * _delta\n"
-        b"\tmove_and_slide()\n"
-    )
+    from godotforge_core.behaviors.registry import load_behavior
+
+    return load_behavior("platformer_controller")
 
 
 def _emit_coin() -> bytes:
     """_emit_coin — production helper."""
-    return (
-        b"extends Area2D\n"
-        b"\n"
-        b"func _on_body_entered(_body: Node) -> void:\n"
-        b"\tqueue_free()\n"
-    )
+    from godotforge_core.behaviors.registry import load_behavior
+
+    return load_behavior("collectible")
 
 
 def _emit_scene_tscn() -> bytes:
