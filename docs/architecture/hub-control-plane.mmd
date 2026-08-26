@@ -1,0 +1,81 @@
+```mermaid
+flowchart TD
+    A[Goal File] --> B[compile_goal]
+    B --> C{Status}
+    C -->|clarification| D[Return Clarification Errors]
+    C -->|ok| E[plan_creator_manifest]
+    E --> F[CreatorPatch]
+    F --> G{Plan Null?}
+    G -->|Yes| H[No-op Path]
+    G -->|No| I[Authorization-Bound Path]
+
+    %% No-op Path
+    H --> H1[run_started event\nplan_hash: null]
+    H1 --> H2[run_finalized event\nproof_hash: noop]
+    H2 --> H3[Return SUCCESS noop=true]
+
+    %% Authorization-Bound Path
+    I --> I1[run_started event\nplan_hash: H(plan)]
+    I1 --> I2[record_explicit_cli_authorization\nbound to planHash]
+    I2 --> I3[require_authorization\nverify binding]
+    I3 --> I4[Immediate Re-plan]
+    I4 --> I5{Plan Changed?}
+    I5 -->|Yes| I6[run_failed: plan_changed\nReturn PATCH_CONFLICT]
+    I5 -->|No| I7[check_plan preconditions]
+    I7 --> I8{Preconditions OK?}
+    I8 -->|No| I9[run_failed: precondition_conflict\nReturn PATCH_CONFLICT]
+    I8 -->|Yes| I10[create_backup]
+    I10 --> I11{Backup OK?}
+    I11 -->|No| I12[run_failed: backup_failed\nReturn PATCH_CONFLICT]
+    I11 -->|Yes| I13[apply_plan]
+    I13 --> I14{Apply Status}
+    I14 -->|COMMITTED| I15
+    I14 -->|Non-mutating failure| I16[run_failed: apply_failed\nReturn PATCH_CONFLICT]
+    I14 -->|Partial/uncertain| I17[Leave run open AUTHORIZED\nReturn PATCH_CONFLICT + recovery info]
+
+    I15[Hash applied artifacts\nparallel SHA-256] --> I18[apply_committed event\nartifact_hash map]
+    I18 --> I19[verify_creator_project\nisolated Godot run]
+    I19 --> I20{Engine Available?}
+    I20 -->|No| I21[Return TOOL_UNAVAILABLE\nstate=needs_validation]
+    I20 -->|Yes| I22{Validation Result}
+    I22 -->|source_unchanged=false| I23[run_failed: source_modified\nReturn INTERNAL_FAILURE]
+    I22 -->|temp_not_removed| I24[run_failed: cleanup_failed\nReturn INTERNAL_FAILURE]
+    I22 -->|status=ok| I25[validation_completed event]
+    I25 --> I26[compute_proof_for_outcome\noutcome=applied]
+    I26 --> I27[run_finalized event\nproof_hash + outcome=applied]
+    I27 --> I28[Return SUCCESS]
+    I22 -->|status!=ok| I29[run_failed: validation_failed\nReturn VALIDATION_FAILURE]
+
+    %% Styling
+    classDef success fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef failure fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef process fill:#e3f2fd,stroke:#1565c0,stroke-width:1px;
+    classDef decision fill:#fff3e0,stroke:#ef6c00,stroke-width:1px;
+
+    class H3,I28 success;
+    class D,I6,I9,I12,I16,I17,I21,I23,I24,I29 failure;
+    class B,E,I1,I2,I3,I4,I7,I10,I13,I15,I18,I19,I25,I26,I27 process;
+    class C,G,I5,I8,I11,I14,I20,I22 decision;
+```
+
+---
+
+### Legend
+
+| Color | Meaning |
+|-------|---------|
+| Green | Successful terminal states |
+| Red | Failure terminal states |
+| Blue | Processing steps |
+| Orange | Decision points |
+
+### Key Invariants
+
+1. **Preview is read-only** — `preview_goal` stops after `plan_creator_manifest`, never enters authorization-bound path
+2. **Authorization binds to exact planHash** — Any plan drift invalidates authorization (re-plan check at I4)
+3. **No mutation before authorization** — `require_authorization` gate at I3
+4. **Atomic backup before apply** — `create_backup` at I10
+5. **Artifact hashes from actual tree** — Parallel SHA-256 at I15
+6. **Isolated verification** — Fresh Godot process, temp project copy
+7. **Proof covers canonical evidence only** — No timestamps, durations, temp paths
+8. **Rollback never automatic** — Partial/uncertain outcomes leave run open for manual recovery
