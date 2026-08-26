@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://qv5q5fd1owbvv"]
+
+[ext_resource type="Script" path="res://scripts/ability_system.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/abilities/dash.tres" id="2_abilitydata"]
+
+[node name="AbilityBase" type="Node3D"]
+script = ExtResource("1_script")
+ability_data = ExtResource("2_abilitydata")

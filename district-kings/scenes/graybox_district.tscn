@@ -1,0 +1,60 @@
+[gd_scene load_steps=9 format=3 uid="uid://4grvomug2xdpl"]
+
+[ext_resource type="Script" path="res://scripts/level_setup.gd" id="1_levelsetup"]
+[ext_resource type="PackedScene" path="res://scenes/player_3d.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/district_zone.tscn" id="3_zone"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="4_hud"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.5, 0.6, 0.7, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(60.0, 1.0, 60.0)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(60.0, 1.0, 60.0)
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+
+[node name="GrayboxDistrict" type="Node3D"]
+script = ExtResource("1_levelsetup")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-45, -30, 0)
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_1")
+
+[node name="Floor" type="StaticBody3D" parent="."]
+position = Vector3(0.0, -0.5, 0.0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector3(0.0, 1.0, 5.0)
+
+[node name="DistrictZoneA" parent="." instance=ExtResource("3_zone")]
+position = Vector3(-10.0, 0.5, -10.0)
+zone_id = 0
+
+[node name="DistrictZoneB" parent="." instance=ExtResource("3_zone")]
+position = Vector3(10.0, 0.5, -10.0)
+zone_id = 1
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]
+
+[node name="SpawnPointTeam0" type="Node3D" parent="."]
+position = Vector3(0.0, 0.5, 20.0)
+groups = ["spawn_team_0"]
+
+[node name="SpawnPointTeam1" type="Node3D" parent="."]
+position = Vector3(0.0, 0.5, -20.0)
+groups = ["spawn_team_1"]

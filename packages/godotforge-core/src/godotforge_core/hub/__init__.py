@@ -86,6 +86,13 @@ from godotforge_core.hub.observability import (
     get_timeline,
     setup_structured_logging,
 )
+from godotforge_core.creator.manifest import (
+    BehaviorParameters3D,
+    CharacterParameters,
+    InputMapConfig,
+    Physics3DSettings,
+    RendererType,
+)
 
 __all__ = [
     "APPROVAL_MODE_EXPLICIT_CLI",
@@ -98,14 +105,18 @@ __all__ = [
     "ActiveRegistration",
     "Authorization",
     "Capability",
+    "CharacterParameters",
     "ClarificationIssue",
     "GoalCompilation",
     "GoalSpec",
     "HubRunResult",
+    "InputMapConfig",
     "LedgerAction",
     "Permission",
+    "Physics3DSettings",
     "ProviderDescriptor",
     "RegistryState",
+    "RendererType",
     "RunEvent",
     "RunEventKind",
     "RunMetrics",

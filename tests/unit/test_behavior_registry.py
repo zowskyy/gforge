@@ -41,10 +41,14 @@ BASELINE_PLAYER = (
 BASELINE_COIN = b"extends Area2D\n\nfunc _on_body_entered(_body: Node) -> void:\n\tqueue_free()\n"
 
 
-def test_allowlist_exactly_three() -> None:
-    """Allowlist: v1 platformer_controller + collectible, plus v2 controller (PATCH-0016)."""
-    ids = allowed_behavior_ids()
-    assert ids == ("collectible", "platformer_controller", "platformer_controller_v2")
+def test_allowlist_contains_2d_baseline_three() -> None:
+    """The original v1 platformer_controller + collectible, plus v2 controller
+    (PATCH-0016) remain allowlisted unchanged. The registry now also carries
+    the 3d-tactical-shooter template's behaviors (see
+    test_behaviors_registry.py for the full-registry hash/coverage guard) —
+    this test only pins the original 2D subset, not the total count."""
+    ids = set(allowed_behavior_ids())
+    assert {"collectible", "platformer_controller", "platformer_controller_v2"} <= ids
     assert is_allowlisted("platformer_controller") is True
     assert is_allowlisted("platformer_controller_v2") is True
     assert is_allowlisted("collectible") is True

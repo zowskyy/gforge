@@ -30,6 +30,49 @@ GOAL_MINIMAL = {
     "game": {"name": "Dodge Hop", "template": "2d-platformer-minimal"},
 }
 
+GOAL_MINIMAL_3D = {
+    "schema_version": 1,
+    "game": {"name": "District Kings", "template": "3d-tactical-shooter"},
+}
+
+GOAL_FULL_3D = {
+    "schema_version": 1,
+    "game": {"name": "District Kings", "template": "3d-tactical-shooter"},
+    "parameters": {"enforcer": {"health": Decimal("150.0")}},
+    "renderer": "mobile",
+    "physics_3d": {"gravity": Decimal("12.0")},
+}
+
+_FIXED_INPUTS_3D_CANONICAL: tuple[dict[str, str], ...] = (
+    {"name": "move_forward", "binding": "move_forward"},
+    {"name": "move_backward", "binding": "move_backward"},
+    {"name": "move_left", "binding": "move_left"},
+    {"name": "move_right", "binding": "move_right"},
+    {"name": "jump", "binding": "jump"},
+    {"name": "sprint", "binding": "sprint"},
+    {"name": "aim", "binding": "aim"},
+    {"name": "fire_primary", "binding": "fire_primary"},
+    {"name": "fire_secondary", "binding": "fire_secondary"},
+    {"name": "ability_1", "binding": "ability_1"},
+    {"name": "ability_2", "binding": "ability_2"},
+    {"name": "ability_ultimate", "binding": "ability_ultimate"},
+    {"name": "reload", "binding": "reload"},
+    {"name": "interact", "binding": "interact"},
+)
+
+
+def _handwritten_manifest_3d() -> dict:
+    # Deliberately shuffled (reverse) input order — exercises the v3
+    # canonical-order sort fix in creator/manifest.py.
+    return {
+        "schema_version": 3,
+        "game": {"name": "District Kings", "template": "3d-tactical-shooter"},
+        "input": list(reversed(_FIXED_INPUTS_3D_CANONICAL)),
+        "parameters": {"enforcer": {"health": Decimal("150.0")}},
+        "renderer": "mobile",
+        "physics_3d": {"gravity": Decimal("12.0")},
+    }
+
 
 def _handwritten_manifest(speed: str | None = "250.0", jump: str | None = "-400.0") -> dict:
     params: dict = {}
@@ -68,6 +111,55 @@ def test_compile_matches_handwritten_manifest(tmp_path: Path) -> None:
     assert [op.desired_hash for op in goal_patch.plan.operations] == [
         op.desired_hash for op in hand_patch.plan.operations
     ]
+
+
+def test_compile_matches_handwritten_manifest_3d(tmp_path: Path) -> None:
+    compiled = compile_goal(GOAL_FULL_3D)
+    assert compiled.status == "ok"
+    assert compiled.manifest_dict is not None
+    handwritten = _handwritten_manifest_3d()
+    goal_manifest = validate_manifest_dict(compiled.manifest_dict)
+    hand_manifest = validate_manifest_dict(handwritten)
+    assert goal_manifest.as_dict() == hand_manifest.as_dict()
+    assert _plan_id_for(goal_manifest) == _plan_id_for(hand_manifest)
+    goal_patch = plan_creator_manifest(tmp_path, compiled.manifest_dict)
+    hand_patch = plan_creator_manifest(tmp_path, handwritten)
+    assert goal_patch.desired_contents == hand_patch.desired_contents
+    assert goal_patch.plan is not None and hand_patch.plan is not None
+    assert [op.desired_hash for op in goal_patch.plan.operations] == [
+        op.desired_hash for op in hand_patch.plan.operations
+    ]
+
+
+def test_goal_renderer_physics_input_map_survive_compilation() -> None:
+    """Regression test for the compile_goal() merge bug: renderer/physics_3d/
+    input_map supplied on the goal must actually reach the validated
+    manifest — not silently fall back to schema defaults."""
+    compiled = compile_goal(GOAL_FULL_3D)
+    assert compiled.status == "ok"
+    assert compiled.manifest_dict is not None
+    assert compiled.manifest_dict["renderer"] == "mobile"
+    assert compiled.manifest_dict["physics_3d"]["gravity"] == "12.0"
+    manifest = validate_manifest_dict(compiled.manifest_dict)
+    assert manifest.renderer == "mobile"
+    assert manifest.physics_3d is not None
+    assert manifest.physics_3d.gravity == Decimal("12.0")
+    # GoalSpec mirrors the validated manifest, not raw re-reads of the input.
+    assert compiled.goal is not None
+    assert compiled.goal.renderer == "mobile"
+    assert compiled.goal.physics_3d == {"gravity": "12.0", "floor_snap_length": "0.5"}
+    # Omitted renderer/physics_3d/input_map still resolve to schema defaults.
+    minimal_compiled = compile_goal(GOAL_MINIMAL_3D)
+    assert minimal_compiled.manifest_dict is not None
+    assert minimal_compiled.manifest_dict["renderer"] == "forward_plus"
+
+
+def test_3d_template_registered_in_goal_layer() -> None:
+    assert "3d-tactical-shooter" in registered_templates()
+    compiled = compile_goal(GOAL_MINIMAL_3D)
+    assert compiled.status == "ok"
+    assert compiled.manifest_dict is not None
+    assert compiled.manifest_dict["schema_version"] == 3
 
 
 def test_goal_hash_deterministic_and_default_invariant() -> None:
@@ -171,7 +263,7 @@ def test_unknown_template_and_schema_version_rejected() -> None:
         )
     with pytest.raises(ValueError, match="schema_version"):
         compile_goal({"schema_version": True, "game": {"name": "N", "template": "t"}})
-    assert registered_templates() == ("2d-platformer-minimal",)
+    assert registered_templates() == ("2d-platformer-minimal", "3d-tactical-shooter")
 
 
 def test_invalid_ranges_and_values_rejected() -> None:

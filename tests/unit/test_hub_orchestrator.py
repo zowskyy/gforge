@@ -46,6 +46,11 @@ GOAL: dict[str, Any] = {
     "game": {"name": "HubLife", "template": "2d-platformer-minimal"},
 }
 
+GOAL_3D: dict[str, Any] = {
+    "schema_version": 1,
+    "game": {"name": "District Kings", "template": "3d-tactical-shooter"},
+}
+
 H_A = "a" * 64
 H_B = "b" * 64
 H_C = "c" * 64
@@ -62,6 +67,13 @@ def _root(tmp_path: Path) -> Path:
 def _manifest_dict() -> dict[str, Any]:
     """_manifest_dict — compile the canonical test goal to a manifest dict."""
     compilation = compile_goal(GOAL)
+    assert compilation.manifest_dict is not None
+    return compilation.manifest_dict
+
+
+def _manifest_dict_3d() -> dict[str, Any]:
+    """_manifest_dict_3d — compile the 3D test goal to a manifest dict."""
+    compilation = compile_goal(GOAL_3D)
     assert compilation.manifest_dict is not None
     return compilation.manifest_dict
 
@@ -170,6 +182,15 @@ def _prepare_matching_project(root: Path) -> None:
         fp.write_bytes(content)
 
 
+def _prepare_matching_project_3d(root: Path) -> None:
+    """_prepare_matching_project_3d — write desired 3D contents so plan is no-op."""
+    patch = plan_creator_manifest(root, _manifest_dict_3d())
+    for rel, content in patch.desired_contents.items():
+        fp = root / rel
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        fp.write_bytes(content)
+
+
 def test_run_goal_apply_waits_for_engine_and_records_lifecycle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -222,6 +243,61 @@ def test_run_goal_noop_apply_records_only_start_and_finalize(tmp_path: Path) -> 
         RunEventKind.RUN_FINALIZED,
     ]
     assert not (root / ".godotforge" / "backups").exists()
+    verify_chain(root)
+    record = _fold(root, result.run_id)
+    assert record.state is RunState.FINALIZED
+    assert compute_proof_hash(record) == result.proof_hash
+
+
+def test_run_goal_3d_apply_waits_for_engine_and_records_lifecycle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """3D-template equivalent of test_run_goal_apply_waits_for_engine_and_records_lifecycle.
+    orchestrator.py is template-agnostic (see creator/plan.py dispatch) so
+    this exercises the same fakes/seams against a 3D goal end to end."""
+    root = _root(tmp_path)
+    monkeypatch.setattr(
+        orchestrator, "verify_creator_project", _fake_verify("fail", with_engine=False)
+    )
+    result = run_goal(root, GOAL_3D)
+    assert result.exit_code is ForgeExitCode.TOOL_UNAVAILABLE
+    assert result.state == RunState.NEEDS_VALIDATION.value
+    assert result.run_id is not None
+    assert result.plan_hash is not None
+    assert (root / "project.godot").is_file()
+    assert (root / "scripts" / "event_bus.gd").is_file()
+    assert (root / "scripts" / "game_manager.gd").is_file()
+    assert (root / "data" / "characters" / "enforcer.tres").is_file()
+    assert (root / "scripts" / "external" / "world_generator" / "city_noise_generator.gd").is_file()
+    verify_chain(root)
+    assert _kinds(root, result.run_id) == [
+        RunEventKind.RUN_STARTED,
+        RunEventKind.AUTHORIZATION_RECORDED,
+        RunEventKind.APPLY_COMMITTED,
+    ]
+    record = _fold(root, result.run_id)
+    assert record.state is RunState.NEEDS_VALIDATION
+    assert record.artifact_hash is not None
+    assert record.artifact_hash
+    for rel, digest in record.artifact_hash.items():
+        actual = hashlib.sha256((root / rel).read_bytes()).hexdigest()
+        assert actual == digest
+
+
+def test_run_goal_3d_noop_apply_records_only_start_and_finalize(tmp_path: Path) -> None:
+    """3D-template equivalent of test_run_goal_noop_apply_records_only_start_and_finalize."""
+    root = _root(tmp_path)
+    _prepare_matching_project_3d(root)
+    result = run_goal(root, GOAL_3D)
+    assert result.exit_code is ForgeExitCode.SUCCESS
+    assert result.noop is True
+    assert result.outcome == "noop"
+    assert result.plan_hash is None
+    assert result.run_id is not None
+    assert _kinds(root, result.run_id) == [
+        RunEventKind.RUN_STARTED,
+        RunEventKind.RUN_FINALIZED,
+    ]
     verify_chain(root)
     record = _fold(root, result.run_id)
     assert record.state is RunState.FINALIZED

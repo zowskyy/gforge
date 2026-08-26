@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from godotforge_core.creator.plan import CreatorPatch, _G_DIRS, _G_FILES
+from godotforge_core.creator.plan import CreatorPatch, all_managed_dirs, all_managed_files
 from godotforge_core.hub_control_plane import (
     PLAN_CACHE_RELATIVE,
     ensure_hub_metadata_parents,
@@ -69,8 +69,9 @@ def _compute_project_root_hash(root: Path) -> str:
     root = root.resolve()
     entries: list[tuple[str, int]] = []
 
-    # G_files
-    for rel in _G_FILES:
+    # G_files — union across templates (the template for a given root isn't
+    # known at this call site; see all_managed_files docstring).
+    for rel in all_managed_files():
         fp = root / rel
         if fp.is_file():
             try:
@@ -80,7 +81,7 @@ def _compute_project_root_hash(root: Path) -> str:
                 pass
 
     # G_dirs — include directory entries with size 0 to capture presence
-    for rel in _G_DIRS:
+    for rel in all_managed_dirs():
         fp = root / rel
         if fp.is_dir() and not fp.is_symlink():
             entries.append((rel, 0))

@@ -36,7 +36,7 @@ PRUNED_PREFIXES = (".godotforge/cache", ".godotforge/reports", ".godotforge/back
 PRUNED_HUB_FILES = HUB_METADATA_FILES
 
 # Pinned validator hash — must match package resource.
-PINNED_VALIDATOR_SHA256 = "1e01c7a59baa856ebeb4a14d2f39d143640e2162f1fc31aee2d80df69cbd525c"
+PINNED_VALIDATOR_SHA256 = "26027ef4c096793dd9afee442fa94ca21663f3ac565a037e1324fceeb0e820bf"
 
 
 @dataclass(frozen=True)

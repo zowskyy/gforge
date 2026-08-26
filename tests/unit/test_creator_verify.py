@@ -37,16 +37,21 @@ def test_validator_source_package_and_hash() -> None:
     assert hashlib.sha256(data).hexdigest() == PINNED_VALIDATOR_SHA256
 
 
-def test_validator_pin_unchanged_by_patch_0016() -> None:
-    """PATCH-0016 §10: PINNED_VALIDATOR_SHA256 holds its pre-PATCH-0016 value.
-
-    v2 parameter inspection uses the temporary-project harness
-    (tests/integration/test_creator_v2_godot.py), never validate_boot.gd.
-    Changing this literal requires an explicit validator version/hash update
-    per the contract amendment procedure.
+def test_validator_pin_reflects_3d_template_amendment() -> None:
+    """Deliberate contract amendment (District Kings 3D template support):
+    validate_boot.gd's camera check was Camera2D-only, which unconditionally
+    failed validation for any 3D main scene (a real bug found while
+    generating the first 3D-template project — the check needs to accept
+    either Camera2D or Camera3D, matching "the scene has a working camera"
+    rather than assuming 2D). PINNED_VALIDATOR_SHA256 was bumped from the
+    pre-PATCH-0016 value ("1e01c7a5...") to this amended value; v2 parameter
+    inspection still uses the temporary-project harness
+    (tests/integration/test_creator_v2_godot.py), never validate_boot.gd, so
+    this change is scoped to the boot-validation camera check only. Changing
+    this literal again requires the same explicit amendment procedure.
     """
     assert PINNED_VALIDATOR_SHA256 == (
-        "1e01c7a59baa856ebeb4a14d2f39d143640e2162f1fc31aee2d80df69cbd525c"
+        "26027ef4c096793dd9afee442fa94ca21663f3ac565a037e1324fceeb0e820bf"
     )
 
 

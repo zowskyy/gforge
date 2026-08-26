@@ -1,4 +1,4 @@
-"""Goal compilation — structured GoalSpec → CreatorManifest (schema v2).
+"""Goal compilation — structured GoalSpec → CreatorManifest (schema v2/v3).
 
 The goal is the user-facing input to the Hub. v1 accepts **structured
 YAML/JSON only** — no natural-language interpretation anywhere in this
@@ -13,9 +13,9 @@ Authority boundaries (locked):
   numerics, and byte emission stay with ``creator/manifest.py``,
   ``creator/numfmt.py``, and the behavior registry.
 - Compilation reuses the existing Decimal-preserving ingestion boundary
-  (``creator/loading.py``), the v2 manifest validator, and the template
+  (``creator/loading.py``), the v2/v3 manifest validator, and the template
   allowlist below. A compiled goal's manifest is byte-identical to the
-  equivalent hand-written v2 manifest.
+  equivalent hand-written v2/v3 manifest.
 - Defaults are resolved **explicitly** and recorded in
   ``GoalSpec.resolved_defaults``; nothing is hidden inside execution.
 - Missing high-impact information (game name, template) returns a
@@ -59,10 +59,30 @@ _FIXED_INPUTS: tuple[dict[str, str], ...] = (
     {"name": "jump", "binding": "ui_accept"},
 )
 
-_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters"})
+# 3D tactical shooter fixed inputs (for 3D template)
+_FIXED_INPUTS_3D: tuple[dict[str, str], ...] = (
+    {"name": "move_forward", "binding": "move_forward"},
+    {"name": "move_backward", "binding": "move_backward"},
+    {"name": "move_left", "binding": "move_left"},
+    {"name": "move_right", "binding": "move_right"},
+    {"name": "jump", "binding": "jump"},
+    {"name": "sprint", "binding": "sprint"},
+    {"name": "aim", "binding": "aim"},
+    {"name": "fire_primary", "binding": "fire_primary"},
+    {"name": "fire_secondary", "binding": "fire_secondary"},
+    {"name": "ability_1", "binding": "ability_1"},
+    {"name": "ability_2", "binding": "ability_2"},
+    {"name": "ability_ultimate", "binding": "ability_ultimate"},
+    {"name": "reload", "binding": "reload"},
+    {"name": "interact", "binding": "interact"},
+)
+
+_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources"})
 _ALLOWED_GAME_KEYS = frozenset({"name", "template"})
-_ALLOWED_BEHAVIOR_KEYS = frozenset({"platformer_controller"})
-_ALLOWED_PARAMETER_KEYS = frozenset({"speed", "jump_velocity"})
+_ALLOWED_BEHAVIOR_KEYS_2D = frozenset({"platformer_controller"})
+_ALLOWED_BEHAVIOR_KEYS_3D = frozenset({"enforcer", "scout", "fixer"})
+_ALLOWED_PARAMETER_KEYS_2D = frozenset({"speed", "jump_velocity"})
+_ALLOWED_PARAMETER_KEYS_3D = frozenset({"health", "armor", "move_speed", "sprint_multiplier"})
 
 # Path-shaped strings can never be valid here: game.name is restricted to
 # ^[A-Za-z0-9 _-]+$ by the manifest validator, and these guards make the
@@ -75,6 +95,7 @@ _PATH_LIKE_PATTERN = re.compile(r"(^/|^[A-Za-z]:[\\/]|\\\\|\.\.|//|res://|uid://
 # behavior registry own those.
 _TEMPLATES: dict[str, int] = {
     "2d-platformer-minimal": 2,
+    "3d-tactical-shooter": 3,
 }
 
 
@@ -111,14 +132,34 @@ class GoalSpec:
     parameters: BehaviorParameters
     resolved_defaults: tuple[str, ...]
     schema_version: int = GOAL_SCHEMA_VERSION
+    # 3D-specific fields (optional, only for 3D templates)
+    renderer: str | None = None
+    physics_3d: dict[str, Any] | None = None
+    input_map: dict[str, list[str]] | None = None
+    directory_structure: dict[str, list[str]] | None = None
+    external_repos: list[str] | None = None
+    resources: dict[str, list[str]] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """as_dict — canonical serialization matching goal.schema.json shape."""
-        return {
+        result = {
             "schema_version": self.schema_version,
             "game": {"name": self.game_name, "template": self.template},
             "parameters": self.parameters.as_dict(),
         }
+        if self.renderer is not None:
+            result["renderer"] = self.renderer
+        if self.physics_3d is not None:
+            result["physics_3d"] = self.physics_3d
+        if self.input_map is not None:
+            result["input_map"] = self.input_map
+        if self.directory_structure is not None:
+            result["directory_structure"] = self.directory_structure
+        if self.external_repos is not None:
+            result["external_repos"] = self.external_repos
+        if self.resources is not None:
+            result["resources"] = self.resources
+        return result
 
 
 @dataclass(frozen=True)
@@ -267,7 +308,7 @@ def load_goal_file(path: Path | str, *, format: str = "yaml") -> dict[str, Any]:
     return data
 
 
-def _resolve_parameters(raw: Any) -> tuple[dict[str, Any], tuple[str, ...]]:
+def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[str, ...]]:
     """_resolve_parameters — validate shape, record which values default.
 
     Returns the parameters sub-dict to embed in the manifest (only explicitly
@@ -275,36 +316,65 @@ def _resolve_parameters(raw: Any) -> tuple[dict[str, Any], tuple[str, ...]]:
     ranges) plus the dotted paths that will take defaults. Range, precision,
     and canonical-format enforcement stay with ``validate_manifest_dict``.
     """
-    prefix = "parameters.platformer_controller"
-    if raw is None:
-        return {}, (f"{prefix}.speed", f"{prefix}.jump_velocity")
-    if not isinstance(raw, dict):
-        raise ValueError(f"parameters must be a mapping, got {raw!r}")
-    unknown_behaviors = set(raw) - _ALLOWED_BEHAVIOR_KEYS
-    if unknown_behaviors:
-        raise ValueError(
-            f"unsupported behavior request(s): {sorted(unknown_behaviors)}; "
-            f"supported: {sorted(_ALLOWED_BEHAVIOR_KEYS)}"
+    if template == "3d-tactical-shooter":
+        prefix = "parameters.enforcer"  # default to enforcer, can be extended
+        if raw is None:
+            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
+        if not isinstance(raw, dict):
+            raise ValueError(f"parameters must be a mapping, got {raw!r}")
+        unknown_behaviors = set(raw) - _ALLOWED_BEHAVIOR_KEYS_3D
+        if unknown_behaviors:
+            raise ValueError(
+                f"unsupported behavior request(s): {sorted(unknown_behaviors)}; "
+                f"supported: {sorted(_ALLOWED_BEHAVIOR_KEYS_3D)}"
+            )
+        behavior = raw.get("enforcer")  # default to enforcer
+        if behavior is None:
+            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
+        if not isinstance(behavior, dict):
+            raise ValueError(f"parameters.enforcer must be a mapping, got {behavior!r}")
+        unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_3D
+        if unknown_params:
+            raise ValueError(
+                f"unknown parameter(s): {sorted(unknown_params)}; "
+                f"supported: {sorted(_ALLOWED_PARAMETER_KEYS_3D)}"
+            )
+        defaults = tuple(
+            f"{prefix}.{name}" for name in ("health", "armor", "move_speed", "sprint_multiplier") if name not in behavior
         )
-    behavior = raw.get("platformer_controller")
-    if behavior is None:
-        return {}, (f"{prefix}.speed", f"{prefix}.jump_velocity")
-    if not isinstance(behavior, dict):
-        raise ValueError(f"parameters.platformer_controller must be a mapping, got {behavior!r}")
-    unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS
-    if unknown_params:
-        raise ValueError(
-            f"unknown parameter(s): {sorted(unknown_params)}; "
-            f"supported: {sorted(_ALLOWED_PARAMETER_KEYS)}"
+        return {"enforcer": dict(behavior)}, defaults
+    else:
+        # 2D platformer
+        prefix = "parameters.platformer_controller"
+        if raw is None:
+            return {}, (f"{prefix}.speed", f"{prefix}.jump_velocity")
+        if not isinstance(raw, dict):
+            raise ValueError(f"parameters must be a mapping, got {raw!r}")
+        unknown_behaviors = set(raw) - _ALLOWED_BEHAVIOR_KEYS_2D
+        if unknown_behaviors:
+            raise ValueError(
+                f"unsupported behavior request(s): {sorted(unknown_behaviors)}; "
+                f"supported: {sorted(_ALLOWED_BEHAVIOR_KEYS_2D)}"
+            )
+        behavior = raw.get("platformer_controller")
+        if behavior is None:
+            return {}, (f"{prefix}.speed", f"{prefix}.jump_velocity")
+        if not isinstance(behavior, dict):
+            raise ValueError(f"parameters.platformer_controller must be a mapping, got {behavior!r}")
+        unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_2D
+        if unknown_params:
+            raise ValueError(
+                f"unknown parameter(s): {sorted(unknown_params)}; "
+                f"supported: {sorted(_ALLOWED_PARAMETER_KEYS_2D)}"
+            )
+        defaults = tuple(
+            f"{prefix}.{name}" for name in ("speed", "jump_velocity") if name not in behavior
         )
-    defaults = tuple(
-        f"{prefix}.{name}" for name in ("speed", "jump_velocity") if name not in behavior
-    )
-    return {"platformer_controller": dict(behavior)}, defaults
+        return {"platformer_controller": dict(behavior)}, defaults
 
 
 def compile_goal(data: dict[str, Any]) -> GoalCompilation:
-    """compile_goal — compile a parsed goal document into a v2 CreatorManifest.
+    """compile_goal — compile a parsed goal document into a v2/v3 CreatorManifest.
 
     Pure and deterministic. Raises ``ValueError`` for unknown keys/templates/
     parameters, malformed values, invalid ranges (via the manifest
@@ -389,25 +459,61 @@ def compile_goal(data: dict[str, Any]) -> GoalCompilation:
             f"unknown template {template!r}; supported: {list(registered_templates())}"
         )
 
-    parameters_dict, resolved_defaults = _resolve_parameters(data.get("parameters"))
+    # Get template-specific fixed inputs
+    fixed_inputs = _FIXED_INPUTS_3D if template == "3d-tactical-shooter" else _FIXED_INPUTS
+    
+    # Resolve parameters with template awareness
+    parameters_dict, resolved_defaults = _resolve_parameters(data.get("parameters"), template)
 
     manifest_dict: dict[str, Any] = {
         "schema_version": _TEMPLATES[template],
         "game": {"name": name, "template": template},
-        "input": [dict(entry) for entry in _FIXED_INPUTS],
+        "input": [dict(entry) for entry in (_FIXED_INPUTS_3D if template == "3d-tactical-shooter" else _FIXED_INPUTS)],
         "parameters": parameters_dict,
     }
+    # 3D-specific optional fields must be merged in *before* validation so
+    # that validate_manifest_dict — the single authority for defaults/ranges
+    # — actually sees and resolves the user's values, not just its own
+    # defaults. Reading them only after validation (the prior bug) meant
+    # CreatorManifest.renderer/.physics_3d/.input_map always reflected
+    # schema defaults regardless of what the goal specified.
+    if template == "3d-tactical-shooter":
+        renderer_raw = data.get("renderer")
+        physics_3d_raw = data.get("physics_3d")
+        input_map_raw = data.get("input_map")
+        if renderer_raw is not None:
+            manifest_dict["renderer"] = renderer_raw
+        if physics_3d_raw is not None:
+            manifest_dict["physics_3d"] = physics_3d_raw
+        if input_map_raw is not None:
+            manifest_dict["input_map"] = input_map_raw
+
     # The manifest validator is the single authority for name pattern,
     # ranges, canonical numerics, and unknown keys; failures propagate as
     # ValueError (validation failure), never clarification guesses.
     manifest: CreatorManifest = validate_manifest_dict(manifest_dict)
     assert manifest.parameters is not None
 
+    # directory_structure/external_repos/resources are schema-validated but
+    # not yet consumed by the planner; carried through to GoalSpec/goal_hash
+    # only. renderer/physics_3d/input_map on GoalSpec are derived from the
+    # validated manifest (not re-read from raw data) so GoalSpec and
+    # manifest_dict can never diverge.
+    directory_structure = data.get("directory_structure")
+    external_repos = data.get("external_repos")
+    resources = data.get("resources")
+
     goal = GoalSpec(
         game_name=name,
         template=template,
         parameters=manifest.parameters,
         resolved_defaults=resolved_defaults,
+        renderer=manifest.renderer,
+        physics_3d=manifest.physics_3d.as_dict() if manifest.physics_3d is not None else None,
+        input_map=manifest.input_map.as_dict() if manifest.input_map is not None else None,
+        directory_structure=directory_structure,
+        external_repos=external_repos,
+        resources=resources,
     )
     return GoalCompilation(
         status="ok",

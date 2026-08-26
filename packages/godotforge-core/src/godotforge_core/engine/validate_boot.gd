@@ -46,11 +46,16 @@ func _run_validation() -> void:
 	if instance.get_node_or_null("Player") == null:
 		_fail("NODE_MISSING", "Main scene is missing Player")
 
+	# Template-agnostic: a 2D main scene has a Camera2D, a 3D main scene has
+	# a Camera3D — either satisfies "the scene has a working camera".
 	var has_camera := instance.get_node_or_null("Camera2D") != null
 	has_camera = has_camera or instance.get_node_or_null("Player/Camera2D") != null
 	has_camera = has_camera or instance.find_child("Camera2D", true, false) != null
+	has_camera = has_camera or instance.get_node_or_null("Camera3D") != null
+	has_camera = has_camera or instance.get_node_or_null("Player/Camera3D") != null
+	has_camera = has_camera or instance.find_child("Camera3D", true, false) != null
 	if not has_camera:
-		_fail("NODE_MISSING", "Main scene is missing Camera2D")
+		_fail("NODE_MISSING", "Main scene is missing Camera2D or Camera3D")
 
 	instance.free()
 	_finish()
