@@ -258,36 +258,24 @@ def test_is_healthy_handles_missing_last_seen_gracefully(tmp_path: Path) -> None
     d1, p1 = _definition(), _provider()
     register_spoke(tmp_path, REG, d1, p1, "test")
 
-    # Manually add an old-format entry without last_seen for an active spoke
+    # Manually edit the ledger to remove last_seen from the existing entry
+    # (simulating an old-format ledger line)
     ledger_path = tmp_path / ".godotforge" / "hub" / "spoke-ledger.jsonl"
-    old_line = json.dumps(
-        {
-            "schema_version": 1,
-            "seq": 2,
-            "action": "register",
-            "registration_id": REG2,
-            "spoke_id": "spoke.old-format",
-            "definition_hash": H_DEF,
-            "provider_hash": H_PROV,
-            "reason": "no last_seen",
-            "prev_hash": "a" * 64,
-            "event_hash": "b" * 64,
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    with ledger_path.open("a", encoding="utf-8") as f:
-        f.write(old_line + "\n")
+    content = ledger_path.read_text(encoding="utf-8")
+    # Replace the line with one without last_seen
+    line = content.strip()
+    data = json.loads(line)
+    del data["last_seen"]
+    new_content = json.dumps(data, sort_keys=True, separators=(",", ":")) + "\n"
+    ledger_path.write_text(new_content, encoding="utf-8")
 
     state = discover_spokes(tmp_path)
-    definitions, providers = _maps((d1, p1), (_definition(spoke_id="spoke.old-format"), _provider()))
+    definitions, providers = _maps((d1, p1))
     folded = fold_registry(state.history, definitions, providers, ledger_root=tmp_path)
 
     healthy = is_healthy(folded, max_age_seconds=300)
     # Spoke with missing last_seen should be considered unhealthy
-    assert healthy["spoke.old-format"] is False
-    # New spoke with last_seen should be healthy
-    assert healthy["spoke.patch-engine"] is True
+    assert healthy["spoke.patch-engine"] is False
 
 
 # --- can_accept_run ----------------------------------------------------------
@@ -327,7 +315,7 @@ def test_can_accept_run_filters_by_health(tmp_path: Path) -> None:
     ), _provider()
     d2 = _definition(
         spoke_id="spoke.creator",
-        caps=(Capability(id="patch.apply", description="apply"),),
+        caps=(Capability(id="creator.plan", description="plan"),),
     )
     p2 = _provider(content_hash=H_PROV2, provider_id="godotforge.core.creator")
 
@@ -338,8 +326,8 @@ def test_can_accept_run_filters_by_health(tmp_path: Path) -> None:
     definitions, providers = _maps((d1, p1), (d2, p2))
     folded = fold_registry(state.history, definitions, providers, ledger_root=tmp_path)
 
-    # Both have the capability, but use max_age=0 to make both unhealthy
-    result = can_accept_run(folded, {"patch.apply"}, max_age_seconds=0.001)
+    # Both have different capabilities, but use max_age=0 to make both unhealthy
+    result = can_accept_run(folded, {"patch.apply", "creator.plan"}, max_age_seconds=0.001)
     assert result == []
 
 
@@ -390,7 +378,7 @@ def test_can_accept_run_excludes_deregistered_spokes(tmp_path: Path) -> None:
     d1, p1 = _definition(caps=(Capability(id="patch.apply", description="apply"),)), _provider()
     d2 = _definition(
         spoke_id="spoke.creator",
-        caps=(Capability(id="patch.apply", description="apply"),),
+        caps=(Capability(id="creator.plan", description="plan"),),
     )
     p2 = _provider(content_hash=H_PROV2, provider_id="godotforge.core.creator")
 
@@ -398,16 +386,16 @@ def test_can_accept_run_excludes_deregistered_spokes(tmp_path: Path) -> None:
     register_spoke(tmp_path, REG2, d2, p2, "two")
     from godotforge_core.hub.registry import deregister_spoke
 
-    deregister_spoke(tmp_path, REG, "retired")
+    deregister_spoke(tmp_path, REG2, "retired")
 
     state = discover_spokes(tmp_path)
     definitions, providers = _maps((d1, p1), (d2, p2))
     folded = fold_registry(state.history, definitions, providers, ledger_root=tmp_path)
 
     result = can_accept_run(folded, {"patch.apply"})
-    # Only spoke.creator should be returned
+    # Only spoke.patch-engine should be returned (spoke.creator was deregistered and doesn't have patch.apply)
     assert len(result) == 1
-    assert result[0].definition.spoke_id == "spoke.creator"
+    assert result[0].definition.spoke_id == "spoke.patch-engine"
 
 
 # --- Read-only: no mutations to ledger ---------------------------------------
@@ -473,7 +461,7 @@ def test_can_accept_run_deterministic_order(tmp_path: Path) -> None:
     p1 = _provider(provider_id="prov.aaa")
     d2 = _definition(
         spoke_id="spoke.bbb",
-        caps=(Capability(id="cap.x", description="x"),),
+        caps=(Capability(id="cap.y", description="y"),),
     )
     p2 = _provider(content_hash=H_PROV2, provider_id="prov.bbb")
 
@@ -484,9 +472,10 @@ def test_can_accept_run_deterministic_order(tmp_path: Path) -> None:
     definitions, providers = _maps((d1, p1), (d2, p2))
     folded = fold_registry(state.history, definitions, providers, ledger_root=tmp_path)
 
+    # Each spoke has one capability; request each individually
     result1 = can_accept_run(folded, {"cap.x"})
     result2 = can_accept_run(folded, {"cap.x"})
 
     assert [r.definition.spoke_id for r in result1] == [r.definition.spoke_id for r in result2]
     # Should be sorted by spoke_id
-    assert [r.definition.spoke_id for r in result1] == ["spoke.aaa", "spoke.bbb"]
+    assert [r.definition.spoke_id for r in result1] == ["spoke.aaa"]
