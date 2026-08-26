@@ -64,6 +64,7 @@ from godotforge_core.hub.run_record import (
     read_events,
     run_store_path,
     verify_chain,
+    verify_ledger_integrity,
 )
 
 __all__ = [
@@ -117,4 +118,5 @@ __all__ = [
     "run_store_path",
     "verify_chain",
     "verify_ledger",
+    "verify_ledger_integrity",
 ]
