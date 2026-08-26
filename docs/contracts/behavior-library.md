@@ -7,9 +7,14 @@ Versioned, allowlisted GDScript components. Deterministic, offline, AI-free. No 
 | ID | File | Version | Pinned SHA-256 | Purpose |
 |---|---|---|---|---|
 | `platformer_controller` | `behaviors/resources/platformer_controller.gd` | 1 | `59449f62b5371e7c255583f2932a75e88ebc91531c1986113c518c824ae9ee0e` | Movement, gravity, jump |
+| `platformer_controller_v2` | `behaviors/resources/platformer_controller_v2.gd` | 2 | `1a7f8aa5c7ebd8bcf23a6ff818de6faa58a534722b7e3983b8b1b01fd532e1a0` | PATCH-0016: `@export speed` / `@export jump_velocity` (see `docs/contracts/patch-0016.md`) |
 | `collectible` | `behaviors/resources/collectible.gd` | 1 | `c80b9f8d4463739bb9db90b0d5caf4b05ff34db22b84a625774da63a0b6b8f16` | Collision `Area2D queue_free` |
 
 Unknown ID → `ValueError` `CONFIGURATION_FAILURE 2`.
+
+## Behavior v2 (PATCH-0016)
+
+`schema_version: 2` selects the fixed, package-pinned v2 script. Parameter values are **never** substituted into source: they are emitted as canonical numeric `speed` / `jump_velocity` properties on the `Player` node in `scenes/main.tscn` (after the `script = ExtResource(...)` line, or Godot discards them). Gravity is a fixed `980.0` constant, not a parameter. Ranges: `speed 50.0..500.0` default `200.0`; `jump_velocity -1000.0..-100.0` default `-350.0`. Behavior identity/version come from the registry/template only — the manifest has no behavior name/version fields. Full contract: `docs/contracts/patch-0016.md`.
 
 ## Runtime behavior
 

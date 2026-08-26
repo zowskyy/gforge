@@ -6,6 +6,9 @@ import hashlib
 import json
 import os
 import shutil
+import sys
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +19,17 @@ from .preconditions import PreconditionReport
 
 BACKUP_SCHEMA_VERSION = 1
 BACKUP_ROOT_NAME = ".godotforge/backups"
+
+# AUDIT-0002: Windows directory rename (MoveFileExW) requires no open handle
+# anywhere in the source subtree, unlike POSIX rename() — an external
+# process (indexer, AV, file watcher) briefly opening a just-written file
+# inside tmp_base can transiently fail this rename with WinError 5 or 32.
+# Retry is scoped to exactly this: Windows only, exactly these two error
+# codes. Any other error (including a real, persistent permission problem)
+# propagates unchanged on the first attempt.
+_PROMOTE_RETRY_WINERRORS = (5, 32)
+_PROMOTE_MAX_ATTEMPTS = 5
+_PROMOTE_RETRY_DELAYS_S = (0.05, 0.10, 0.20, 0.40)
 
 
 @dataclass(frozen=True)
@@ -73,6 +87,43 @@ def _ensure_not_in_backup_root(rel: str) -> None:
     # Prevent patch from targeting backup directory itself
     if rel == ".godotforge/backups" or rel.startswith(".godotforge/backups/"):
         raise ValueError(f"operation path must not be inside backup root: '{rel}'")
+
+
+def _promote_backup_dir(
+    tmp_base: Path,
+    final_dir: Path,
+    *,
+    sleep: Callable[[float], None] | None = None,
+) -> None:
+    """_promote_backup_dir — atomic finalize with a bounded Windows-lock retry.
+
+    Retries only when running on Windows and the caught error's ``winerror``
+    is 5 or 32 (see AUDIT-0002) — up to 5 total attempts, sleeping
+    0.05/0.10/0.20/0.40s between them. Any other error, or any error at all
+    on a non-Windows platform, propagates immediately on the first attempt.
+    The last exception is re-raised unchanged after the retry budget is
+    exhausted; ``tmp_base``/``final_dir`` are untouched by a failed
+    ``os.replace`` (the syscall either fully succeeds or has no effect), so
+    the caller's existing cleanup path applies unmodified either way.
+
+    ``sleep`` defaults to ``time.sleep``, resolved dynamically (not bound at
+    import time) so production code and tests alike can monkeypatch
+    ``time.sleep`` directly; pass an explicit ``sleep`` callable to inject
+    one without monkeypatching.
+    """
+    wait = sleep if sleep is not None else time.sleep
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            os.replace(tmp_base, final_dir)
+            return
+        except OSError as exc:
+            winerror = getattr(exc, "winerror", None)
+            retryable = sys.platform == "win32" and winerror in _PROMOTE_RETRY_WINERRORS
+            if not retryable or attempt >= _PROMOTE_MAX_ATTEMPTS:
+                raise
+            wait(_PROMOTE_RETRY_DELAYS_S[attempt - 1])
 
 
 def create_backup(
@@ -234,9 +285,8 @@ def create_backup(
             os.fsync(f.fileno())
         tmp_manifest.replace(manifest_path)
         # Also fsync directory?
-        # 8. Atomic rename temp -> final
-        # Use os.replace for atomic
-        os.replace(tmp_base, final_dir)
+        # 8. Atomic rename temp -> final (bounded retry: AUDIT-0002)
+        _promote_backup_dir(tmp_base, final_dir)
         return manifest
 
     except Exception:

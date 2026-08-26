@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3 uid="uid://1kwksn3l9m2hp"]
+
+[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+weapon_name = "Shotgun"
+damage = 8.0
+pellet_count = 8
+fire_rate = 0.75
+magazine_size = 6
+reload_time = 2.2

@@ -1,0 +1,89 @@
+```mermaid
+flowchart TD
+    %% Registration Flow
+    A[register_spoke] --> B{Validate:\n- No duplicate spoke_id\n- No capability collision\n- Known definition/provider hashes}
+    B -->|Valid| C[_append_event REGISTER]
+    B -->|Invalid| D[Raise ValueError]
+    
+    C --> E[Write to spoke-ledger.jsonl\natomic: temp→replace→fsync]
+    E --> F[append_audit\nappend_spoke_event]
+    F --> G[Return SpokeEvent]
+
+    %% Deregistration Flow
+    H[deregister_spoke] --> I{Validate:\n- registration_id exists\n- registration_id active}
+    I -->|Valid| J[_append_event DEREGISTER\ntombstone]
+    I -->|Invalid| K[Raise ValueError]
+    
+    J --> L[Write to spoke-ledger.jsonl\noriginal REGISTER preserved]
+    L --> M[append_audit\nappend_spoke_event]
+    M --> N[Return SpokeEvent]
+
+    %% Discovery & Folding
+    O[discover_spokes] --> P[read_ledger]
+    P --> Q[RegistryState{active={}, history=events}]
+    Q --> R[fold_registry\nwith definitions + providers]
+    
+    R --> S{Validate each event}
+    S -->|REGISTER| T[Add to active\ncheck duplicates + collisions]
+    S -->|DEREGISTER| U[Remove from active\nhistory preserved]
+    T --> V[RegistryState\nactive + history]
+    U --> V
+
+    %% Health Check
+    W[is_healthy] --> X[Read raw ledger lines\nextract last_seen from REGISTER]
+    X --> Y{For each active spoke:\nlast_seen exists?\n(now - last_seen) < max_age?}
+    Y -->|Yes| Z[healthy=true]
+    Y -->|No| AA[healthy=false]
+    Z --> AB[Return dict[spoke_id, bool]]
+    AA --> AB
+
+    %% Capability Eligibility
+    AC[can_accept_run] --> AD[is_healthy]
+    AD --> AE[Filter active spokes\nby health]
+    AE --> AF[Filter by capability coverage\nrequired ⊆ spoke.capabilities]
+    AF --> AG[Return sorted ActiveRegistration[]]
+
+    %% Ledger Verification
+    AH[verify_ledger] --> AI[Recompute hash chain\nfrom seq=1]
+    AI --> AJ{All event_hash match?\nNo seq gaps?\nprev_hash chain intact?}
+    AJ -->|Yes| AK[OK]
+    AJ -->|No| AL[Raise ValueError\nfirst bad entry]
+
+    %% Styling
+    classDef action fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef validate fill:#fff3e0,stroke:#ef6c00,stroke-width:1px;
+    classDef store fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
+    classDef audit fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px;
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:1px;
+    classDef query fill:#e0f2f1,stroke:#00695c,stroke-width:1px;
+
+    class A,H,O,W,AC,AH action;
+    class B,I,S,Y validate;
+    class C,E,J,L,P store;
+    class F,M audit;
+    class D,K,AL error;
+    class Q,R,T,U,V,X,AE,AF,AG,AB query;
+```
+
+---
+
+### Data Flow Summary
+
+| Operation | Ledger Action | Audit Action | State Change |
+|-----------|---------------|--------------|--------------|
+| `register_spoke` | `REGISTER` | `append_spoke_event` | Spoke added to `active` |
+| `deregister_spoke` | `DEREGISTER` | `append_spoke_event` | Spoke removed from `active`, tombstone in `history` |
+| `discover_spokes` | Read only | — | Returns `RegistryState` |
+| `fold_registry` | Read + compute | — | Returns validated `RegistryState` |
+| `is_healthy` | Read `last_seen` | — | Returns `dict[spoke_id, bool]` |
+| `can_accept_run` | Read + filter | — | Returns eligible spokes |
+| `verify_ledger` | Verify chain | — | Raises on tamper |
+
+### Key Properties
+
+1. **Append-only ledger** — Events never modified or deleted; `DEREGISTER` is a tombstone
+2. **Deterministic fold** — Same events + same definitions/providers = same `RegistryState`
+3. **Capability collision detection** — Registration rejected if capability IDs overlap
+4. **Health via `last_seen`** — Operational heartbeat, not part of hash chain
+5. **Gated permissions** — `filesystem_write` / `engine_invoke` require recorded `Authorization` at invocation
+6. **Audit trail** — Every ledger mutation recorded in `audit.jsonl`

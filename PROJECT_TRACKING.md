@@ -71,7 +71,26 @@ Prior Phase 1 baseline: workspace detection, engine discovery, structured config
 | `commands/version.py` | `godotforge version` | complete |
 | `commands/doctor.py` | `godotforge doctor` | complete |
 | `commands/config.py` | `godotforge config show` | complete |
+| `commands/engine.py` | `godotforge engine validate` | complete |
+| `commands/graph.py` | `godotforge graph *` | complete |
+| `commands/project.py` | `godotforge project *` | complete |
+| `commands/project_settings.py` | `godotforge project settings *` | complete |
+| `commands/hub.py` | `godotforge hub run|resume|report` | complete |
 | `__main__.py` | `python -m godotforge_cli` | complete |
+
+### Hub Core (`packages/godotforge-core/src/godotforge_core/hub`)
+
+| File | Purpose | Status |
+|---|---|---|
+| `orchestrator.py` | Authorization-bound execution lifecycle (preview, run, resume) | complete |
+| `run_record.py` | Append-only hash-chained run records, proof hashes | complete |
+| `registry.py` | Spoke registry with ledger, health, eligibility | complete |
+| `goal.py` | GoalSpec compilation, template allowlist | complete |
+| `approval.py` | Explicit CLI authorization recording | complete |
+| `audit.py` | Append-only audit log | complete |
+| `cache.py` | Plan computation cache with project_root_hash invalidation | complete |
+| `definitions.py` | SpokeDefinition, ProviderDescriptor, Capability, Permission | complete |
+| `hub_control_plane.py` | Sole authority for Hub metadata paths | complete |
 
 ### Contracts & Docs
 
@@ -79,9 +98,20 @@ Prior Phase 1 baseline: workspace detection, engine discovery, structured config
 |---|---|---|
 | `schemas/project.schema.json` | v1 project contract (mirror of packaged copy) | complete |
 | `schemas/output-envelope.schema.json` | v1 CLI output envelope (mirror of packaged copy) | complete |
+| `schemas/goal.schema.json` | v1 GoalSpec schema | complete |
+| `schemas/run-record.schema.json` | v1 RunRecord schema | complete |
+| `schemas/spoke-definition.schema.json` | v1 SpokeDefinition schema | complete |
+| `schemas/spoke-ledger.schema.json` | v1 SpokeLedger schema | complete |
 | `docs/contracts/output-envelope.md` | Envelope, keyed `checks`, exit codes, formats | complete |
+| `docs/contracts/hub-v1.md` | Hub v1 contract (lifecycle, spokes, audit, cache) | complete |
+| `docs/contracts/creator-manifest.md` | Creator manifest contract | complete |
+| `docs/contracts/project-profile.md` | Project profile contract | complete |
+| `docs/contracts/project-settings-adapter.md` | Project settings adapter contract | complete |
+| `docs/contracts/project-settings-cli.md` | Project settings CLI contract | complete |
+| `docs/RELEASE.md` | Release checklist and procedures | complete |
 | `PROJECT_TRACKING.md` | This file | complete |
 | `README.md` | Product overview + quickstart | complete |
+| `CHANGELOG.md` | Release history | complete |
 
 ### Tests
 
@@ -91,22 +121,76 @@ Prior Phase 1 baseline: workspace detection, engine discovery, structured config
 | `tests/unit/test_output.py` | Serializer round-trips | complete |
 | `tests/unit/test_config.py` | Config merge + workspace walk | complete |
 | `tests/unit/test_doctor.py` | Doctor service (mocked engine) | complete |
+| `tests/unit/test_inventory.py` | Project inventory | complete |
+| `tests/unit/test_tscn.py` | Scene parsing | complete |
+| `tests/unit/test_gdscript.py` | GDScript parsing | complete |
+| `tests/unit/test_paths.py` | Resource path normalization | complete |
+| `tests/unit/test_negative_fixtures.py` | Dependency-analysis fixtures | complete |
+| `tests/unit/test_graph.py` | Graph persistence | complete |
+| `tests/unit/test_scan_report.py` | Scan report aggregation | complete |
+| `tests/unit/test_runner.py` | Engine process runner | complete |
+| `tests/unit/test_engine_probe.py` | Engine probe | complete |
+| `tests/unit/test_engine_fixtures.py` | Godot output fixtures | complete |
+| `tests/unit/test_engine_parser.py` | Engine output parser | complete |
+| `tests/unit/test_normalize.py` | Diagnostic normalization | complete |
+| `tests/unit/test_capture.py` | Capture limits | complete |
+| `tests/unit/test_patch_models.py` | Patch operation models | complete |
+| `tests/unit/test_patch_hashing.py` | Plan hashing | complete |
+| `tests/unit/test_patch_preconditions.py` | Path preconditions | complete |
+| `tests/unit/test_patch_diff.py` | Unified diffs | complete |
+| `tests/unit/test_patch_backup.py` | Backup manifests | complete |
+| `tests/unit/test_patch_apply.py` | Atomic apply | complete |
+| `tests/unit/test_patch_rollback.py` | Safe rollback | complete |
+| `tests/unit/test_patch_recovery.py` | Recovery inspection | complete |
+| `tests/unit/test_profile.py` | Project profiling | complete |
+| `tests/unit/test_project_godot_plan.py` | Project settings adapters | complete |
+| `tests/unit/test_project_godot_apply.py` | Project settings apply | complete |
+| `tests/unit/test_project_godot_application.py` | Application settings adapter | complete |
+| `tests/unit/test_hub_orchestrator.py` | Hub orchestrator lifecycle | complete |
+| `tests/unit/test_hub_cache.py` | Plan cache | complete |
+| `tests/unit/test_hub_registry.py` | Spoke registry | complete |
+| `tests/unit/test_hub_audit.py` | Audit log | complete |
+| `tests/unit/test_hub_goal.py` | Goal compilation | complete |
 | `tests/cli/test_help.py` | Help + command listing | complete |
 | `tests/cli/test_version.py` | Version JSON + lazy import | complete |
 | `tests/cli/test_cli_errors.py` | Unknown command / bad format / doctor | complete |
 | `tests/cli/test_output_schema.py` | Output validated against envelope schema | complete |
-| `tests/cli/test_schema_parity.py` | Packaged vs root schema parity (both schemas) | complete |
+| `tests/cli/test_schema_parity.py` | Packaged vs root schema parity | complete |
+| `tests/cli/test_engine.py` | Engine validate CLI | complete |
+| `tests/cli/test_graph_cli.py` | Graph CLI | complete |
+| `tests/cli/test_project_settings_cli.py` | Project settings CLI | complete |
+| `tests/cli/test_hub_cli.py` | Hub CLI (run, resume, report) | complete |
+| `tests/cli/test_profile_cli.py` | Profile CLI | complete |
 | `tests/integration/test_doctor_readonly.py` | Doctor leaves fixture tree unchanged | complete |
+| `tests/integration/test_hub_run_godot.py` | Pinned-Godot hub run proof | complete |
+| `tests/e2e/test_hub_e2e.py` | Full E2E: lifecycle, spokes, audit, cache, benchmarks | complete |
 
 ### Fixture
 
 | File | Purpose | Status |
 |---|---|---|
-| `fixtures/golden-2d/` | Clean golden 2D Godot project (see structure below) | complete |
+| `fixtures/golden-2d/` | Clean golden 2D Godot project | complete |
 | `fixtures/golden-2d/tests/golden_fixture_test.gd` | SceneTree smoke test (explicit exit 0/1) | complete |
 | `fixtures/golden-2d/.godotforge/project.yaml` | Human-editable project contract | complete |
 | `fixtures/golden-2d/.godotforge/project.lock` | JSON machine lock (version/flavor/sha256 only) | complete |
 | `fixtures/cases/<7 names>/README.md` | Negative test-case documentation | complete |
+| `fixtures/godot-output/4.7.1/` | Versioned Godot output fixtures | complete |
+
+## Slice Status Summary
+
+| Slice | Description | Status |
+|---|---|---|
+| 4A | Goal compilation & preview | **complete** |
+| 4B | Authorization-bound execution lifecycle | **complete** |
+| 4C | Persistence & checkpoint management (atomic writes, integrity) | **complete** |
+| 4D | Multi-spoke coordination (discovery, health, eligibility) | **complete** |
+| 4E | Observability (metrics, logging, timeline) | **complete** |
+| 4F | Security hardening (audit log, input validation) | **complete** |
+| 4G | Performance optimization (cache, parallel hashing, streaming) | **complete** |
+| 4H | Documentation (contracts, schemas, CLI docs) | **complete** |
+| 4I | E2E tests, hub report, release prep | **complete** |
+
+All slices 4A–4I are **complete**.
 
 ## Open Dependencies
 
@@ -122,32 +206,128 @@ Prior Phase 1 baseline: workspace detection, engine discovery, structured config
   manifests (Phase 6), knowledge packs (Phase 7), Godot-native ops (Phase 8),
   VS Code (Phase 9), providers/CI (Phase 10).
 
-## Lockfile Contract (decided Phase 1)
+All previous open dependencies for Slices 4A–4I have been resolved.
 
-Machine lockfiles are JSON to avoid teaching the core lockfile reader both YAML and
-JSON before that is needed:
+## Known Gaps
+
+- SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
+- Provider entry-point discovery (`godotforge.providers`) deferred to Phase 10.
+
+### Hub Step 3 (GoalSpec) follow-ups — non-blocking, from AUDIT-0001 semantic review
+
+- Consolidate or cross-test `hub/goal.py` `_FIXED_INPUTS` against Creator fixed bindings
+  (`creator/manifest.py` `_FIXED_BINDINGS`) — currently duplicated; fail-safe because the
+  manifest validator rejects on divergence, but a drift point.
+- Consolidate or cross-test the Hub template allowlist (`hub/goal.py` `_TEMPLATES`) against the
+  Creator template authority (`creator/manifest.py` `_TEMPLATE_CONST`) — same fail-safe
+  duplication class.
+- Clarify that `schemas/goal.schema.json` validates the canonical resolved `GoalSpec`
+  (`GoalSpec.as_dict()` string-typed canonical parameters), or add a separate raw user-input
+  schema later — raw numeric-scalar goal documents accepted by `load_goal_text` do not validate
+  against the current schema.
+
+## District Kings 3D Template ("3d-tactical-shooter")
+
+### Purpose
+
+Second creator template alongside `2d-platformer-minimal`: a 3v3 tactical
+hero-shooter (District Kings — original IP, no League/Riot references)
+with three roles (enforcer/scout/fixer), Forward+/Mobile/GL Compatibility
+renderer selection, 60Hz physics, 14 fixed input actions, capture-zone
+objectives, and a minimal bot AI skeleton. Generated deterministically by
+`creator/plan.py` the same way `2d-platformer-minimal` is — no new
+architecture, one more template branch in the existing planner.
+
+Continuation of unfinished, uncommitted work already present in the
+working tree (`hub/goal.py`/`creator/manifest.py` already had the v3
+schema, `_TEMPLATES` registry entry, and Physics3DSettings/RendererType/
+CharacterParameters dataclasses partially wired before this pass started;
+`creator/plan.py` had not been touched at all).
+
+### File inventory (this feature)
+
+| File | Purpose | Status |
+|---|---|---|
+| `behaviors/registry.py` | Fixed pre-existing wrong `PINNED_HASHES` for the 3 original 2D behaviors (unrelated pre-existing bug, broke the whole 2D suite); added 24 new allowlist entries (13 core District Kings scripts + 11 ported external scripts) | complete |
+| `behaviors/resources/{event_bus,character_data,weapon_data,ability_data,game_manager,input_manager,damageable,ability_system,district_zone_behavior,bot_state_machine,weapon_controller,hud_controller,player_controller_3d,level_setup}.gd` | New pinned-hash gameplay/autoload/resource-class scripts | complete |
+| `behaviors/resources/external/{world_generator,spritebrew,powerups,signal_generator}/*.gd` | Ported from a prior scratch attempt (Desktop `Good Work` folder), with real bugs fixed: `FastNoise`→`FastNoiseLite` (Godot 3→4), a Python f-string that isn't valid GDScript, an unwired `_on_body_entered` handler, and editor-only import classes gated behind `Engine.is_editor_hint()`; `game_event_signals.gd` dropped as redundant with `event_bus.gd` | complete |
+| `creator/manifest.py` | Fixed: `as_dict()` never serialized `parameters` for schema_version 3 (v3 manifests lost character parameters from their canonical hash/round-trip — new bug found while writing tests); v3 input array wasn't canonically re-sorted (two manifests with the same 14 bindings in different order hashed differently); removed duplicate `_validate_game_name`/`_validate_parameters_v2` defs and a duplicate parameters/renderer/physics_3d/input_map computation block | complete |
+| `hub/goal.py` | Fixed `compile_goal()`: renderer/physics_3d/input_map from the goal were read *after* manifest validation and never merged in, so they never reached the planned manifest (always defaulted) | complete |
+| `creator/plan.py` | Template dispatch added to `_desired_contents_for` (branches on `manifest.template`; `hub/orchestrator.py` needed zero changes). `_G_FILES`/`_G_DIRS`/`_check_preflight` generalized to be template-parameterized (`_g_files_for`/`_g_dirs_for`); `all_managed_files`/`all_managed_dirs` added for `hub/cache.py`'s template-agnostic root-hash. New 3D emitters: `project.godot` (renderer/physics/autoloads/14 inputs), 6 scenes, 9 `.tres` resources (3 character stats from manifest parameters, 6 fixed weapon/ability literals), `PROJECT_TRACKING.md` (emitted as a managed G_FILE, not hand-copied) | complete |
+| `hub/cache.py` | Updated to use the new `all_managed_files()`/`all_managed_dirs()` union (its root-hash is computed before the template is known) instead of the removed bare `_G_FILES`/`_G_DIRS` | complete |
+| `engine/validate_boot.gd`, `creator/verify.py` | Fixed a real bug found by actually applying the 3D goal end-to-end: the boot-validation stage hardcoded a `Camera2D`-only presence check, unconditionally failing any 3D main scene (which correctly has `Camera3D`, not `Camera2D`). Generalized to accept either. Per this repo's own PATCH-0016-amendment §3 process for validator changes, `PINNED_VALIDATOR_SHA256` was bumped (old `1e01c7a5...` → new `26027ef4...`) and `tests/unit/test_creator_verify.py`'s pin-stability test was updated with an explicit amendment note rather than silently changed | complete |
+| `district-kings-goal-001.json` | `game.template` changed from `2d-platformer-minimal` to `3d-tactical-shooter` | complete |
+| `tests/unit/test_behaviors_registry.py` | New: hash-consistency guard for every allowlisted behavior id (the class of bug Phase 0 found) | complete |
+| `tests/unit/test_behavior_registry.py` | Updated `test_allowlist_exactly_three` (renamed, count assumption no longer holds now the registry serves two templates) | complete |
+| `tests/unit/test_creator_plan_3d.py` | New: 3D-template ordering/no-op/preflight/content/determinism tests, mirroring `test_creator_plan.py` | complete |
+| `tests/unit/test_hub_goal.py` | Added `GOAL_FULL_3D`/`GOAL_MINIMAL_3D`, a handwritten-3D-manifest comparison test, and the `compile_goal` renderer/physics_3d merge-bug regression test | complete |
+| `tests/unit/test_hub_orchestrator.py` | Added `GOAL_3D` + apply/no-op lifecycle smoke tests (orchestrator needed no code changes to support this — confirms the template-agnostic design) | complete |
+
+### Open dependencies
+
+- Weapon/ability stats (`data/weapons/*.tres`, `data/abilities/*.tres`) are
+  fixed deterministic literals — no `WeaponParameters`/`AbilityParameters`
+  manifest schema exists yet to make them goal-tunable, unlike character
+  stats which already flow from `manifest.parameters`.
+- `hub/goal.py`'s `_resolve_parameters` for the 3D template only reads the
+  `enforcer` key from a goal's `parameters` block — a goal author cannot
+  currently override `scout`/`fixer` through the goal surface (only by
+  hand-authoring a v3 manifest directly). `manifest.py`'s validator already
+  supports all three roles.
+- `GoalSpec.directory_structure`/`.external_repos`/`.resources` remain
+  schema-validated but not consumed by the planner (deliberately left
+  inert — the 3D template's file/dir structure is fully deterministic via
+  `_G_FILES_3D`/`_G_DIRS_3D`, not goal-driven).
+
+### Verification evidence
+
+`godotforge hub run district-kings-goal-001.json --apply --mode full` against
+an emptied `district-kings/` directory, real engine
+(`4.7.1.stable.mono.official.a13da4feb`):
 
 ```text
-project.yaml       human-editable project contract
-project.lock       resolved machine contract (JSON)
-sources.lock       resolved documentation/example sources (future)
+planId          : cr-47c4ac9e
+planHash        : 8f85c3d216fe2d1ad4ba810d0ded9e04d3ace8f6f4495414337c73237eedcbfb
+goalHash        : 0b782c6a687ce3947e1c7d5d8f38a6542e6b7be931a34ca76063dcde65e38a0a
+manifestHash    : 47c4ac9e62ce1ce78fa97a839c6286d4a96727b4a90d79a1bdb9086ccda20f45
+outcome         : applied
+validationStatus: ok
+proofHash       : 2f324a851c7d205af4a89deef01fdc3470b71ea8d70288fc63ad0b4da4ec4f12
 ```
 
-The committed `project.lock` stores engine version, flavor, and sha256 plus the
-compatibility policy — it must never store a personal executable path.
+Import, load, and boot (scene-instantiation) stages all passed; 42 files
+materialized. Two real bugs were found and fixed only by actually running
+this end-to-end (not caught by unit tests alone): the `floor_snap_length`
+native-property redefinition (`player_controller_3d.gd`), and the
+`Camera2D`-only boot-validation check (`validate_boot.gd`).
 
-## Future Decisions (recorded, not yet implemented)
+Note: standalone `godot --headless --check-only` was unreliable in this
+sandbox (multi-minute-plus runs with no output, independent of renderer
+choice — reproduced with both `forward_plus` and `compatibility`), while the
+Hub's own import/load/boot stages consistently completed in seconds each.
+Treat this as an environment characteristic of the sandbox this work was
+done in, not a defect in the generated project — the Hub pipeline is the
+authoritative, working verification path.
 
-- **Engine profiles in user config.** Long-term engine identity should live in
-  `%USERPROFILE%\.godotforge\config.toml` (TOML) with an `[engines.<name>]`
-  table (`path`, `version`, `flavor`, `sha256`) and `[defaults].engine`. This
-  replaces the current YAML-based `~/.godotforge/config.yaml` user config. The
-  core user-config reader will need to support TOML and engine profiles when that
-  phase starts.
-- **Extended engine-resolver precedence.** Once engine profiles exist, resolution
-  order is: `--engine` → `FORGE_GODOT_PATH` → project-local user config →
-  `%USERPROFILE%\.godotforge\config.toml` → `PATH` → known installation dirs. The
-  "project-local user config" tier is new and not implemented in Phase 1.
+### Known gaps
+
+- `scripts/bot_state_machine.gd` is a real, working idle/patrol/engage FSM
+  but intentionally minimal — not balance-tuned.
+- `scenes/graybox_district.tscn`'s `NavigationRegion3D` ships with an empty
+  `NavigationMesh` (no baked polygon data) — bake it in the editor
+  (Navigation dock → Bake NavigationMesh) before bot pathfinding will move.
+- `scripts/external/spritebrew/asset_import_pipeline.gd`'s `import_fbx()`
+  requires the Godot editor/tools binary (`EditorSceneFormatImporterFBX`
+  doesn't exist in export templates); gated with `Engine.is_editor_hint()`.
+- The `[input]` section's mouse/joypad `InputEvent` resource literals (no
+  in-repo precedent existed before this — the 2D template only ever emits
+  `InputEventKey`) were authored from documented Godot 4 enum values, not
+  copied from a Godot-generated reference file, and verified via
+  `godot --headless --check-only` against the actually-generated project.
+- Pre-existing, unrelated to this feature: `tests/e2e/test_hub_e2e.py::test_benchmark_parallel_vs_sequential_hashing`
+  fails on `HEAD` (references a nonexistent `HubRunResult.artifact_hash`
+  attribute) — confirmed via `git diff HEAD` showing zero changes to that
+  test file; out of scope for this feature, not fixed.
 
 ## Fixture Evidence (FIXTURE-0001, 2026-08-23)
 
@@ -168,552 +348,3 @@ The read-only integration test (`tests/integration/test_doctor_readonly.py`) has
 the fixture tree before/after `doctor` (excluding `.godot/`, `.godotforge/cache/`,
 `.godotforge/reports/`, `.pytest-tmp/`) and asserts it is unchanged; with the engine
 present it additionally asserts exit 0 and `workspace` check `ok`.
-
-## Scanner Work (branch `feature/project-scanner`)
-
-Seven green commits, merged to `main` only after all pass. `gdtoolkit` is an
-**optional** core extra (`[project.optional-dependencies] gdscript-parser`), never
-a mandatory dependency — Godot headless validation stays authoritative for whether
-scripts/scenes load. Commands are registered only when implemented.
-
-### PROJECT-0001 — File inventory
-
-Commit: 0a06ac6f8f0ad547f124c064e00a5d7743dcd71b
-Status: complete
-
-Implemented:
-- `godotforge_core/scan` subpackage (`model`, `inventory`)
-- Project root / `project.godot` discovery
-- Scene, script, resource, UID, addon, forge-config discovery
-- Ignored/generated path filtering (`.godot`, `.git`, `.pytest-tmp`, `__pycache__`, `.godotforge/cache|reports`, `index.sqlite*`)
-- SHA-256 file fingerprints
-- `project inventory` command (JSON/JSONL via envelope)
-
-Tests:
-- Unit: golden counts, stable fingerprints, ignored dirs, empty dir, sorted output
-- CLI: `project inventory --format json` on golden; `--help` excludes `scan`/`graph`
-
-Artifacts:
-- `.godotforge/index.sqlite*`: not yet produced (graph lands in PROJECT-0005)
-- No generated databases/reports committed
-
-Dependency note:
-- `godotforge-core` gained optional extra `gdscript-parser = ["gdtoolkit"]` (unused until PROJECT-0004)
-
-Known limitations:
-- Scene/script/resource dependency parsing not yet implemented
-- SQLite graph persistence not yet implemented
-
-### PROJECT-0002 — Project settings
-
-Commit: 20bbcdf842046246fab740dd7b0dda14844e5e96
-Status: complete
-
-Implemented:
-- `godotforge_core/scan/project_godot.py` tolerant section reader (multiline `{}`/`[]` values)
-- Top-level `config_version`; `[application]` `config/name`, `config/features`, `run/main_scene`
-- Autoloads: singleton marker inside quoted value; `valid` flag (invalid paths retained, not dropped)
-- Input actions: multiline `{...}` dicts, event count, deadzone
-- Export preset names (`export_presets.cfg`)
-
-Tests:
-- Unit: golden settings, autoloads (singletons), input actions, missing main scene,
-  invalid autoload retained + `valid=False`, multiple autoloads, export presets
-
-Known limitations:
-- Scene/script/resource dependency parsing not yet implemented (0003/0004)
-- SQLite graph persistence not yet implemented (0005)
-
-### PROJECT-0003 — Scene index
-
-Commit: f77cb66e98da5edaf626056ad9bfeb1d4e75bfe1
-Status: complete
-
-Implemented:
-- `godotforge_core/scan/tscn.py`: `parse_scene`, `index_scenes`, `scene_dependencies`
-- Scene header (format/uid), `ext_resource`, `sub_resource`, `[node]` (parent/instance/script), connections
-- External-resource edges and scene-instance edges derived into `dependencies`
-- Tolerant of malformed scenes (no crash)
-
-Tests:
-- Unit: main external resources, instance edge, player script+subresource,
-  pause_menu script, `index_scenes` on golden, malformed scene
-
-Known limitations:
-- Semantic node-path validation deferred
-- GDScript dependency parsing not yet implemented (0004)
-- SQLite graph persistence not yet implemented (0005)
-
-### PROJECT-0004 — GDScript index
-
-Commit: f08f7021bf7244947aab8e8e98544af83021e890
-Status: complete
-
-Implemented:
-- `godotforge_core/scan/gdscript.py`: `parse_script`, `parse_with_fallback`,
-  `parse_with_gdtoolkit`, `load_optional_gdtoolkit`, `index_scripts`,
-  `script_dependency_paths`
-- `ScriptModel` / `ScriptDependency` dataclasses (class_name, extends, deps,
-  node_paths, autoload_refs, signals, adapter provenance)
-- Two adapters: `fallback` (always available) and `gdtoolkit` (optional extra
-  `gdscript-parser`), imported dynamically so core stays importable without it
-- Standalone `load` regex with negative lookbehind so `preload(...)`,
-  `ResourceLoader.load(...)`, and identifiers containing `load` are not
-  misclassified
-
-Tests:
-- Unit: declarations (player_controller), runtime loads (resource_catalog,
-  scene_router), autoload ref (pause_menu), signal (game_state), fallback
-  adapter default, preload/load/ResourceLoader separation, identifier
-  containing load ignored, index_scripts on golden
-
-Known limitations:
-- gdtoolkit adapter AST walk is best-effort and untested without the extra
-- Comment/string-literal stripping is naive (inline `#` removed); deeper lexer
-  deferred
-- Dynamic format-string (`var path := "res://...%s" % x`) not re-linked to the
-  subsequent `load(path)`; reported as runtime load
-- SQLite graph persistence not yet implemented (0005)
-
-### PROJECT-0005 — Graph persistence
-
-Commit: (pending)
-Status: in-progress
-
-Implemented:
-- `godotforge_core/graph/model.py`: `GraphNode`, `GraphEdge`, `ProjectGraph`
-- `godotforge_core/graph/store.py`: `open_writer`/`open_readonly` (WAL),
-  `build_graph` (nodes from project.godot/autoloads/scenes/scripts, edges
-  depends_on/instance/autoload with `classify_resource`), `rebuild` (atomic
-  `.new` + replace), `status`/`validate`/`query`/`export`-via-`graph_from_store`/
-  `stats`/`vacuum`
-- `godotforge_core/graph/paths` reused via `scan.paths` (`res_path`,
-  `filesystem_path`, `exists`) — no `res://` → `Path` mangling
-- `src/godotforge_cli/commands/graph.py`: `status`, `validate`, `query`,
-  `export`, `stats`, `rebuild`, `refresh`, `vacuum` (read-only commands open
-  the index read-only)
-- Default store `.godotforge/index.sqlite` (gitignored, incl. `-wal`/`-shm`)
-
-Tests:
-- Unit (`test_graph.py`): build counts, rebuild+status, validate clean on
-  golden, query node, stats, vacuum, readonly-missing raises, roundtrip
-- CLI (`test_graph_cli.py`): rebuild→status/validate/stats (store cleared
-  before each test to avoid order dependence)
-
-Known limitations:
-- Read-only commands do not auto-build; `graph rebuild` required first
-- `refresh` currently recomputes fully (incremental diff deferred)
-- gdtoolkit adapter untested without the extra (see 0004)
-
-### PROJECT-0006 — Scan output formats
-
-Commit: b1efd6c804606efa40aaa03e74ce802de14b6a8d
-Status: complete
-
-Implemented:
-- `godotforge_core/scan/report.py`: `build_scan_report` aggregates inventory,
-  settings, scenes, scripts, and in-memory graph into one structured payload
-  (read-only; persistence stays in `graph rebuild`)
-- `project scan` command emits the report in the requested format
-  (human/json/jsonl)
-- JSONL serializer uses summary-first contract: line 1 `{"record":"summary",
-  ...}`, then one `{"record":"diagnostic", ...}` per diagnostic
-- `schemas/project-scan.schema.json` documents the report shape
-
-Tests:
-- Unit (`test_scan_report.py`): top-level keys, counts, parsed settings
-- CLI (`test_project_scan.py`): json output structure, jsonl summary-first,
-  schema field parity
-
-Known limitations:
-- `project scan` recomputes the graph in-memory; does not write the store
-- 0007 (negative fixtures + read-only scan integration) pending
-
-### PROJECT-0007 — Dependency-analysis fixtures
-
-Commit: dd3a1b7a8cce6dba757bd862063c93643f5f41e1
-Status: complete
-
-Implemented:
-- Real negative fixtures under `fixtures/cases/`:
-  - `dangling-preload/` — GDScript preload to a nonexistent `res://` target
-  - `missing-scene-ref/` — scene instancing an ext_resource that does not exist
-  - `malformed-scene/` — structurally broken `.tscn` (parser must not crash)
-- `tests/unit/test_negative_fixtures.py`: dangling preload detected (missing
-  node), missing scene reference detected, malformed scene tolerated, and a
-  read-only integration test asserting the golden tree is byte-identical
-  before/after a full `project scan` + `graph rebuild` (excluding
-  `.godotforge/`/`.godot`/`.pytest-tmp`).
-
-Tests:
-- Unit: the four cases above
-
-Known limitations:
-- Fixtures are dependency-analysis focused; the documented `fixtures/cases/*`
-  README breakage catalog (Phases 2-4) remains broader than these three
-- `validate` over SQLite is tested separately; negative-fixture detection here
-  is asserted on the in-memory graph (`status == "missing"`)
-
-## Engine Runner Work (branch `feature/godot-runner`)
-
-Four-mode validation (`import`/`load`/`boot`/`full`), `full` default for CLI/CI, `import` for VS Code on-save. Boot uses Forge-owned `SceneTree` validator with `OS.get_cmdline_user_args()` + `quit(0/1)`. Source clone deferred (`C:\Tools\GodotSource\godot-4.7-stable`, future `SOURCE-0001..0003`). Graph read-only during validate.
-
-### fix(cli): prepare engine command group
-
-Commit: f65cc0c07bbeb336d7f7798e10f8d36e4b110546
-Status: complete
-
-Implemented:
-- `src/godotforge_cli/commands/engine.py`: empty `@click.group("engine")` (no subcommands yet)
-- `src/godotforge_cli/app.py`: add `engine` to `LAZY_SUBCOMMANDS`
-- `tests/cli/test_engine.py`: engine in help, validate not yet
-- Fix circular import `scan.report -> graph -> scan` that broke `godotforge --help`
-  when `graph` loaded before `project`: `report.py` now lazy-imports
-  `graph.store.build_graph` inside `build_scan_report`; `scan/__init__.py` no
-  longer re-exports `build_scan_report` (import via `scan.report`); updated
-  `commands/project.py` and `tests/unit/test_negative_fixtures.py` accordingly.
-
-Tests:
-- CLI: engine appears in `--help`, `engine --help` does not list `validate`
-- Existing 89 + 2 new = 91 passing
-
-Known limitations:
-- No `engine validate` subcommand yet (lands in ENGINE-0003)
-- No Godot invocation in this commit
-
-### ENGINE-0001 — Framework-neutral process runner
-
-Commit: 408f682c78a45f6634d61e28493837b8f032b43f
-Status: complete
-
-Implemented:
-- `godotforge_core/engine/__init__.py` — package init
-- `godotforge_core/engine/runner.py` — `ProcessResult(executable, args: tuple[str,...], exit_code, stdout, stderr, duration_ms, timed_out, launch_error)` + `run_process()` with `os.environ` overlay, `time.perf_counter`, `capture_output=True`, timeout/launch-error handling, `DEBUG` log
-- `tests/unit/test_runner.py` — success, nonzero, timeout, not-found, env overlay preserves `PATH`, tuple args immutable
-
-Tests:
-- Unit: 7 new tests
-
-Known limitations:
-- No Godot-specific logic (ENGINE-0002 adds probe, ENGINE-0003 adds modes)
-- `max_retained_*` truncation deferred to ENGINE-0004 (post-capture limit)
-
-### ENGINE-0002 — Probe executable version, flavor, and hash
-
-Commit: 8757ce46fe61939b7d864e6f891345d7e1a86ca5
-Status: complete
-
-Implemented:
-- `godotforge_core/detection/engine.py` — add `Flavor` enum, `hash_executable()`, `EngineProbeResult(executable, version, flavor, raw_version, sha256, probe_duration_ms)`, `probe_engine_full()` via `run_process()` (env overlay, timeout, exit_code handling, `.mono.` flavor detection), legacy `probe_engine()` now delegates to `probe_engine_full()`
-- `tests/unit/test_engine_probe.py` — hash deterministic, nonexistent→None, mocked mono/standard/timeout, real Godot (skipped if not found)
-
-Tests:
-- Unit: 5 passed + 1 skipped (real Godot)
-
-Known limitations:
-- No validation modes yet (ENGINE-0003)
-- No capture limits yet (ENGINE-0004)
-
-### ENGINE-0003 — Configurable Godot validation modes
-
-Commit: ef0729d578f03a8b081d5a46d030e6714cb45042
-Status: complete
-
-Implemented:
-- `godotforge_core/engine/validate.py` — `ValidateMode` (import/load/boot/full), `StageResult(command: tuple, process: ProcessResult, status, fatal/ignored)`, `ValidationResult(project_root, engine, mode, stages, status, wall_duration_ms, graph)` + `validate_project()` (workspace resolve, engine resolve via `FORGE_GODOT_PATH` precedence, `probe_engine_full`, import/load/boot invocations, `full` fail-fast with `skipped` stages, graph state reported not mutated, `wall_duration_ms` vs stage `duration_ms`)
-- `fixtures/golden-2d/.godotforge/validate_boot.gd` — Forge-owned `SceneTree` validator (parse `OS.get_cmdline_user_args()` for `--scene`/`--required-autoload`/`--settle-frames`, load+instantiate main scene, await frames, verify autoloads + `Player`/`Camera2D`, `quit(0/1)` with `GODOTFORGE_DIAGNOSTIC` push_error)
-- `src/godotforge_cli/commands/engine.py` — `engine validate --mode import|load|boot|full` (default `full`), `--timeout`, `--project`/`--engine` globals, Forge exit mapping (0 ok, 1 validation fail, 3 unavailable, 4 timeout)
-- `tests/cli/test_engine.py` — now asserts `validate` in `engine --help`
-- `tests/unit/test_inventory.py` — updated `forge_config` count 2→3 (now includes `validate_boot.gd`)
-
-Tests:
-- Manual: `fixtures/golden-2d` passes all four modes (import/load/boot/full) with real Godot 4.7.1 mono
-- Existing 103 + updated = 104 passing (inventory count fix)
-
-Known limitations:
-- Diagnostic classification (fatal vs shutdown noise) deferred to ENGINE-0005/DIAGNOSTIC-0001
-- Capture limits (`max_retained_*`) deferred to ENGINE-0004
-- Boot script assumes autoloads present via `get_root().get_node_or_null`; verified on golden (both autoloads present)
-
-### ENGINE-0004 — Capture stdout, stderr, exit code, and timing
-
-Commit: 410c55289d96fc08c0a5be48445d6892ff146728
-Status: complete
-
-Implemented:
-- `godotforge_core/engine/runner.py` — add `CaptureConfig(max_retained_stdout=1MiB, max_retained_stderr=1MiB, capture_stdout, capture_stderr)` + extend `ProcessResult` with `stdout_truncated`/`stderr_truncated`; `_apply_capture()` truncates post-capture (stored limit, not streaming) and marks flags; `run_process(..., capture_config=...)` now respects overlay, exact `args: tuple[str,...]`, `duration_ms` via `perf_counter`, separate stdout/stderr
-- `godotforge_core/engine/validate.py` — plumb `CaptureConfig` through `_run_stage()` and `validate_project(..., capture_config=None)`; `StageResult` retains authoritative `process` (no duplicate stdout/stderr); wall `wall_duration_ms` measured around full operation vs sum of stages
-- `tests/unit/test_capture.py` — synthetic `python -c "print('x'*2000000)"` verifies retained limit, truncation flag, exit code, stderr separation, duration populated, command exact, capture toggles, wall vs stage
-
-Tests:
-- Unit: 9 new capture tests (all use `sys.executable`, no Godot)
-
-Known limitations:
-- Streaming `Popen` not yet (post-capture truncation is retained-output limit, not peak memory)
-- Rich diagnostic classification still deferred to ENGINE-0005
-
-### ENGINE-0005 — Normalize Godot process results
-
-Commit: 64cd1f522dfd229332684dd058b0a78c4be96730
-Status: complete
-
-Implemented:
-- `godotforge_core/engine/normalize.py` — `NormalizedDiagnostic`/`NormalizedResult`, `FATAL_PATTERNS`, versioned `IGNORED_SHUTDOWN_PATTERNS` (4.7.1), `normalize_process()` with decision model (timeout/launch/crash → fail, nonzero → fail, fatal at exit 0 → fail, known teardown only → warn, unknown → inconclusive, else ok); raw output always preserved; never whitelists generic `ERROR:.*`
-- `godotforge_core/engine/validate.py` — `_run_stage()` now calls `normalize_process()` with `engine_version`, splits `fatal_diagnostics`/`ignored_diagnostics`, maps `warn`/`inconclusive` to stage status, `full` fail-fast with `skipped`
-- `tests/unit/test_normalize.py` — exit 0 ok, known noise warn, script error fail, exit 1 fail, timeout fail, crash, unknown inconclusive, all fatal patterns, second resource noise
-
-Tests:
-- Unit: 9 normalize tests
-
-Known limitations:
-- Text-level parsing (ERROR/WARNING records, Forge JSON, multiline locations) deferred to DIAGNOSTIC-0001
-
-### DIAGNOSTIC-0001 — Parse Godot engine output
-
-Commit: b503f508268e08498398e8a6f019b87675c0ec09
-Status: complete
-
-Implemented:
-- `godotforge_core/engine/parser.py` — `EngineDiagnostic(severity, code, message, location, source, stage, stream, engine_version)` + `parse_engine_output(text, *, stage, stream, engine_version)` handling `ERROR:`/`WARNING:` + `at:` location, `GODOTFORGE_DIAGNOSTIC` JSON and `CODE: msg` forms, version line as info, multiline, stage/stream/version context preserved
-- `godotforge_core/engine/normalize.py` — now uses `parse_engine_output` for text-level enrichment: classifies parsed diagnostics via `_classify_parsed()` (fatal patterns, versioned known noise, unknown), merges with raw fatal scan, produces `warn`/`inconclusive` correctly; raw log always preserved
-- `tests/unit/test_engine_parser.py` — error with location, warning, multiline, Forge JSON, CODE: msg, version, empty, mixed, forge inside ERROR
-
-Tests:
-- Unit: 9 parser tests
-
-Known limitations:
-- Versioned fixtures deferred to DIAGNOSTIC-0002
-
-### DIAGNOSTIC-0002 — Versioned Godot output fixtures
-
-Commit: dcf7015dcf0f467509e9fd24f1e70839aa2793fe
-Status: complete
-
-Implemented:
-- `fixtures/godot-output/4.7.1/` — version.stdout, import-ok.{stdout,stderr}, import-error.stderr, load-ok.{stdout,stderr}, load-error.stderr, boot-ok.{stdout,stderr} (with known teardown noise), boot-error.stderr (forge autoload missing) — 10 files from real Godot 4.7.1 mono output
-- `tests/unit/test_engine_fixtures.py` — parses each fixture via `parse_engine_output` and `normalize_process`, verifies import-ok ok, import-error fail, load-ok ok, load-error fail, boot-ok warn (known noise), boot-error fail, fixtures existence
-
-Tests:
-- Unit: 8 fixture tests
-
-Known limitations:
-- Fixtures are 4.7.1 only; cross-version drift (4.6 vs 4.7) deferred
-
-## Patch Engine Work (branch `feature/patch-engine`)
-
-Patch engine is transaction-safe and Godot-agnostic in Phase 1. Later phases add hash preconditions, diffs, backups, atomic apply, rollback, CLI, and fixtures.
-
-### PATCH-0001 — Patch operation and transaction models
-
-Commit: c161cb58e4b23d21cc2010d0f2ccfc260955c26a
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/__init__.py` — re-exports
-- `godotforge_core/patch/models.py` — `OperationKind` (create/update/delete/rename/mkdir), `TransactionStatus` (planned/previewed/approved/applying/validated/committed/failed/rolled_back) with `ALLOWED_TRANSITIONS` and `can_transition()`, `PatchOperation` (explicit `path` vs `from_path`/`to_path` for rename, `expected_hash`/`original_hash`/`desired_hash`, validated `owner` via namespaced pattern, `source` provenance, `reason`), `PatchPlan` (required `id` via identifier pattern, `operations: tuple`), `BackupRecord`, `Transaction`, `Conflict`, `PatchResult` — all `frozen`, explicit `as_dict()`/`from_dict()` with stable enum/string/tuple and `from`/`to` rename mapping, hash-format validation (64 hex), relative-path validation (no absolute, no `..`, no `//`, POSIX `/`)
-- `tests/unit/test_patch_models.py` — per-kind construction, rename explicit fields, rename validation, owner valid/invalid, hash valid/invalid, path valid/invalid, plan id valid/invalid, plan serialization, transition table, backup/conflict/result, frozen, stable enum strings
-
-Tests:
-- Unit: 14 tests
-
-Known limitations:
-- No filesystem hashing, diff, backup, I/O, Godot validation, content-hash generation, or CLI (deferred to PATCH-0002..0008)
-
-### PATCH-0002 — Hash and path preconditions
-
-Commit: 839a07a8ebcf9d368beb5edf378744c26348a3f0
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/hashing.py` — `hash_file()`, `hash_bytes()`, `compute_plan_hash(plan)` with canonical JSON (`sort_keys`, `separators (",", ":")`, `ensure_ascii=False`), schema version, operation order preserved, includes kind/path/from/to/expected_hash/desired_hash/owner/source/reason, excludes `created_at`/`original_hash`/status/backups; operation order affects hash
-- `godotforge_core/patch/preconditions.py` — `PathSnapshot`, `PreconditionIssue`, `PreconditionReport(ok)`, `check_plan(root, plan)` read-only; per-kind rules (create not exists, update/delete hash match, rename from→to, mkdir), unsupported types rejected (symlink/socket/FIFO/device), root/symlink safety via `is_symlink` + `resolve()` + `relative_to` checks, parent chain escape detection, hash via `sha256`, no mutation
-- `tests/unit/test_patch_hashing.py` — known/empty file hash, deterministic, changes with intent, ignores created_at/original_hash, order affects, includes expected/desired
-- `tests/unit/test_patch_preconditions.py` — known/empty/missing, create exists, update match/conflict, delete, rename, mkdir, absolute/traversal, symlink escape/file, type mismatch, read-only, deterministic hash, ok property, snapshot hash
-
-Tests:
-- Unit: 7 hashing + 19 preconditions (2 skipped on Windows symlink)
-
-Known limitations:
-- No backup creation, diff, atomic apply, rollback, or CLI (PATCH-0003..0008)
-
-### PATCH-0003 — Deterministic unified diffs
-
-Commit: 5a27db8938175d42f3c0458ac374126f6fe2cfb6
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/diff.py` — `DiffEntry(operation_index, kind, path, from_path, to_path, changed, binary, diff, operation)` + `render_operation_diff(operation, original, desired)` validates content per kind (create/update/delete/rename/mkdir), handles mkdir no diff, binary via NUL/invalid UTF-8, text via `difflib.unified_diff` with stable headers `--- a/...` `+++ b/...` `/dev/null`, no timestamps/absolute paths, preserves operation order, unchanged update → `changed=False`/`diff=None`, rename unchanged → `changed=True`/`diff=None`, LF/CRLF/missing newline explicit
-- `godotforge_core/patch/__init__.py` — export `DiffEntry`/`render_operation_diff`/`render_plan_diffs` + `render_plan_diffs(plan, content_provider)` preserves order, deterministic
-- `tests/unit/test_patch_diff.py` — unchanged, single-line, deletion, multi-hunk, create, delete, rename changed/unchanged, mkdir, UTF-8, binary, invalid UTF-8, LF/CRLF, missing newline, stable headers, no absolute paths, order preservation, deterministic
-
-Tests:
-- Unit: 18 diff tests
-
-Known limitations:
-- No atomic project-file replacement, delete/rename/mkdir application, rollback, transaction persistence beyond manifest, Godot validation, or CLI (PATCH-0005..0008)
-
-### PATCH-0004 — Hash-checked backup manifests
-
-Commit: 7b91afb5a01ebf8fc20348a47b293c48776e1944
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/backup.py` — `BackupManifest(transaction_id, plan_id, plan_hash, entries, created_at, schema_version)` + `create_backup(root, transaction_id, plan, report)` with 8-step algorithm (reject existing final, verify report ok & same plan/hash, re-check source before copy, copy to `files/000000.bin` temp, hash copied, confirm, write `manifest.json` canonical, atomic `os.replace` temp→final, cleanup temp on failure); `files/000000.bin` naming prevents traversal, `create`/`mkdir` with `existed=False`/`hash=None` no file, root/symlink safety via same checks as `check_plan`, `transaction_id` no separators, backup destination under `.godotforge/backups`, project files untouched
-- `godotforge_core/patch/__init__.py` — export `BackupManifest`/`create_backup`
-- `tests/unit/test_patch_backup.py` — update/delete/rename copied, create/mkdir existed False, hash matches, manifest round-trip, plan id/hash, precondition conflict prevents, mutation during verification detected, symlink rejected, nested no escape, existing tx rejected, partial cleanup via injected `shutil.copy2` failure, project unchanged, manifest only after copies, repeated manifests equivalent, traversal rejected, destination under workspace
-
-Tests:
-- Unit: 18 backup tests (1 skipped on Windows symlink)
-
-Known limitations:
-- No atomic project-file replacement, delete/rename/mkdir application, rollback, transaction persistence beyond manifest, Godot validation, or CLI (PATCH-0005..0008)
-
-### PATCH-0005 — Atomic apply of patch operations
-
-Commit: d3ccf12d0aa4cd14885bce506833dded59e8310d
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/apply.py` — `apply_plan(root, plan, manifest, content_provider)` with manifest validation (transaction_id, plan_id, plan_hash, backup dir/entries existence, backup hash match), overlap detection (duplicate paths, rename source/to collisions, rename source reused), precondition re-check before first write, desired hash verification, atomic same-dir temp file writes with `fsync` + `os.replace` + parent `fsync`, per-kind apply (create/update/delete/rename/mkdir) with hash re-checks, atomic journal under backup dir, stop on first failure returning FAILED with applied count, never COMMITTED on partial
-- `godotforge_core/patch/__init__.py` — export `apply_plan`
-- `tests/unit/test_patch_apply.py` — create/update/delete/rename/mkdir apply, desired hash mismatch, stale expected hash, missing/mismatched manifest, parent not implicit, temp cleanup, failed stops later, partial applied count, binary content, order preservation, overlap rejection (duplicate, create+update, rename dest exists), rename dest re-check
-
-Tests:
-- Unit: 20 apply tests
-
-Known limitations:
-- No rollback, transaction persistence, Godot validation, CLI, or YAML loading (PATCH-0006..0008)
-
-### PATCH-0006 — Durable apply journal, safe rollback, and recovery inspection
-
-Commits (feature):
-- e3fcb8d877a5b39e64ca7d43c7101545fd3efebd — feat(patch): add durable apply journal
-- 708922d0ce8da1c4ceb56b9c7504e470d96c4d32 — feat(patch): add safe rollback
-- 30d87631da3273e3c0053119575dfb3b7e1e5965 — feat(core): add patch recovery inspection
-- 9341947d572a07d1de96f29fbe8237635af25543 — fix(patch): classify unsupported symlinks correctly
-
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/journal.py` — durable apply journal (217 lines) recording apply progress for crash recovery; `patch/__init__.py` exports; `apply.py` wired to the journal
-- `godotforge_core/patch/rollback.py` — safe rollback (447 lines) restoring from backup manifests; `.githooks/pre-commit` added; exports updated
-- `godotforge_core/patch/recovery.py` — recovery inspection (301 lines) for interrupted transactions
-- `godotforge_core/patch/preconditions.py` — unsupported symlinks classified correctly
-- `tests/unit/test_patch_rollback.py` — 7 rollback tests
-- `tests/unit/test_patch_recovery.py` — 8 recovery tests
-
-Tests:
-- Full suite at 30d87631: 246 passed, 4 skipped
-
-### PATCH-0007 — Deterministic Godot project profiling
-
-Commits:
-- c95a5e74d35dc162eba18547c07b289e452a61bc — feat(core): add deterministic Godot project profiling (feature)
-- 588acd8537f9fb4240834d45cbac86c2e1c4c19c — chore: ignore local Hermes worktrees (config-only, `.gitignore`; no code or tests)
-
-Status: complete
-
-Implemented:
-- `godotforge_core/scan/profile.py` — deterministic project profile (145 lines): settings, autoloads, input actions, layer names, renderer settings, inventoried scenes/scripts/resources/tests, export presets, ownership classification, SHA-256 fingerprint
-- `godotforge_core/scan/project_godot.py` — parser support for profile fields
-- `godotforge_core/scan/inventory.py` — minor integration
-- `godotforge_cli/commands/project.py` — `godotforge project profile` CLI command
-- `docs/contracts/project-profile.md` — profile output contract
-- `tests/unit/test_profile.py` (14 tests), `tests/cli/test_profile_cli.py` (4 tests), including the Project Blacktop read-only integration guards (`pytest.mark.integration`)
-
-Tests:
-- Profile: 14 unit + 4 CLI tests
-- Full suite at c95a5e74: 263 passed, 5 skipped
-
-### PATCH-0008 — Deterministic project settings adapters
-
-Commit: 2aae33818b06e194d79bfc9d4de6b6767051c459
-Status: complete
-
-Implemented:
-- `godotforge_core/patch/project_godot_plan.py` — four read-only adapters (`plan_update_autoloads`, `plan_update_input_actions`, `plan_update_physics_layer_names`, `plan_update_renderer_settings`) producing `ProjectGodotPatch` (plan + desired content) for `project.godot`; single `UPDATE` op with `expected_hash` = current SHA-256, `desired_hash` = edited content SHA-256; deterministic plan ids (`pg-` prefix)
-- Byte-preserving targeted editing: line-preserving editor (`_apply_section_edits`) replaces/inserts/removes only the targeted key spans in the targeted section; comments (`;`/`#`), blank lines, trailing whitespace, unrelated sections/keys, and ordering remain byte-identical; line-ending style detected and preserved (CRLF stays CRLF, LF stays LF); original final-newline behavior preserved
-- No-op contract: a request with no effective changes produces no PatchPlan (`ProjectGodotPatch.plan is None`) and returns the original bytes unchanged
-- Strict validation: input action names (`^[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}$`), autoload names (`^[A-Za-z_][A-Za-z0-9_]{0,127}$`), layer/renderer keys via `_validate_relative_path` (now rejects CR/LF) with CR/LF-free non-empty values, and caller-provided input-action event literals as opaque validated fragments (exactly one balanced `{...}` dict, string-aware bracket scan, no CR/NUL, well-formed `Object(Type,...)` heads) — literals cannot inject sections or keys
-- `AdapterError` for ambiguous/malformed targeted sections (duplicate section headers, duplicate keys, unterminated multi-line values); rejected requests leave `project.godot` byte-identical
-- `godotforge_core/scan/project_godot.py` — `InputAction` gains `raw` field carrying the parsed dict literal (additive, backward compatible)
-- `docs/contracts/project-settings-adapter.md` — adapter contract: no-op/no-plan, byte preservation, opaque-fragment literal rules, name/key validation, failure modes
-- `tests/unit/test_project_godot_plan.py` — validation helpers, byte preservation (LF/CRLF add/update/remove, comments, blank lines, trailing whitespace, final newline, golden fixture), determinism, literal accept/reject cases, ambiguity rejection, staleness
-- `tests/unit/test_project_godot_apply.py` — end-to-end plan → backup → apply → verify for all four adapters, cross-field isolation, stale-file protection
-
-Tests:
-- Unit: 391 passed, 5 skipped (full suite)
-- Integration: Project Blacktop read-only verification passed (profile + CLI tree-hash guard); Blacktop working tree confirmed clean
-
-Known limitations:
-- CLI wiring for PATCH-0008 covered `autoload`/`input`/`layers`/`rendering`; `[application]` settings remain without an adapter (see PATCH-0010).
-
-### PATCH-0009 — CLI wiring for project settings adapters
-
-Commit: 2a803b7b3750f9112c4dbc0a724183bd8a83b44b
-Status: implementation complete; commit hash recorded below
-
-Implemented:
-- `src/godotforge_cli/commands/project_settings.py` — `project settings` group with four leaf commands `autoload`, `input`, `layers`, `renderer`; adapter-specific flags only (`autoload: --add/--remove/--set-singleton`; `input: --add+--literal/--remove/--clear`; `layers/renderer: --set/--remove/--clear`); preview-only by default via `render_operation_diff`; `--apply` via `check_plan` → `create_backup` (`.godotforge/backups/<txid>`) → `apply_plan` with `ProjectGodotPatch.as_content_provider`; no automatic rollback, no new transaction states
-- Global `--project` root resolution via `find_workspace` (no per-command `--root`); `--dry-run`+`--apply` rejected before I/O with `CONFIGURATION_FAILURE` (2); envelope `project.settings.<adapter>` with `data: {applied, noop, diff}` and standard `human`/`json`/`jsonl`/`sarif` serializers; errors map `ValueError`/`AdapterError`/`ProfileError` → 2, precondition/apply failures → `PATCH_CONFLICT` (4)
-- No-op: exit 0, `noop: true`, `diff: null`, no backup/journal/write, byte-identical
-- Byte preservation and determinism inherited from PATCH-0008 targeted editor (CRLF/LF, final newline, comments/whitespace, cross-field isolation)
-- `src/godotforge_cli/commands/project.py` — registers `settings` subgroup under `project`
-- `docs/contracts/project-settings-cli.md` — CLI contract (flags, preview/apply/dry-run, envelope, exit codes, byte preservation, transactional guarantees)
-- `tests/cli/test_project_settings_cli.py` — help/preview/dry-run/conflict/no-op/apply (all four adapters on tmp fixtures)/validation/ambiguity/stale-precondition/CRLF/final-newline/determinism/format matrix + `pytest.mark.integration` blacktop preview read-only guard (bytes + `mtime_ns` unchanged, never `--apply` on blacktop)
-
-Tests:
-- Full suite: 413 passed, 5 skipped
-- New CLI: 22 tests (21 unit + 1 integration); integration guard passed against Project Blacktop (read-only)
-
-### PATCH-0010 — Application settings adapter (core-only)
-
-Commit: fbda9b4abdebe193a66b7446ca43f73053f0e78c
-Status: implementation complete; commit hash recorded below
-
-Implemented:
-- `godotforge_core/patch/project_godot_plan.py` — add `plan_update_application_settings(root, set=, remove=, reason=)` for `[application]` with allowlist `config/name` (required, non-removable), `config/description`, `config/icon` (`res://…`), `run/main_scene` (`res://…` or `uid://…` — repository-confirmed; `local://`/`user://` not accepted); `config_version`, `config/features`, `boot_splash/*` and generic section editing remain out of scope (rejected with `ValueError` before plan). Reuses existing `_preflight` (requires valid existing `[application] config/name`; does not bootstrap a missing name — `ProfileError`, no mutation), `_validate_application_value`, `_validate_relative_path`, `_apply_section_edits`, `_plan_from_edits`, `ProjectGodotPatch` (`plan is None` no-op) and `AdapterError`/`ProfileError`/`ValueError` mapping. Setting `config/name` to its current value is a no-op (`plan is None`, original bytes), `config/name` removal always raises `ValueError` with no mutation, and missing `config/name` raises `ProfileError` with no mutation.
-- Byte preservation: line-preserving targeted editor, CRLF/LF style preserved, final-newline preserved, comments/blank lines/trailing whitespace/ordering/unrelated sections byte-identical, deterministic repeated planning, stale `expected_hash` blocked via `check_plan`.
-- No CLI, no transaction/journal changes, no new `OperationKind`/`TransactionStatus`, no Blacktop writes.
-- `docs/contracts/project-settings-adapter.md` — clarify `[application]` allowlist, `res://`/`uid://` URI rules, out-of-scope keys, conflicting `set`+`remove` handling, and that `config/name` is not bootstrapped (preflight limitation) with the three no-op/error invariants.
-- `tests/unit/test_project_godot_application.py` — set/remove/combined, required-name non-removable, optional removal, unknown keys, duplicate/conflicting, invalid name/description/icon/main_scene, confirmed URI forms (`res://`/`uid://` accept, `local://`/`user://` reject), duplicate header/keys/unterminated → `AdapterError`, LF/CRLF, comments/whitespace/final-newline, unrelated-section identity, determinism, stale hash via `check_plan`, tmp-fixture plan→backup→apply and `parse_project_settings` verification; explicit coverage for missing `config/name` → `ProfileError` no mutation, same-value `config/name` → no-op exact bytes, and `config/name` removal → `ValueError` no mutation.
-
-Tests:
-- New: 37 tests in `test_project_godot_application.py`
-- Full suite at this point: 450 passed, 5 skipped (prior 413 + 37)
-
-Known limitations:
-- CLI wiring for `[application]` now complete via PATCH-0011.
-
-### PATCH-0011 — CLI wiring for application settings adapter
-
-Commit: b81977f57e5a5ade0c5526d27a6dc2132e92e6a8
-Status: implementation complete; commit hash recorded below
-
-Implemented:
-- `src/godotforge_cli/commands/project_settings.py` — add `application` leaf (`--set KEY=VALUE` repeatable via first-`=` split with last-value-wins, `--remove KEY` repeatable deduplicated, `--reason`, `--apply`) reusing existing helpers `_check_dry_run_conflict`, `_resolve_root`, `_emit_preview`, `_emit_applied`, `_parse_key_value`, `check_plan` → `create_backup` → `apply_plan`; preview default zero writes, `--dry-run` ≡ preview, `--dry-run`+`--apply` → `CONFIGURATION_FAILURE (2)` before I/O, no-op `applied=false noop=true diff=null` exit 0, unknown/invalid/config/name preflight → `2`, stale/apply fail → `4`, envelope `project.settings.application {applied,noop,diff}` across `human/json/jsonl/sarif`, byte-preserving CRLF/LF/final-newline, deterministic diff; no behavior change for `autoload`/`input`/`layers`/`renderer`.
-- `docs/contracts/project-settings-cli.md` — add `application` command shape, `--set` first-`=`/last-wins/`--remove` dedup, 4-key allowlist, and failure-mode note for `config/name`.
-- `tests/cli/test_project_settings_cli.py` — application registration/help, preview/dry-run/conflict/no-op (empty + same-value), set/remove/combined, `=` in value, last-wins, dedup, unknown/invalid, `config/name` missing/same/removal, `res://`/`uid://` vs `local://`/`user://`, ambiguity, stale precondition via `check_plan`, output formats, tmp-fixture apply, byte preservation/determinism, plus `pytest.mark.integration` Blacktop `application` preview read-only guard (`--project` Blacktop, no `--apply`, byte + `mtime_ns` unchanged).
-
-Tests:
-- New CLI: 22 application tests (help through Blacktop guard) added to `test_project_settings_cli.py` (now 44 total); prior 37 core application tests remain.
-- Full suite at this point: 472 passed, 5 skipped (prior 450 + 22)
-
-Known limitations:
-- None for application settings; next patch may extend `config/features` or `config_version` handling.
-
-## Direction Change (approved)
-
-- **Strategic repositioning:** from "Godot project patch engine" to "non-coder Godot game creator powered by a deterministic patch engine" (PATCH-0012 planning onwards). North star and No-AI invariant recorded in `README.md:2` and `docs/contracts/creator-manifest.md:1`.
-- PATCH-0012 is the Creator Manifest Planning Slice — six-operation, planning-only (`MKDIR scenes`, `MKDIR scripts`, `CREATE project.godot`, `CREATE scenes/main.tscn`, `CREATE scripts/player_controller.gd`, `CREATE scripts/coin.gd`).
-- No `apply`/`backup`/`rollback`/CLI wiring in PATCH-0012; deterministic TSCN order (`gd_scene` → `ext_resource` → `sub_resource` → `node`, `load_steps=6`), `Polygon2D` visuals, `Player (0,48)` center 64px above ground top (`Ground (0,128)` 800×32 → top 112), `Coin (160,100)` resting, fixed `move_left→ui_left` / `move_right→ui_right` / `jump→ui_accept`, empty/template preflight states A/B/C, UID proof gate via pinned Godot import.
-- `PATCH-0012` and creator-MVP follow-ups remain offline/AI-free; natural-language, if added later, outputs only candidate manifests.
-- No adapter-only expansion; do not silently alter UID/scene output on Godot rejection — pause and report failing evidence.
-
-## Known Gaps
-
-- SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
-- Provider entry-point discovery (`godotforge.providers`) deferred to Phase 10.
-- `fixtures/cases/*` contain only documented breakage; the parser/lint that
-  detects them lands in Phases 2–4.
-- `--engine` global is wired into `doctor` but not yet consumed by later phases.

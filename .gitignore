@@ -22,6 +22,14 @@ node_modules/
 .godotforge/index.sqlite-shm
 .godotforge/index.sqlite.new
 .godotforge/reports/
+.godotforge/audit/
+
+# Claude Code local session/worktree state — never source content
+.claude/
+
+# district-kings/ is a generated Hub project; its own Hub control-plane
+# state follows the same non-tracking policy as the repo root's .godotforge/
+district-kings/.godotforge/
 
 # OS
 .DS_Store

@@ -1,0 +1,33 @@
+[gd_scene load_steps=6 format=3 uid="uid://3vjfdunpwqqcu"]
+
+[ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/characters/enforcer.tres" id="2_chardata"]
+[ext_resource type="Script" path="res://scripts/damageable.gd" id="3_damageable"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.4
+height = 1.8
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_script")
+character_data = ExtResource("2_chardata")
+gravity = 9.8
+floor_snap_length = 0.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_player")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 2, 4)
+rotation_degrees = Vector3(-15, 0, 0)
+current = true
+
+[node name="Damageable" type="Node" parent="."]
+script = ExtResource("3_damageable")

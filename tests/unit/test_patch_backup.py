@@ -1,11 +1,15 @@
+import errno
 import hashlib
 import json
+import os
 import pathlib
+import sys
 
 import pytest
-from godotforge_core.patch.backup import BackupManifest, create_backup
+from godotforge_core.patch import backup as backup_module
+from godotforge_core.patch.backup import BackupManifest, _promote_backup_dir, create_backup
 from godotforge_core.patch.models import OperationKind, PatchOperation, PatchPlan
-from godotforge_core.patch.preconditions import check_plan
+from godotforge_core.patch.preconditions import PreconditionReport, check_plan
 
 HASH_HELLO = hashlib.sha256(b"hello").hexdigest()
 HASH_WORLD = hashlib.sha256(b"world").hexdigest()
@@ -410,3 +414,264 @@ def test_backup_destination_under_workspace(tmp_path: pathlib.Path) -> None:
     for entry in manifest.entries:
         assert not entry["backup_path"].startswith("/")
         assert ".." not in entry["backup_path"]
+
+
+# --- AUDIT-0002: bounded retry on the final os.replace(tmp_base, final_dir) ---
+
+
+def _win_permission_error(winerror: int) -> OSError:
+    """A PermissionError carrying a specific `.winerror`, as Windows raises."""
+    return OSError(errno.EACCES, "simulated access denied", None, winerror)
+
+
+def _make_backup_plan(tmp_path: pathlib.Path) -> tuple[PatchPlan, PreconditionReport]:
+    h = _make_file(tmp_path, "a.txt", b"hello")
+    plan = PatchPlan(
+        id="p1",
+        operations=(
+            PatchOperation(
+                kind=OperationKind.UPDATE, path="a.txt", expected_hash=h, owner="forge", reason="x"
+            ),
+        ),
+    )
+    report = check_plan(tmp_path, plan)
+    return plan, report
+
+
+def _flaky_replace(fail_times: int, winerror: int, only_dst: pathlib.Path):
+    """A stand-in for os.replace that fails `fail_times` times for the
+    directory-level promotion rename only (``dst == only_dst``), then
+    delegates to the real os.replace; every other os.replace call (e.g. the
+    in-place manifest.json.tmp -> manifest.json rename) also passes straight
+    through untouched. Patching os.replace patches the shared stdlib module
+    globally, so without the ``only_dst`` scoping the fake would also
+    intercept that unrelated earlier rename.
+
+    Used only where the tracked call is expected to always fail
+    synthetically (``fail_times`` at least as large as the production retry
+    budget) — the "delegate to real os.replace on success" branch is then
+    never reached, so this stays fully deterministic without any retry
+    logic of its own absorbing external races.
+    """
+    calls = {"n": 0}
+    real_replace = os.replace
+
+    def _replace(src, dst):
+        if pathlib.Path(dst) != only_dst:
+            return real_replace(src, dst)
+        calls["n"] += 1
+        if calls["n"] <= fail_times:
+            raise _win_permission_error(winerror)
+        return real_replace(src, dst)
+
+    return _replace, calls
+
+
+def test_promote_backup_dir_winerror5_then_success(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One WinError 5, then success: retries exactly once via one sleep call.
+
+    The fake os.replace never touches the filesystem on either call — it
+    simulates the failure/success sequence entirely under test control, so
+    this never depends on a real directory rename inside the watched
+    repository tree (see AUDIT-0002 for why that made the earlier version
+    of this test occasionally flaky). ``sleep`` is injected directly (no
+    monkeypatching of ``time.sleep`` needed).
+    :func:`test_create_backup_promotes_directory_via_real_os_replace` below
+    is the separate, real-``os.replace`` proof that promotion actually
+    works end-to-end.
+    """
+    calls = {"n": 0}
+
+    def _replace(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _win_permission_error(5)
+        return None
+
+    monkeypatch.setattr(backup_module.os, "replace", _replace)
+    sleeps: list[float] = []
+
+    _promote_backup_dir(tmp_path / "tx-w5.tmp", tmp_path / "tx-w5", sleep=sleeps.append)
+
+    assert calls["n"] == 2
+    assert sleeps == [0.05]
+
+
+def test_promote_backup_dir_winerror32_then_success(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One WinError 32, then success: retries exactly once.
+
+    Same fully-simulated, filesystem-independent shape as the WinError 5
+    case above.
+    """
+    calls = {"n": 0}
+
+    def _replace(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _win_permission_error(32)
+        return None
+
+    monkeypatch.setattr(backup_module.os, "replace", _replace)
+    sleeps: list[float] = []
+
+    _promote_backup_dir(tmp_path / "tx-w32.tmp", tmp_path / "tx-w32", sleep=sleeps.append)
+
+    assert calls["n"] == 2
+    assert sleeps == [0.05]
+
+
+def test_create_backup_promotes_directory_via_real_os_replace(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Normal path, no faking: create_backup's real os.replace call actually
+    promotes tmp_base to final_dir with correct manifest/backup contents.
+    This is the separate real-os.replace proof the two synthetic
+    then-success tests above no longer provide on their own."""
+    plan, report = _make_backup_plan(tmp_path)
+
+    manifest = create_backup(tmp_path, "tx-real", plan, report)
+
+    final_dir = tmp_path / ".godotforge" / "backups" / "tx-real"
+    assert final_dir.is_dir()
+    assert not (tmp_path / ".godotforge" / "backups" / "tx-real.tmp").exists()
+    assert (final_dir / "manifest.json").is_file()
+    stored = json.loads((final_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert stored["transaction_id"] == "tx-real"
+    assert stored["entries"] == list(manifest.entries)
+    backup_file = final_dir / "files" / "000000.bin"
+    assert backup_file.read_bytes() == b"hello"
+    assert manifest.entries[0]["hash"] == hashlib.sha256(b"hello").hexdigest()
+
+
+def test_promote_backup_dir_exhausts_retries_and_cleans_up(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repeated WinError 5: exactly 5 os.replace calls, final error propagates,
+    tmp_base cleaned up, no final_dir left behind (create_backup's existing
+    outer cleanup path, unmodified)."""
+    plan, report = _make_backup_plan(tmp_path)
+    final_dir = tmp_path / ".godotforge" / "backups" / "tx-exhaust"
+    replace_fn, calls = _flaky_replace(fail_times=99, winerror=5, only_dst=final_dir)
+    monkeypatch.setattr(backup_module.os, "replace", replace_fn)
+    sleeps: list[float] = []
+    monkeypatch.setattr(backup_module.time, "sleep", lambda s: sleeps.append(s))
+
+    with pytest.raises(PermissionError) as excinfo:
+        create_backup(tmp_path, "tx-exhaust", plan, report)
+
+    assert calls["n"] == 5
+    assert sleeps == [0.05, 0.10, 0.20, 0.40]
+    assert excinfo.value.winerror == 5
+    assert not (tmp_path / ".godotforge" / "backups" / "tx-exhaust.tmp").exists()
+    assert not (tmp_path / ".godotforge" / "backups" / "tx-exhaust").exists()
+
+
+def test_promote_backup_dir_non_retryable_winerror_single_attempt(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Windows error with a winerror outside {5, 32} is not retried."""
+    tmp_base = tmp_path / "tx.tmp"
+    tmp_base.mkdir()
+    final_dir = tmp_path / "tx"
+    calls = {"n": 0}
+    original_error = _win_permission_error(3)  # ERROR_PATH_NOT_FOUND — not retryable
+
+    def _always_fail(src, dst):
+        calls["n"] += 1
+        raise original_error
+
+    monkeypatch.setattr(backup_module.os, "replace", _always_fail)
+    monkeypatch.setattr(sys, "platform", "win32")
+    sleeps: list[float] = []
+
+    with pytest.raises(OSError) as excinfo:
+        _promote_backup_dir(tmp_base, final_dir, sleep=lambda s: sleeps.append(s))
+
+    assert calls["n"] == 1
+    assert sleeps == []
+    assert excinfo.value is original_error
+
+
+def test_promote_backup_dir_non_windows_platform_single_attempt(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same retryable winerror is not retried off Windows."""
+    tmp_base = tmp_path / "tx.tmp"
+    tmp_base.mkdir()
+    final_dir = tmp_path / "tx"
+    calls = {"n": 0}
+    original_error = _win_permission_error(5)
+
+    def _always_fail(src, dst):
+        calls["n"] += 1
+        raise original_error
+
+    monkeypatch.setattr(backup_module.os, "replace", _always_fail)
+    monkeypatch.setattr(sys, "platform", "linux")
+    sleeps: list[float] = []
+
+    with pytest.raises(OSError) as excinfo:
+        _promote_backup_dir(tmp_base, final_dir, sleep=lambda s: sleeps.append(s))
+
+    assert calls["n"] == 1
+    assert sleeps == []
+    assert excinfo.value is original_error
+
+
+def test_promote_backup_dir_error_without_winerror_single_attempt(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A plain OSError with no winerror attribute is not retried."""
+    tmp_base = tmp_path / "tx.tmp"
+    tmp_base.mkdir()
+    final_dir = tmp_path / "tx"
+    calls = {"n": 0}
+    original_error = FileNotFoundError("gone")
+    assert getattr(original_error, "winerror", None) is None
+
+    def _always_fail(src, dst):
+        calls["n"] += 1
+        raise original_error
+
+    monkeypatch.setattr(backup_module.os, "replace", _always_fail)
+    monkeypatch.setattr(sys, "platform", "win32")
+    sleeps: list[float] = []
+
+    with pytest.raises(OSError) as excinfo:
+        _promote_backup_dir(tmp_base, final_dir, sleep=lambda s: sleeps.append(s))
+
+    assert calls["n"] == 1
+    assert sleeps == []
+    assert excinfo.value is original_error
+
+
+def test_promote_backup_dir_success_path_one_call_no_sleep(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The normal path: exactly one os.replace call, no sleep."""
+    tmp_base = tmp_path / "tx.tmp"
+    tmp_base.mkdir()
+    (tmp_base / "marker.txt").write_text("x", encoding="utf-8")
+    final_dir = tmp_path / "tx"
+    calls = {"n": 0}
+    real_replace = os.replace
+
+    def _counting_replace(src, dst):
+        calls["n"] += 1
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(backup_module.os, "replace", _counting_replace)
+
+    def _sleep_must_not_be_called(seconds: float) -> None:
+        raise AssertionError("sleep must not be called on the success path")
+
+    _promote_backup_dir(tmp_base, final_dir, sleep=_sleep_must_not_be_called)
+
+    assert calls["n"] == 1
+    assert final_dir.is_dir()
+    assert (final_dir / "marker.txt").read_text(encoding="utf-8") == "x"
+    assert not tmp_base.exists()

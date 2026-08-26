@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://4czp96svwm3z8"]
+
+[ext_resource type="Script" path="res://scripts/ability_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+ability_name = "Dash"
+cooldown = 6.0
+duration = 0.25
+magnitude = 8.0
+radius = 0.0

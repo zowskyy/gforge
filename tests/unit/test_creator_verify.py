@@ -37,6 +37,24 @@ def test_validator_source_package_and_hash() -> None:
     assert hashlib.sha256(data).hexdigest() == PINNED_VALIDATOR_SHA256
 
 
+def test_validator_pin_reflects_3d_template_amendment() -> None:
+    """Deliberate contract amendment (District Kings 3D template support):
+    validate_boot.gd's camera check was Camera2D-only, which unconditionally
+    failed validation for any 3D main scene (a real bug found while
+    generating the first 3D-template project — the check needs to accept
+    either Camera2D or Camera3D, matching "the scene has a working camera"
+    rather than assuming 2D). PINNED_VALIDATOR_SHA256 was bumped from the
+    pre-PATCH-0016 value ("1e01c7a5...") to this amended value; v2 parameter
+    inspection still uses the temporary-project harness
+    (tests/integration/test_creator_v2_godot.py), never validate_boot.gd, so
+    this change is scoped to the boot-validation camera check only. Changing
+    this literal again requires the same explicit amendment procedure.
+    """
+    assert PINNED_VALIDATOR_SHA256 == (
+        "26027ef4c096793dd9afee442fa94ca21663f3ac565a037e1324fceeb0e820bf"
+    )
+
+
 def test_validator_installed_lookup() -> None:
     """Installed-package lookup via importlib.resources.files must succeed."""
     pkg = importlib.resources.files("godotforge_core.engine") / "validate_boot.gd"
@@ -57,11 +75,32 @@ def test_secure_copy_rejects_symlink_root(tmp_path: Path) -> None:
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
-        pytest.skip("symlink not supported on this platform")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     dst = tmp_path / "dst"
     dst.mkdir()
     with pytest.raises(ValueError, match="symlink project root"):
         _secure_copy(link, dst)
+
+
+def test_secure_copy_rejects_symlink_root_before_resolve(tmp_path: Path) -> None:
+    """F-002: the root symlink check must run on the *unresolved* path.
+
+    Simulated via a Path subclass so this regression runs on hosts without
+    symlink privileges; real-symlink coverage is in
+    ``test_secure_copy_rejects_symlink_root``.
+    """
+
+    class _FakeSymlinkRoot(Path):
+        """Simulated symlink root: is_symlink() True without OS support."""
+
+        def is_symlink(self) -> bool:  # type: ignore[override]
+            return True
+
+    src = _FakeSymlinkRoot(tmp_path / "link")
+    dst = tmp_path / "dst"
+    dst.mkdir()
+    with pytest.raises(ValueError, match="symlink project root rejected"):
+        _secure_copy(src, dst)
 
 
 def test_secure_copy_rejects_nested_symlink(tmp_path: Path) -> None:
@@ -76,7 +115,7 @@ def test_secure_copy_rejects_nested_symlink(tmp_path: Path) -> None:
     try:
         link.symlink_to(target)
     except OSError:
-        pytest.skip("symlink not supported")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     dst = tmp_path / "dst"
     dst.mkdir()
     with pytest.raises(ValueError, match="symlink"):
@@ -142,6 +181,48 @@ def test_secure_copy_prunes_managed(tmp_path: Path) -> None:
     assert (dst / ".godotforge" / "project.yaml").is_file()
 
 
+def test_secure_copy_excludes_hub_metadata(tmp_path: Path) -> None:
+    """Hub run-record store and spoke ledger must never reach the isolated
+    Godot-validation copy — they are operational evidence, not project
+    content, and are excluded by exact path (not a broad prefix)."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    hub_dir = src / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    dst = tmp_path / "dst"
+    dst.mkdir()
+    _secure_copy(src, dst)
+    # Excluded by exact path, not a directory-level prune (bullet 3: no
+    # broad `.godotforge/hub` prefix) — the two known files must not be
+    # copied; an incidental empty destination directory is harmless.
+    assert not (dst / ".godotforge" / "hub" / "run-records.jsonl").exists()
+    assert not (dst / ".godotforge" / "hub" / "spoke-ledger.jsonl").exists()
+    assert (dst / "project.godot").is_file()
+
+
+def test_hash_source_files_excludes_hub_metadata(tmp_path: Path) -> None:
+    """Appending Hub run-record events must not change source_before/after
+    hashes — otherwise Hub's own bookkeeping would make every apply look
+    like a source mutation."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    before = _hash_source_files(src)
+    hub_dir = src / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    after_hub_write = _hash_source_files(src)
+    assert after_hub_write == before
+    # A real (non-Hub) source change must still be detected.
+    (src / "project.godot").write_text("config_version=5\nextra\n", encoding="utf-8")
+    after_real_change = _hash_source_files(src)
+    assert after_real_change != before
+
+
 def test_inject_validator(tmp_path: Path) -> None:
     """Validator must be injected at .godotforge/validate_boot.gd with pinned hash."""
     dst = tmp_path / "dst"
@@ -197,6 +278,24 @@ def test_verify_rejects_symlink_root_cli_level(tmp_path: Path) -> None:
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
-        pytest.skip("symlink not supported")
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     with pytest.raises(ValueError, match="symlink"):
+        verify_creator_project(link, MANIFEST, engine_path=None, timeout=1, mode="import")
+
+
+def test_verify_rejects_symlink_root_before_resolve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F-002: core verify rejects a symlinked root before resolve()/copy/Godot.
+
+    ``is_symlink`` is simulated via monkeypatch so this regression runs on
+    hosts without symlink privileges; real-symlink coverage is in
+    ``test_verify_rejects_symlink_root_cli_level``.
+    """
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    link = tmp_path / "link"
+    monkeypatch.setattr(Path, "is_symlink", lambda self: self == link)
+    with pytest.raises(ValueError, match="symlink project root rejected"):
         verify_creator_project(link, MANIFEST, engine_path=None, timeout=1, mode="import")

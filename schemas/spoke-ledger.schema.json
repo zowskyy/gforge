@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.dev/schemas/spoke-ledger.schema.json",
+  "title": "GodotForge Hub Spoke Ledger Event",
+  "description": "One append-only registration event. Current registry state is the fold of the ledger; deregister appends a tombstone and never edits past records.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "seq",
+    "action",
+    "registration_id",
+    "spoke_id",
+    "definition_hash",
+    "provider_hash",
+    "reason",
+    "prev_hash",
+    "event_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "register",
+        "deregister"
+      ]
+    },
+    "registration_id": {
+      "type": "string",
+      "pattern": "^reg-[0-9a-f]{12}$"
+    },
+    "spoke_id": {
+      "type": "string",
+      "pattern": "^spoke\\.[a-z0-9-]+$"
+    },
+    "definition_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "provider_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prev_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

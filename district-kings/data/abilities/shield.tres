@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://35f873lgdfmz5"]
+
+[ext_resource type="Script" path="res://scripts/ability_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+ability_name = "Shield"
+cooldown = 14.0
+duration = 6.0
+magnitude = 75.0
+radius = 0.0

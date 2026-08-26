@@ -8,15 +8,15 @@ validator injection and strict symlink rejection.
 
 from __future__ import annotations
 
-import json
 import uuid
 from pathlib import Path
 from typing import Any
 
 import click
+from godotforge_core.creator.loading import load_json_manifest, load_yaml_manifest
 from godotforge_core.creator.manifest import CreatorPreflightError
 from godotforge_core.creator.plan import plan_creator_manifest
-from godotforge_core.detection.workspace import find_workspace
+from godotforge_core.detection.workspace import resolve_forge_project_root
 from godotforge_core.exit_codes import ForgeExitCode
 from godotforge_core.output import OutputFormat, build_envelope
 from godotforge_core.patch.apply import apply_plan
@@ -39,20 +39,20 @@ except ImportError:
 
 
 def _resolve_root(ctx: click.Context) -> Path:
-    """_resolve_root — production helper."""
+    """_resolve_root — production helper.
+
+    Delegates to the shared Forge root resolver
+    (:func:`godotforge_core.detection.workspace.resolve_forge_project_root`),
+    which rejects an unresolved symlink root before any resolve()/workspace
+    discovery (F-002) and preserves the State A/B template-root fallback.
+    """
     project: str | None = ctx.obj.get("project")
     start = Path(project) if project else Path.cwd()
-    # Creator supports empty/template roots (State A/B) where no
-    # project.godot/.godotforge/project.yaml exists yet; find_workspace
-    # would return None there. Fall back to the explicit start dir.
-    found = find_workspace(start)
-    if found is not None:
-        return found
-    start_resolved = start.resolve()
-    if start_resolved.is_dir():
-        return start_resolved
-    click.echo("no Godot project found", err=True)
-    raise click.exceptions.Exit(int(ForgeExitCode.CONFIGURATION_FAILURE))
+    try:
+        return resolve_forge_project_root(start)
+    except ValueError as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+        return start  # unreachable: reraise always raises
 
 
 def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:
@@ -65,15 +65,18 @@ def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, Any]:
-    """_load_manifest — production helper."""
+    """_load_manifest — production helper.
+
+    Numeric scalars are preserved as Decimal via the creator ingestion
+    boundary (``creator/loading.py``); binary float never enters the manifest.
+    """
     text = manifest_path.read_text(encoding="utf-8")
     if manifest_path.suffix.lower() in {".yaml", ".yml"}:
         if not _HAS_YAML:
             raise ValueError("YAML manifest requires pyyaml (install pyyaml)")
-        assert yaml is not None
-        data = yaml.safe_load(text)
+        data = load_yaml_manifest(text)
     else:
-        data = json.loads(text)
+        data = load_json_manifest(text)
     if not isinstance(data, dict):
         raise ValueError("manifest must be a mapping")
     return data

@@ -155,6 +155,153 @@ def test_preflight_rejects_non_empty_scenes_with_stray_file(tmp_path: Path) -> N
         plan_creator_manifest(tmp_path, _manifest_dict())
 
 
+# --- Hub control-plane preflight exemption (remediation for the confirmed
+# path-safety defect: the exemption is now an exact allowlist delegated to
+# godotforge_core.hub_control_plane, not a `.startswith()` prefix) ---
+
+
+def test_preflight_accepts_exact_hub_metadata_files(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n')
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n')
+    patch = plan_creator_manifest(tmp_path, _manifest_dict())
+    assert patch.plan is not None
+
+
+def test_preflight_rejects_arbitrary_hub_file(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "foo.txt").write_text("nope\n")
+    with pytest.raises(CreatorPreflightError, match="unexpected Hub control-plane entry"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+def test_preflight_rejects_nested_hub_file(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    nested = hub_dir / "sub"
+    nested.mkdir(parents=True)
+    (nested / "run-records.jsonl").write_text("{}\n")
+    with pytest.raises(CreatorPreflightError, match="unexpected Hub control-plane entry"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+@pytest.mark.parametrize(
+    "rel",
+    [
+        ".godotforge/hubris.txt",
+        ".godotforge/backupsExtra",
+        ".godotforge/reportsFake",
+        ".godotforge/cacheOverflow",
+    ],
+)
+def test_preflight_rejects_prefix_confusable_godotforge_names(tmp_path: Path, rel: str) -> None:
+    """These share a string prefix with an exempted path but are not inside
+    it — the old `.startswith()` check (no trailing slash) silently let them
+    through; the anchored replacement must reject them."""
+    fp = tmp_path / rel
+    fp.parent.mkdir(parents=True, exist_ok=True)
+    fp.write_text("oops\n")
+    with pytest.raises(CreatorPreflightError, match="unexpected file"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+def test_preflight_rejects_hub_metadata_target_symlink_real(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    real_target = tmp_path / "project.godot"
+    real_target.write_text("config_version=5\n")
+    link = hub_dir / "run-records.jsonl"
+    try:
+        link.symlink_to(real_target)
+    except OSError:
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")
+    with pytest.raises(CreatorPreflightError, match="symlink"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+def test_preflight_rejects_hub_metadata_target_symlink_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+    import stat
+
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    link = hub_dir / "run-records.jsonl"
+    link.write_text("placeholder\n")
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == link:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    with pytest.raises(CreatorPreflightError, match="symlink"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+def test_preflight_rejects_hub_dir_symlink_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+    import stat
+
+    (tmp_path / ".godotforge").mkdir()
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir()
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == hub_dir:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    with pytest.raises(CreatorPreflightError, match="symlink"):
+        plan_creator_manifest(tmp_path, _manifest_dict())
+
+
+def test_hub_metadata_excluded_from_plan_hash_and_g_files(tmp_path: Path) -> None:
+    """Hub run-record presence must not affect planHash or G_file ownership."""
+    from godotforge_core.patch.hashing import compute_plan_hash
+    from godotforge_core.patch.models import OperationKind
+
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    with_hub = tmp_path / "with_hub"
+    with_hub.mkdir()
+    hub_dir = with_hub / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n')
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n')
+
+    patch_plain = plan_creator_manifest(plain, _manifest_dict())
+    patch_hub = plan_creator_manifest(with_hub, _manifest_dict())
+    assert patch_plain.plan is not None
+    assert patch_hub.plan is not None
+    assert compute_plan_hash(patch_plain.plan) == compute_plan_hash(patch_hub.plan)
+    plan_plain, plan_hub = patch_plain.plan, patch_hub.plan
+    assert plan_plain is not None
+    assert plan_hub is not None
+    for op in (*plan_plain.operations, *plan_hub.operations):
+        assert op.kind is not OperationKind.CREATE or not (op.path or "").startswith(".godotforge")
+
+
+def test_preflight_normal_project_unaffected_by_hub_state(tmp_path: Path) -> None:
+    """Skeleton state B plus valid Hub metadata plans exactly as without it."""
+    (tmp_path / ".godotforge").mkdir()
+    (tmp_path / ".godotforge/project.yaml").write_text("name: test\n")
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir()
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n')
+    (tmp_path / "scenes").mkdir()
+    (tmp_path / "scripts").mkdir()
+    patch = plan_creator_manifest(tmp_path, _manifest_dict())
+    assert patch.plan is not None
+
+
 # --- positions and collision dims ---
 
 

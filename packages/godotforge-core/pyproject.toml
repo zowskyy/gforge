@@ -1,8 +1,8 @@
 [project]
 name = "godotforge-core"
-version = "0.1.0"
+version = "0.6.0"
 description = "Core services, contracts, and domain logic for Godot Forge"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.15"
 dependencies = [
     "pyyaml>=6.0",
     "jsonschema>=4.21",

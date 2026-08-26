@@ -1,0 +1,39 @@
+[gd_scene load_steps=2 format=3 uid="uid://j51r0213kqota"]
+
+[ext_resource type="Script" path="res://scripts/hud_controller.gd" id="1_script"]
+
+[node name="HUD" type="CanvasLayer"]
+
+[node name="Control" type="Control" parent="."]
+script = ExtResource("1_script")
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="HealthBar" type="ProgressBar" parent="Control"]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 224.0
+offset_bottom = 44.0
+max_value = 100.0
+value = 100.0
+
+[node name="HealthLabel" type="Label" parent="Control"]
+offset_left = 24.0
+offset_top = 48.0
+offset_right = 224.0
+offset_bottom = 68.0
+text = "100 / 100"
+
+[node name="AmmoLabel" type="Label" parent="Control"]
+offset_left = 24.0
+offset_top = 76.0
+offset_right = 224.0
+offset_bottom = 96.0
+text = "30 / 30"
+
+[node name="ZoneLabel" type="Label" parent="Control"]
+offset_left = 24.0
+offset_top = 104.0
+offset_right = 424.0
+offset_bottom = 124.0
+text = ""

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="uid://5h9kw06k3cxk0"]
+
+[ext_resource type="Script" path="res://scripts/ability_data.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+ability_name = "Heal"
+cooldown = 10.0
+duration = 0.0
+magnitude = 40.0
+radius = 4.0

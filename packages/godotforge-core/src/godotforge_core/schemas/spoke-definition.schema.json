@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.dev/schemas/spoke-definition.schema.json",
+  "title": "GodotForge Hub Spoke Definition",
+  "description": "Frozen contract for one composable spoke: declared capabilities, config keys, permission requirements, and no-AI/offline attestations. No I/O.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "spoke_id",
+    "version",
+    "capabilities",
+    "config_keys",
+    "permissions",
+    "deterministic",
+    "requires_network"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "spoke_id": {
+      "type": "string",
+      "pattern": "^spoke\\.[a-z0-9-]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "config_keys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "filesystem_read",
+          "filesystem_write",
+          "engine_invoke"
+        ]
+      }
+    },
+    "deterministic": {
+      "type": "boolean",
+      "const": true
+    },
+    "requires_network": {
+      "type": "boolean",
+      "const": false
+    }
+  },
+  "additionalProperties": false
+}

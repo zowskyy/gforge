@@ -1,6 +1,6 @@
 [project]
 name = "godotforge-cli"
-version = "0.1.0"
+version = "0.6.0"
 description = "Godot Forge CLI - deterministic, version-aware workbench for building and maintaining Godot games"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -47,6 +47,7 @@ addopts = [
 ]
 markers = [
     "integration: tests that touch real external fixtures (deselected by default in CI without the fixture)",
+    "benchmark: performance benchmarks (optional, run explicitly)",
 ]
 
 [tool.ruff]

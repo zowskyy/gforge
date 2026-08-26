@@ -18,6 +18,7 @@ Creator-first direction is locked (from `8157c1f` workbench baseline):
 - **Engine runner** — `engine validate` (`import`/`load`/`boot`/`full`), capture/normalize/parser with versioned fixtures (4.7.1 mono)
 - **Project adapters** (PATCH-0008..0011) — byte-preserving `project.godot` adapters (`autoload`/`input`/`layer_names`/`rendering`/`application`) + `project settings` CLI (preview by default, `--apply` via `check_plan→create_backup→apply_plan`, Blacktop read-only guards)
 - **Next — PATCH-0012 Creator Manifest Planning Slice** — six-operation planning-only slice (see `docs/contracts/creator-manifest.md`): one scene tree (`Main/Player/Camera2D/Ground/Coin`), `Polygon2D` primitives, deterministic `uid`/`load_steps`, fixed three inputs, empty/template-root preflight
+- **PATCH-0016 Behavior v2** — optional typed parameters (`speed`, `jump_velocity`) via `schema_version: 2` manifests (see `docs/contracts/patch-0016.md`): fixed hash-pinned `@export` script, canonical Decimal-only numeric serialization, values carried as scene properties (never substituted into source). Offline and no-AI like every other slice; v1 manifests remain byte-identical.
 
 Every command emits versioned JSON (`--format json`), streaming JSONL
 (`--format jsonl`), or SARIF (`--format sarif`), with stable exit codes:

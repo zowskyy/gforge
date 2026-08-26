@@ -263,8 +263,8 @@ def apply_plan(
                         skipped=len(plan.operations),
                     )
         else:
-            # For other kinds, still cache None to avoid second call
-            desired_cache[idx] = content_provider(op) if False else None
+            # Other kinds carry no desired content; cache None for symmetry
+            desired_cache[idx] = None
 
     # Now apply sequentially, stop at first failure
     applied = 0
@@ -339,7 +339,18 @@ def apply_plan(
                 dest.mkdir(exist_ok=False)
 
             applied += 1
-            journal = update_entry(journal, idx, JournalState.COMPLETED)
+            # F-009: completed CREATE/UPDATE entries must carry the actual
+            # verified post-write SHA-256, not merely the optional planned
+            # desired_hash (which may be None when content is supplied at
+            # apply time). Re-read the written bytes to verify the write.
+            if op.kind in (OperationKind.CREATE, OperationKind.UPDATE):
+                assert op.path is not None
+                verified_post_hash = hashlib.sha256((root / op.path).read_bytes()).hexdigest()
+                journal = update_entry(
+                    journal, idx, JournalState.COMPLETED, post_hash=verified_post_hash
+                )
+            else:
+                journal = update_entry(journal, idx, JournalState.COMPLETED)
             write_journal(root, journal)
 
         except Exception as exc:

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://godotforge.local/schemas/creator-manifest-v2.schema.json",
+  "title": "GodotForge CreatorManifest v2 (internal contract)",
+  "description": "Deterministic, offline, AI-free manifest for PATCH-0016 (Behavior v2 & Parameterized Controller). No LLM, network, telemetry, or generated source is used. Behavior identity and version come from the registry/template only; this schema has no behavior name/version fields (single version authority).",
+  "type": "object",
+  "required": ["schema_version", "game", "input"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2,
+      "description": "Schema version — must be 2 for PATCH-0016."
+    },
+    "game": {
+      "type": "object",
+      "required": ["name", "template"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9 _-]+$",
+          "description": "Game name — validated no CR/LF/NUL, used for project.godot config/name."
+        },
+        "template": {
+          "type": "string",
+          "const": "2d-platformer-minimal",
+          "description": "Allowed template in PATCH-0016."
+        }
+      }
+    },
+    "input": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Exactly three inputs — move_left, move_right, jump — each once, fixed bindings.",
+      "items": {
+        "type": "object",
+        "required": ["name", "binding"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["move_left", "move_right", "jump"]
+          },
+          "binding": {
+            "type": "string",
+            "description": "Fixed binding per name (enforced in godotforge_core/creator/manifest.py): move_left→ui_left, move_right→ui_right, jump→ui_accept."
+          }
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "required": ["platformer_controller"],
+      "additionalProperties": false,
+      "description": "Optional behavior parameters; omitted means all canonical defaults.",
+      "properties": {
+        "platformer_controller": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "v2 platformer controller parameters. Gravity is fixed at 980.0 and is NOT a parameter (unknown key).",
+          "properties": {
+            "speed": {
+              "type": "number",
+              "minimum": 50.0,
+              "maximum": 500.0,
+              "default": 200.0,
+              "description": "Horizontal move speed (px/s), inclusive range 50.0..500.0, default 200.0. Canonical numeric rules in creator/numfmt.py: max 6 significant digits, no NaN/inf/negative-zero."
+            },
+            "jump_velocity": {
+              "type": "number",
+              "minimum": -1000.0,
+              "maximum": -100.0,
+              "default": -350.0,
+              "description": "Jump velocity (negative = upward), inclusive range -1000.0..-100.0, default -350.0. Same canonical numeric rules as speed."
+            }
+          }
+        }
+      }
+    }
+  },
+  "creator_fixed_bindings_note": "Fixed bindings (enforced in godotforge_core/creator/manifest.py, not in JSON Schema alone): move_left→ui_left, move_right→ui_right, jump→ui_accept. Exactly one of each, no duplicates/omissions/unknown names. manifest.py remains authoritative; this schema is validated against it by tests/unit/test_creator_manifest_schema_v2.py."
+}

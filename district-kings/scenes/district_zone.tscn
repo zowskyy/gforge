@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3 uid="uid://v2hby1e82cy78"]
+
+[ext_resource type="Script" path="res://scripts/district_zone.gd" id="1_script"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_zone"]
+radius = 4.0
+height = 2.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_zone"]
+radius = 4.0
+height = 8.0
+
+[node name="DistrictZone" type="Area3D"]
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CylinderShape3D_zone")
+
+[node name="Label3D" type="Label3D" parent="."]
+position = Vector3(0, 2, 0)
+text = "District"
