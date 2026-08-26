@@ -1,0 +1,152 @@
+# Template identity spec — see 2d-platformer-minimal.spec.yaml's header
+# comment for the role this file plays (declarative source hub/goal.py's
+# constants derive from; drift-tested, not re-authoritative, against
+# creator/manifest.py's Decimal MIN/MAX/DEFAULT constants).
+template_id: 3d-tactical-shooter
+schema_version: 3
+
+fixed_inputs:
+  - name: move_forward
+    binding: move_forward
+  - name: move_backward
+    binding: move_backward
+  - name: move_left
+    binding: move_left
+  - name: move_right
+    binding: move_right
+  - name: jump
+    binding: jump
+  - name: sprint
+    binding: sprint
+  - name: aim
+    binding: aim
+  - name: fire_primary
+    binding: fire_primary
+  - name: fire_secondary
+    binding: fire_secondary
+  - name: ability_1
+    binding: ability_1
+  - name: ability_2
+    binding: ability_2
+  - name: ability_ultimate
+    binding: ability_ultimate
+  - name: reload
+    binding: reload
+  - name: interact
+    binding: interact
+
+behaviors:
+  enforcer:
+    parameters:
+      health:
+        min: "50.0"
+        max: "500.0"
+        default: "100.0"
+      armor:
+        min: "0.0"
+        max: "200.0"
+        default: "50.0"
+      move_speed:
+        min: "3.0"
+        max: "10.0"
+        default: "6.0"
+      sprint_multiplier:
+        min: "1.0"
+        max: "2.5"
+        default: "1.5"
+  scout:
+    parameters:
+      health:
+        min: "50.0"
+        max: "300.0"
+        default: "75.0"
+      armor:
+        min: "0.0"
+        max: "100.0"
+        default: "25.0"
+      move_speed:
+        min: "5.0"
+        max: "15.0"
+        default: "8.0"
+      sprint_multiplier:
+        min: "1.2"
+        max: "3.0"
+        default: "1.8"
+  fixer:
+    parameters:
+      health:
+        min: "50.0"
+        max: "400.0"
+        default: "85.0"
+      armor:
+        min: "0.0"
+        max: "150.0"
+        default: "40.0"
+      move_speed:
+        min: "4.0"
+        max: "12.0"
+        default: "7.0"
+      sprint_multiplier:
+        min: "1.0"
+        max: "2.0"
+        default: "1.5"
+
+weapons:
+  ids:
+    - rifle
+    - shotgun
+    - sniper
+  parameters:
+    damage:
+      min: "1.0"
+      max: "200.0"
+    fire_rate:
+      min: "0.02"
+      max: "5.0"
+    magazine_size:
+      min: 1
+      max: 200
+    pellet_count:
+      min: 1
+      max: 20
+    reload_time:
+      min: "0.2"
+      max: "10.0"
+
+abilities:
+  ids:
+    - dash
+    - shield
+    - heal
+  parameters:
+    cooldown:
+      min: "0.5"
+      max: "60.0"
+    duration:
+      min: "0.0"
+      max: "30.0"
+    magnitude:
+      min: "0.0"
+      max: "500.0"
+    radius:
+      min: "0.0"
+      max: "50.0"
+
+# GDScript behavior resource ids this template's planner unconditionally
+# emits (creator/plan.py's _emit_behavior_3d call sites) — every id here
+# must exist in behaviors/registry.py's _ALLOWLIST/PINNED_HASHES.
+behavior_resource_ids:
+  - game_manager
+  - input_manager
+  - player_controller_3d
+  - hud_controller
+  - weapon_controller
+  - damageable
+  - ability_system
+  - district_zone_behavior
+  - bot_state_machine
+  - event_bus
+  - character_data
+  - weapon_data
+  - ability_data
+  - level_setup

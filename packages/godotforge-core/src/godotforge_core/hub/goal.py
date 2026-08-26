@@ -47,56 +47,51 @@ from godotforge_core.creator.manifest import (
     CreatorManifest,
     validate_manifest_dict,
 )
+from godotforge_core.creator.template_spec import load_all_template_specs
 
 GOAL_SCHEMA_VERSION = 1
 
-# Fixed inputs for the only v1 template — identical to the manifest contract
-# (creator/manifest.py _FIXED_BINDINGS). The goal carries no input section;
-# these are compiled in, and the manifest validator remains the authority.
-_FIXED_INPUTS: tuple[dict[str, str], ...] = (
-    {"name": "move_left", "binding": "ui_left"},
-    {"name": "move_right", "binding": "ui_right"},
-    {"name": "jump", "binding": "ui_accept"},
-)
-
-# 3D tactical shooter fixed inputs (for 3D template)
-_FIXED_INPUTS_3D: tuple[dict[str, str], ...] = (
-    {"name": "move_forward", "binding": "move_forward"},
-    {"name": "move_backward", "binding": "move_backward"},
-    {"name": "move_left", "binding": "move_left"},
-    {"name": "move_right", "binding": "move_right"},
-    {"name": "jump", "binding": "jump"},
-    {"name": "sprint", "binding": "sprint"},
-    {"name": "aim", "binding": "aim"},
-    {"name": "fire_primary", "binding": "fire_primary"},
-    {"name": "fire_secondary", "binding": "fire_secondary"},
-    {"name": "ability_1", "binding": "ability_1"},
-    {"name": "ability_2", "binding": "ability_2"},
-    {"name": "ability_ultimate", "binding": "ability_ultimate"},
-    {"name": "reload", "binding": "reload"},
-    {"name": "interact", "binding": "interact"},
-)
-
-_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources", "weapon_overrides", "ability_overrides"})
-_ALLOWED_GAME_KEYS = frozenset({"name", "template"})
-_ALLOWED_BEHAVIOR_KEYS_2D = frozenset({"platformer_controller"})
-_ALLOWED_BEHAVIOR_KEYS_3D = frozenset({"enforcer", "scout", "fixer"})
-_ALLOWED_PARAMETER_KEYS_2D = frozenset({"speed", "jump_velocity"})
-_ALLOWED_PARAMETER_KEYS_3D = frozenset({"health", "armor", "move_speed", "sprint_multiplier"})
-
-# Path-shaped strings can never be valid here: game.name is restricted to
-# ^[A-Za-z0-9 _-]+$ by the manifest validator, and these guards make the
-# rejection explicit for absolute paths and traversal attempts.
-_PATH_LIKE_PATTERN = re.compile(r"(^/|^[A-Za-z]:[\\/]|\\\\|\.\.|//|res://|uid://)")
+# Every goal-layer template-identity constant below is derived from
+# templates/<id>.spec.yaml (Phase 2a of the roadmap plan) instead of being
+# hand-typed a second time — see creator/template_spec.py's module
+# docstring. This is the single source _TEMPLATES/_FIXED_INPUTS*/
+# _ALLOWED_*_KEYS_* used to be independently duplicated from; drift between
+# this file and creator/manifest.py's own numeric authority is still caught
+# by tests/unit/test_template_spec_consistency.py, since manifest.py stays
+# hand-authored (range/precision enforcement is its job, not the spec's).
+_TEMPLATE_SPECS = load_all_template_specs()
 
 # Explicit template registry — the only templates a goal may name. Maps
 # template id → the CreatorManifest schema version it compiles to. Behavior
 # identity/version are *not* restated here; the manifest validator and the
 # behavior registry own those.
 _TEMPLATES: dict[str, int] = {
-    "2d-platformer-minimal": 2,
-    "3d-tactical-shooter": 3,
+    tid: spec.schema_version for tid, spec in _TEMPLATE_SPECS.items()
 }
+
+# Fixed inputs for the only v1 template — identical to the manifest contract
+# (creator/manifest.py _FIXED_BINDINGS). The goal carries no input section;
+# these are compiled in, and the manifest validator remains the authority.
+_FIXED_INPUTS: tuple[dict[str, str], ...] = tuple(
+    fi.as_dict() for fi in _TEMPLATE_SPECS["2d-platformer-minimal"].fixed_inputs
+)
+
+# 3D tactical shooter fixed inputs (for 3D template)
+_FIXED_INPUTS_3D: tuple[dict[str, str], ...] = tuple(
+    fi.as_dict() for fi in _TEMPLATE_SPECS["3d-tactical-shooter"].fixed_inputs
+)
+
+_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources", "weapon_overrides", "ability_overrides"})
+_ALLOWED_GAME_KEYS = frozenset({"name", "template"})
+_ALLOWED_BEHAVIOR_KEYS_2D = _TEMPLATE_SPECS["2d-platformer-minimal"].allowed_behavior_keys()
+_ALLOWED_BEHAVIOR_KEYS_3D = _TEMPLATE_SPECS["3d-tactical-shooter"].allowed_behavior_keys()
+_ALLOWED_PARAMETER_KEYS_2D = _TEMPLATE_SPECS["2d-platformer-minimal"].allowed_parameter_keys()
+_ALLOWED_PARAMETER_KEYS_3D = _TEMPLATE_SPECS["3d-tactical-shooter"].allowed_parameter_keys()
+
+# Path-shaped strings can never be valid here: game.name is restricted to
+# ^[A-Za-z0-9 _-]+$ by the manifest validator, and these guards make the
+# rejection explicit for absolute paths and traversal attempts.
+_PATH_LIKE_PATTERN = re.compile(r"(^/|^[A-Za-z]:[\\/]|\\\\|\.\.|//|res://|uid://)")
 
 
 def registered_templates() -> tuple[str, ...]:

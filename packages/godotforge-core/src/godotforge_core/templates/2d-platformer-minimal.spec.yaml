@@ -1,0 +1,39 @@
+# Template identity spec — the single declarative source that
+# creator/manifest.py's numeric authority (MIN/MAX/DEFAULT constants) and
+# hub/goal.py's goal-layer constants (_TEMPLATES, _ALLOWED_*_KEYS_2D,
+# _FIXED_INPUTS) are either derived from or drift-tested against.
+# See docs/contracts/hub-v1.md and tests/unit/test_template_spec_consistency.py.
+#
+# Numeric bounds/defaults are informational here: creator/manifest.py's
+# Decimal constants remain the single runtime-enforced authority (this
+# module never re-derives validation logic from this file) — a drift test
+# keeps the two in sync instead.
+template_id: 2d-platformer-minimal
+schema_version: 2
+
+fixed_inputs:
+  - name: move_left
+    binding: ui_left
+  - name: move_right
+    binding: ui_right
+  - name: jump
+    binding: ui_accept
+
+behaviors:
+  platformer_controller:
+    parameters:
+      speed:
+        min: "50.0"
+        max: "500.0"
+        default: "200.0"
+      jump_velocity:
+        min: "-1000.0"
+        max: "-100.0"
+        default: "-350.0"
+
+# GDScript behavior resource ids this template's planner unconditionally
+# emits (creator/plan.py's _emit_player_controller/_emit_coin) — every id
+# here must exist in behaviors/registry.py's _ALLOWLIST/PINNED_HASHES.
+behavior_resource_ids:
+  - platformer_controller_v2
+  - collectible

@@ -20,6 +20,13 @@ from godotforge_core.hub_control_plane import HubPathSafetyError, validate_hub_m
 from godotforge_core.patch.hashing import hash_bytes
 from godotforge_core.patch.models import OperationKind, PatchOperation, PatchPlan
 
+from .godot_text_format import SectionFile
+from .godot_text_format import color as _color
+from .godot_text_format import ext_resource as _ext_resource
+from .godot_text_format import packed_vector2_array as _packed_vector2_array
+from .godot_text_format import sub_resource as _sub_resource
+from .godot_text_format import vector2 as _vector2
+from .godot_text_format import vector3 as _vector3
 from .manifest import CreatorManifest, CreatorPreflightError, validate_manifest_dict
 from .uid import deterministic_uid
 
@@ -189,29 +196,24 @@ def canonical_manifest_hash(manifest: CreatorManifest) -> str:
 
 def _emit_project_godot(manifest: CreatorManifest) -> bytes:
     """_emit_project_godot — production helper."""
-    lines = [
-        "; Engine configuration file.",
-        "; It's best edited using the editor UI; changes to this file may cause errors.",
-        "",
-        "config_version=5",
-        "",
-        "[application]",
-        "",
-        f'config/name="{manifest.game_name}"',
-        'config/features=PackedStringArray("4.7")',
-        'run/main_scene="res://scenes/main.tscn"',
-        "",
-        "[input]",
-        "",
-    ]
+    f = SectionFile()
+    f.raw("; Engine configuration file.")
+    f.raw("; It's best edited using the editor UI; changes to this file may cause errors.")
+    f.blank()
+    f.raw("config_version=5")
+    f.blank()
+    f.raw("[application]")
+    f.blank()
+    f.raw(f'config/name="{manifest.game_name}"')
+    f.raw('config/features=PackedStringArray("4.7")')
+    f.raw('run/main_scene="res://scenes/main.tscn"')
+    f.blank()
+    f.raw("[input]")
+    f.blank()
     for name in ("move_left", "move_right", "jump"):
-        lines.append(f"{name}={_INPUT_LITERAL[name]}")
-    lines.append("")
-    text = "\n".join(lines)
-    # Ensure final newline (deterministic LF)
-    if not text.endswith("\n"):
-        text += "\n"
-    return text.encode("utf-8")
+        f.raw(f"{name}={_INPUT_LITERAL[name]}")
+    f.blank()
+    return f.build()
 
 
 # --- 3D tactical-shooter template ---------------------------------------
@@ -343,44 +345,40 @@ def _emit_project_godot_3d(manifest: CreatorManifest) -> bytes:
     feature_tag = _RENDERER_FEATURE_TAG[manifest.renderer]
     gravity = format_canonical(manifest.physics_3d.gravity, name="gravity")
 
-    lines = [
-        "; Engine configuration file.",
-        "; It's best edited using the editor UI; changes to this file may cause errors.",
-        "",
-        "config_version=5",
-        "",
-        "[application]",
-        "",
-        f'config/name="{manifest.game_name}"',
-        f'config/features=PackedStringArray("4.7", "{feature_tag}")',
-        'run/main_scene="res://scenes/graybox_district.tscn"',
-        "",
-        "[autoload]",
-        "",
-        'EventBus="*res://scripts/event_bus.gd"',
-        'GameManager="*res://scripts/game_manager.gd"',
-        'InputManager="*res://scripts/input_manager.gd"',
-        "",
-        "[physics]",
-        "",
-        "common/physics_ticks_per_second=60",
-        f"3d/default_gravity={gravity}",
-        "",
-        "[rendering]",
-        "",
-        f'renderer/rendering_method="{renderer_key}"',
-        "",
-        "[input]",
-        "",
-    ]
+    f = SectionFile()
+    f.raw("; Engine configuration file.")
+    f.raw("; It's best edited using the editor UI; changes to this file may cause errors.")
+    f.blank()
+    f.raw("config_version=5")
+    f.blank()
+    f.raw("[application]")
+    f.blank()
+    f.raw(f'config/name="{manifest.game_name}"')
+    f.raw(f'config/features=PackedStringArray("4.7", "{feature_tag}")')
+    f.raw('run/main_scene="res://scenes/graybox_district.tscn"')
+    f.blank()
+    f.raw("[autoload]")
+    f.blank()
+    f.raw('EventBus="*res://scripts/event_bus.gd"')
+    f.raw('GameManager="*res://scripts/game_manager.gd"')
+    f.raw('InputManager="*res://scripts/input_manager.gd"')
+    f.blank()
+    f.raw("[physics]")
+    f.blank()
+    f.raw("common/physics_ticks_per_second=60")
+    f.raw(f"3d/default_gravity={gravity}")
+    f.blank()
+    f.raw("[rendering]")
+    f.blank()
+    f.raw(f'renderer/rendering_method="{renderer_key}"')
+    f.blank()
+    f.raw("[input]")
+    f.blank()
     for i in manifest.inputs:
         bindings = manifest.input_map.bindings.get(i.name, ())
-        lines.append(f"{i.name}={_emit_input_action_literal(i.name, bindings)}")
-    lines.append("")
-    text = "\n".join(lines)
-    if not text.endswith("\n"):
-        text += "\n"
-    return text.encode("utf-8")
+        f.raw(f"{i.name}={_emit_input_action_literal(i.name, bindings)}")
+    f.blank()
+    return f.build()
 
 
 def _emit_behavior_3d(behavior_id: str) -> bytes:
@@ -428,78 +426,73 @@ def _emit_scene_tscn(manifest: CreatorManifest) -> bytes:
 
     uid = deterministic_uid(TEMPLATE_ID, manifest.schema_version, "scenes/main.tscn")
     # load_steps = 1 + ext_resource_count(2) + sub_resource_count(3) = 6
-    lines: list[str] = []
-    lines.append(f'[gd_scene load_steps=6 format=3 uid="{uid}"]')
-    lines.append("")
-    lines.append(
-        '[ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_script"]'  # noqa: E501
-    )
-    lines.append('[ext_resource type="Script" path="res://scripts/coin.gd" id="2_coin"]')
-    lines.append("")
-    lines.append('[sub_resource type="CircleShape2D" id="CircleShape2D_player"]')
-    lines.append(f"radius = {float(PLAYER_RADIUS):.1f}")
-    lines.append("")
-    lines.append('[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]')
-    lines.append(f"size = Vector2({GROUND_SIZE[0]}, {GROUND_SIZE[1]})")
-    lines.append("")
-    lines.append('[sub_resource type="CircleShape2D" id="CircleShape2D_coin"]')
-    lines.append(f"radius = {float(COIN_RADIUS):.1f}")
-    lines.append("")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=6 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_script"]')
+    f.raw('[ext_resource type="Script" path="res://scripts/coin.gd" id="2_coin"]')
+    f.blank()
+    f.raw('[sub_resource type="CircleShape2D" id="CircleShape2D_player"]')
+    f.prop("radius", f"{float(PLAYER_RADIUS):.1f}")
+    f.blank()
+    f.raw('[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]')
+    f.prop("size", _vector2(GROUND_SIZE[0], GROUND_SIZE[1]))
+    f.blank()
+    f.raw('[sub_resource type="CircleShape2D" id="CircleShape2D_coin"]')
+    f.prop("radius", f"{float(COIN_RADIUS):.1f}")
+    f.blank()
     # Nodes in deterministic order: Main, Player, Camera2D,
     # Player/Polygon2D, Player/CollisionShape2D, Ground,
     # Ground/CollisionShape2D, Ground/Polygon2D, Coin,
     # Coin/CollisionShape2D, Coin/Polygon2D
-    lines.append('[node name="Main" type="Node2D"]')
-    lines.append("")
-    lines.append('[node name="Player" type="CharacterBody2D" parent="."]')
-    lines.append(f"position = Vector2({PLAYER_POS[0]}, {PLAYER_POS[1]})")
-    lines.append('script = ExtResource("1_script")')
+    f.raw('[node name="Main" type="Node2D"]')
+    f.blank()
+    f.raw('[node name="Player" type="CharacterBody2D" parent="."]')
+    f.prop("position", _vector2(PLAYER_POS[0], PLAYER_POS[1]))
+    f.prop("script", _ext_resource("1_script"))
     if manifest.schema_version == 2:
         assert manifest.parameters is not None
-        lines.append(f"speed = {format_canonical(manifest.parameters.speed, name='speed')}")
-        lines.append(
-            "jump_velocity = "
-            f"{format_canonical(manifest.parameters.jump_velocity, name='jump_velocity')}"
+        f.prop("speed", format_canonical(manifest.parameters.speed, name="speed"))
+        f.prop(
+            "jump_velocity",
+            format_canonical(manifest.parameters.jump_velocity, name="jump_velocity"),
         )
-    lines.append("")
-    lines.append('[node name="Camera2D" type="Camera2D" parent="Player"]')
-    lines.append("current = true")
-    lines.append("")
-    lines.append('[node name="Polygon2D" type="Polygon2D" parent="Player"]')
-    lines.append("polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)")
-    lines.append("color = Color(0.26, 0.53, 0.96, 1)")
-    lines.append("")
-    lines.append('[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]')
-    lines.append('shape = SubResource("CircleShape2D_player")')
-    lines.append("")
-    lines.append('[node name="Ground" type="StaticBody2D" parent="."]')
-    lines.append(f"position = Vector2({GROUND_POS[0]}, {GROUND_POS[1]})")
-    lines.append("")
-    lines.append('[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]')
-    lines.append('shape = SubResource("RectangleShape2D_ground")')
-    lines.append("")
-    lines.append('[node name="Polygon2D" type="Polygon2D" parent="Ground"]')
-    lines.append("polygon = PackedVector2Array(-400, -16, 400, -16, 400, 16, -400, 16)")
-    lines.append("color = Color(0.4, 0.26, 0.13, 1)")
-    lines.append("")
-    lines.append('[node name="Coin" type="Area2D" parent="."]')
-    lines.append(f"position = Vector2({COIN_POS[0]}, {COIN_POS[1]})")
-    lines.append('script = ExtResource("2_coin")')
-    lines.append("")
-    lines.append('[node name="CollisionShape2D" type="CollisionShape2D" parent="Coin"]')
-    lines.append('shape = SubResource("CircleShape2D_coin")')
-    lines.append("")
-    lines.append('[node name="Polygon2D" type="Polygon2D" parent="Coin"]')
-    lines.append(
-        "polygon = PackedVector2Array(12, 0, 8.49, 8.49, 0, 12, "  # noqa: E501
-        "-8.49, 8.49, -12, 0, -8.49, -8.49, 0, -12, 8.49, -8.49)"
+    f.blank()
+    f.raw('[node name="Camera2D" type="Camera2D" parent="Player"]')
+    f.prop("current", "true")
+    f.blank()
+    f.raw('[node name="Polygon2D" type="Polygon2D" parent="Player"]')
+    f.prop("polygon", _packed_vector2_array(-16, -16, 16, -16, 16, 16, -16, 16))
+    f.prop("color", _color(0.26, 0.53, 0.96, 1))
+    f.blank()
+    f.raw('[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]')
+    f.prop("shape", _sub_resource("CircleShape2D_player"))
+    f.blank()
+    f.raw('[node name="Ground" type="StaticBody2D" parent="."]')
+    f.prop("position", _vector2(GROUND_POS[0], GROUND_POS[1]))
+    f.blank()
+    f.raw('[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]')
+    f.prop("shape", _sub_resource("RectangleShape2D_ground"))
+    f.blank()
+    f.raw('[node name="Polygon2D" type="Polygon2D" parent="Ground"]')
+    f.prop("polygon", _packed_vector2_array(-400, -16, 400, -16, 400, 16, -400, 16))
+    f.prop("color", _color(0.4, 0.26, 0.13, 1))
+    f.blank()
+    f.raw('[node name="Coin" type="Area2D" parent="."]')
+    f.prop("position", _vector2(COIN_POS[0], COIN_POS[1]))
+    f.prop("script", _ext_resource("2_coin"))
+    f.blank()
+    f.raw('[node name="CollisionShape2D" type="CollisionShape2D" parent="Coin"]')
+    f.prop("shape", _sub_resource("CircleShape2D_coin"))
+    f.blank()
+    f.raw('[node name="Polygon2D" type="Polygon2D" parent="Coin"]')
+    f.prop(
+        "polygon",
+        _packed_vector2_array(12, 0, 8.49, 8.49, 0, 12, -8.49, 8.49, -12, 0, -8.49, -8.49, 0, -12, 8.49, -8.49),
     )
-    lines.append("color = Color(0.96, 0.78, 0.2, 1)")
-    lines.append("")
-    text = "\n".join(lines)
-    if not text.endswith("\n"):
-        text += "\n"
-    return text.encode("utf-8")
+    f.prop("color", _color(0.96, 0.78, 0.2, 1))
+    f.blank()
+    return f.build()
 
 
 def _character_tres(manifest: CreatorManifest, role: str) -> bytes:
@@ -512,22 +505,22 @@ def _character_tres(manifest: CreatorManifest, role: str) -> bytes:
     assert manifest.parameters is not None
     params = getattr(manifest.parameters, role)
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, f"data/characters/{role}.tres")
-    lines = [
-        f'[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/character_data.gd" id="1_script"]',
-        "",
-        "[resource]",
-        'script = ExtResource("1_script")',
-        f'role = "{role}"',
-        f"health = {format_canonical(params.health, name='health')}",
-        f"armor = {format_canonical(params.armor, name='armor')}",
-        f"move_speed = {format_canonical(params.move_speed, name='move_speed')}",
-        f"sprint_multiplier = {format_canonical(params.sprint_multiplier, name='sprint_multiplier')}",
-        "",
-    ]
-    text = "\n".join(lines)
-    return text.encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/character_data.gd" id="1_script"]')
+    f.blank()
+    f.raw("[resource]")
+    f.prop("script", _ext_resource("1_script"))
+    f.raw(f'role = "{role}"')
+    f.prop("health", format_canonical(params.health, name="health"))
+    f.prop("armor", format_canonical(params.armor, name="armor"))
+    f.prop("move_speed", format_canonical(params.move_speed, name="move_speed"))
+    f.prop(
+        "sprint_multiplier", format_canonical(params.sprint_multiplier, name="sprint_multiplier")
+    )
+    f.blank()
+    return f.build()
 
 
 def _weapon_tres(manifest: CreatorManifest, name: str, stats: dict) -> bytes:
@@ -558,22 +551,21 @@ def _weapon_tres(manifest: CreatorManifest, name: str, stats: dict) -> bytes:
         if override.reload_time is not None:
             reload_time_line = f"reload_time = {format_canonical(override.reload_time, name='reload_time')}"
 
-    lines = [
-        f'[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1_script"]',
-        "",
-        "[resource]",
-        'script = ExtResource("1_script")',
-        f'weapon_name = "{stats["weapon_name"]}"',
-        damage_line,
-        pellet_count_line,
-        fire_rate_line,
-        magazine_size_line,
-        reload_time_line,
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/weapon_data.gd" id="1_script"]')
+    f.blank()
+    f.raw("[resource]")
+    f.prop("script", _ext_resource("1_script"))
+    f.raw(f'weapon_name = "{stats["weapon_name"]}"')
+    f.raw(damage_line)
+    f.raw(pellet_count_line)
+    f.raw(fire_rate_line)
+    f.raw(magazine_size_line)
+    f.raw(reload_time_line)
+    f.blank()
+    return f.build()
 
 
 def _ability_tres(manifest: CreatorManifest, name: str, stats: dict) -> bytes:
@@ -599,21 +591,20 @@ def _ability_tres(manifest: CreatorManifest, name: str, stats: dict) -> bytes:
         if override.radius is not None:
             radius_line = f"radius = {format_canonical(override.radius, name='radius')}"
 
-    lines = [
-        f'[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/ability_data.gd" id="1_script"]',
-        "",
-        "[resource]",
-        'script = ExtResource("1_script")',
-        f'ability_name = "{stats["ability_name"]}"',
-        cooldown_line,
-        duration_line,
-        magnitude_line,
-        radius_line,
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/ability_data.gd" id="1_script"]')
+    f.blank()
+    f.raw("[resource]")
+    f.prop("script", _ext_resource("1_script"))
+    f.raw(f'ability_name = "{stats["ability_name"]}"')
+    f.raw(cooldown_line)
+    f.raw(duration_line)
+    f.raw(magnitude_line)
+    f.raw(radius_line)
+    f.blank()
+    return f.build()
 
 
 # Fixed weapon/ability defaults, goal-tunable per-field via
@@ -636,225 +627,224 @@ def _emit_scene_player_3d(manifest: CreatorManifest) -> bytes:
 
     assert manifest.physics_3d is not None
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/player_3d.tscn")
-    lines = [
-        f'[gd_scene load_steps=6 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_script"]',
-        '[ext_resource type="Resource" path="res://data/characters/enforcer.tres" id="2_chardata"]',
-        '[ext_resource type="Script" path="res://scripts/damageable.gd" id="3_damageable"]',
-        "",
-        '[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]',
-        "radius = 0.4",
-        "height = 1.8",
-        "",
-        '[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]',
-        "radius = 0.4",
-        "height = 1.8",
-        "",
-        '[node name="Player" type="CharacterBody3D"]',
-        'script = ExtResource("1_script")',
-        'character_data = ExtResource("2_chardata")',
-        f"gravity = {format_canonical(manifest.physics_3d.gravity, name='gravity')}",
-        f"floor_snap_length = {format_canonical(manifest.physics_3d.floor_snap_length, name='floor_snap_length')}",
-        "",
-        '[node name="CollisionShape3D" type="CollisionShape3D" parent="."]',
-        'shape = SubResource("CapsuleShape3D_player")',
-        "",
-        '[node name="MeshInstance3D" type="MeshInstance3D" parent="."]',
-        'mesh = SubResource("CapsuleMesh_player")',
-        "",
-        '[node name="Camera3D" type="Camera3D" parent="."]',
-        "position = Vector3(0, 2, 4)",
-        "rotation_degrees = Vector3(-15, 0, 0)",
-        "current = true",
-        "",
-        '[node name="Damageable" type="Node" parent="."]',
-        'script = ExtResource("3_damageable")',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=6 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/player_controller.gd" id="1_script"]')
+    f.raw(
+        '[ext_resource type="Resource" path="res://data/characters/enforcer.tres" id="2_chardata"]'
+    )
+    f.raw('[ext_resource type="Script" path="res://scripts/damageable.gd" id="3_damageable"]')
+    f.blank()
+    f.raw('[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]')
+    f.prop("radius", "0.4")
+    f.prop("height", "1.8")
+    f.blank()
+    f.raw('[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]')
+    f.prop("radius", "0.4")
+    f.prop("height", "1.8")
+    f.blank()
+    f.raw('[node name="Player" type="CharacterBody3D"]')
+    f.prop("script", _ext_resource("1_script"))
+    f.prop("character_data", _ext_resource("2_chardata"))
+    f.prop("gravity", format_canonical(manifest.physics_3d.gravity, name="gravity"))
+    f.prop(
+        "floor_snap_length",
+        format_canonical(manifest.physics_3d.floor_snap_length, name="floor_snap_length"),
+    )
+    f.blank()
+    f.raw('[node name="CollisionShape3D" type="CollisionShape3D" parent="."]')
+    f.prop("shape", _sub_resource("CapsuleShape3D_player"))
+    f.blank()
+    f.raw('[node name="MeshInstance3D" type="MeshInstance3D" parent="."]')
+    f.prop("mesh", _sub_resource("CapsuleMesh_player"))
+    f.blank()
+    f.raw('[node name="Camera3D" type="Camera3D" parent="."]')
+    f.prop("position", _vector3(0, 2, 4))
+    f.prop("rotation_degrees", _vector3(-15, 0, 0))
+    f.prop("current", "true")
+    f.blank()
+    f.raw('[node name="Damageable" type="Node" parent="."]')
+    f.prop("script", _ext_resource("3_damageable"))
+    f.blank()
+    return f.build()
 
 
 def _emit_scene_weapon_base(manifest: CreatorManifest) -> bytes:
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/weapon_base.tscn")
-    lines = [
-        f'[gd_scene load_steps=4 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/weapon_controller.gd" id="1_script"]',
-        '[ext_resource type="Resource" path="res://data/weapons/rifle.tres" id="2_weapondata"]',
-        "",
-        '[sub_resource type="BoxMesh" id="BoxMesh_weapon"]',
-        "size = Vector3(0.1, 0.1, 0.6)",
-        "",
-        '[node name="WeaponBase" type="Node3D"]',
-        'script = ExtResource("1_script")',
-        'weapon_data = ExtResource("2_weapondata")',
-        "",
-        '[node name="MeshInstance3D" type="MeshInstance3D" parent="."]',
-        'mesh = SubResource("BoxMesh_weapon")',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=4 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/weapon_controller.gd" id="1_script"]')
+    f.raw('[ext_resource type="Resource" path="res://data/weapons/rifle.tres" id="2_weapondata"]')
+    f.blank()
+    f.raw('[sub_resource type="BoxMesh" id="BoxMesh_weapon"]')
+    f.prop("size", _vector3(0.1, 0.1, 0.6))
+    f.blank()
+    f.raw('[node name="WeaponBase" type="Node3D"]')
+    f.prop("script", _ext_resource("1_script"))
+    f.prop("weapon_data", _ext_resource("2_weapondata"))
+    f.blank()
+    f.raw('[node name="MeshInstance3D" type="MeshInstance3D" parent="."]')
+    f.prop("mesh", _sub_resource("BoxMesh_weapon"))
+    f.blank()
+    return f.build()
 
 
 def _emit_scene_ability_base(manifest: CreatorManifest) -> bytes:
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/ability_base.tscn")
-    lines = [
-        f'[gd_scene load_steps=3 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/ability_system.gd" id="1_script"]',
-        '[ext_resource type="Resource" path="res://data/abilities/dash.tres" id="2_abilitydata"]',
-        "",
-        '[node name="AbilityBase" type="Node3D"]',
-        'script = ExtResource("1_script")',
-        'ability_data = ExtResource("2_abilitydata")',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=3 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/ability_system.gd" id="1_script"]')
+    f.raw('[ext_resource type="Resource" path="res://data/abilities/dash.tres" id="2_abilitydata"]')
+    f.blank()
+    f.raw('[node name="AbilityBase" type="Node3D"]')
+    f.prop("script", _ext_resource("1_script"))
+    f.prop("ability_data", _ext_resource("2_abilitydata"))
+    f.blank()
+    return f.build()
 
 
 def _emit_scene_district_zone(manifest: CreatorManifest) -> bytes:
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/district_zone.tscn")
-    lines = [
-        f'[gd_scene load_steps=4 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/district_zone.gd" id="1_script"]',
-        "",
-        '[sub_resource type="CylinderShape3D" id="CylinderShape3D_zone"]',
-        f"radius = {ZONE_RADIUS}",
-        "height = 2.0",
-        "",
-        '[sub_resource type="SphereMesh" id="SphereMesh_zone"]',
-        f"radius = {ZONE_RADIUS}",
-        f"height = {ZONE_RADIUS * 2}",
-        "",
-        '[node name="DistrictZone" type="Area3D"]',
-        'script = ExtResource("1_script")',
-        "",
-        '[node name="CollisionShape3D" type="CollisionShape3D" parent="."]',
-        'shape = SubResource("CylinderShape3D_zone")',
-        "",
-        '[node name="Label3D" type="Label3D" parent="."]',
-        "position = Vector3(0, 2, 0)",
-        'text = "District"',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=4 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/district_zone.gd" id="1_script"]')
+    f.blank()
+    f.raw('[sub_resource type="CylinderShape3D" id="CylinderShape3D_zone"]')
+    f.prop("radius", str(ZONE_RADIUS))
+    f.prop("height", "2.0")
+    f.blank()
+    f.raw('[sub_resource type="SphereMesh" id="SphereMesh_zone"]')
+    f.prop("radius", str(ZONE_RADIUS))
+    f.prop("height", str(ZONE_RADIUS * 2))
+    f.blank()
+    f.raw('[node name="DistrictZone" type="Area3D"]')
+    f.prop("script", _ext_resource("1_script"))
+    f.blank()
+    f.raw('[node name="CollisionShape3D" type="CollisionShape3D" parent="."]')
+    f.prop("shape", _sub_resource("CylinderShape3D_zone"))
+    f.blank()
+    f.raw('[node name="Label3D" type="Label3D" parent="."]')
+    f.prop("position", _vector3(0, 2, 0))
+    f.raw('text = "District"')
+    f.blank()
+    return f.build()
 
 
 def _emit_scene_hud(manifest: CreatorManifest) -> bytes:
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/hud.tscn")
-    lines = [
-        f'[gd_scene load_steps=2 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/hud_controller.gd" id="1_script"]',
-        "",
-        '[node name="HUD" type="CanvasLayer"]',
-        "",
-        '[node name="Control" type="Control" parent="."]',
-        'script = ExtResource("1_script")',
-        "anchor_right = 1.0",
-        "anchor_bottom = 1.0",
-        "",
-        '[node name="HealthBar" type="ProgressBar" parent="Control"]',
-        "offset_left = 24.0",
-        "offset_top = 24.0",
-        "offset_right = 224.0",
-        "offset_bottom = 44.0",
-        "max_value = 100.0",
-        "value = 100.0",
-        "",
-        '[node name="HealthLabel" type="Label" parent="Control"]',
-        "offset_left = 24.0",
-        "offset_top = 48.0",
-        "offset_right = 224.0",
-        "offset_bottom = 68.0",
-        'text = "100 / 100"',
-        "",
-        '[node name="AmmoLabel" type="Label" parent="Control"]',
-        "offset_left = 24.0",
-        "offset_top = 76.0",
-        "offset_right = 224.0",
-        "offset_bottom = 96.0",
-        'text = "30 / 30"',
-        "",
-        '[node name="ZoneLabel" type="Label" parent="Control"]',
-        "offset_left = 24.0",
-        "offset_top = 104.0",
-        "offset_right = 424.0",
-        "offset_bottom = 124.0",
-        'text = ""',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=2 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/hud_controller.gd" id="1_script"]')
+    f.blank()
+    f.raw('[node name="HUD" type="CanvasLayer"]')
+    f.blank()
+    f.raw('[node name="Control" type="Control" parent="."]')
+    f.prop("script", _ext_resource("1_script"))
+    f.prop("anchor_right", "1.0")
+    f.prop("anchor_bottom", "1.0")
+    f.blank()
+    f.raw('[node name="HealthBar" type="ProgressBar" parent="Control"]')
+    f.prop("offset_left", "24.0")
+    f.prop("offset_top", "24.0")
+    f.prop("offset_right", "224.0")
+    f.prop("offset_bottom", "44.0")
+    f.prop("max_value", "100.0")
+    f.prop("value", "100.0")
+    f.blank()
+    f.raw('[node name="HealthLabel" type="Label" parent="Control"]')
+    f.prop("offset_left", "24.0")
+    f.prop("offset_top", "48.0")
+    f.prop("offset_right", "224.0")
+    f.prop("offset_bottom", "68.0")
+    f.raw('text = "100 / 100"')
+    f.blank()
+    f.raw('[node name="AmmoLabel" type="Label" parent="Control"]')
+    f.prop("offset_left", "24.0")
+    f.prop("offset_top", "76.0")
+    f.prop("offset_right", "224.0")
+    f.prop("offset_bottom", "96.0")
+    f.raw('text = "30 / 30"')
+    f.blank()
+    f.raw('[node name="ZoneLabel" type="Label" parent="Control"]')
+    f.prop("offset_left", "24.0")
+    f.prop("offset_top", "104.0")
+    f.prop("offset_right", "424.0")
+    f.prop("offset_bottom", "124.0")
+    f.raw('text = ""')
+    f.blank()
+    return f.build()
 
 
 def _emit_scene_graybox_district(manifest: CreatorManifest) -> bytes:
     uid = deterministic_uid(_TEMPLATE_3D, manifest.schema_version, "scenes/graybox_district.tscn")
-    lines = [
-        f'[gd_scene load_steps=9 format=3 uid="{uid}"]',
-        "",
-        '[ext_resource type="Script" path="res://scripts/level_setup.gd" id="1_levelsetup"]',
-        '[ext_resource type="PackedScene" path="res://scenes/player_3d.tscn" id="2_player"]',
-        '[ext_resource type="PackedScene" path="res://scenes/district_zone.tscn" id="3_zone"]',
-        '[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="4_hud"]',
-        "",
-        '[sub_resource type="Environment" id="Environment_1"]',
-        "background_mode = 1",
-        "background_color = Color(0.5, 0.6, 0.7, 1)",
-        "",
-        '[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]',
-        f"size = Vector3({FLOOR_SIZE[0]}, {FLOOR_SIZE[1]}, {FLOOR_SIZE[2]})",
-        "",
-        '[sub_resource type="BoxMesh" id="BoxMesh_floor"]',
-        f"size = Vector3({FLOOR_SIZE[0]}, {FLOOR_SIZE[1]}, {FLOOR_SIZE[2]})",
-        "",
-        '[sub_resource type="NavigationMesh" id="NavigationMesh_1"]',
-        "",
-        '[node name="GrayboxDistrict" type="Node3D"]',
-        'script = ExtResource("1_levelsetup")',
-        "",
-        '[node name="WorldEnvironment" type="WorldEnvironment" parent="."]',
-        'environment = SubResource("Environment_1")',
-        "",
-        '[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]',
-        "rotation_degrees = Vector3(-45, -30, 0)",
-        "",
-        '[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]',
-        'navigation_mesh = SubResource("NavigationMesh_1")',
-        "",
-        '[node name="Floor" type="StaticBody3D" parent="."]',
-        f"position = Vector3({FLOOR_POS[0]}, {FLOOR_POS[1]}, {FLOOR_POS[2]})",
-        "",
-        '[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]',
-        'shape = SubResource("BoxShape3D_floor")',
-        "",
-        '[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]',
-        'mesh = SubResource("BoxMesh_floor")',
-        "",
-        '[node name="Player" parent="." instance=ExtResource("2_player")]',
-        f"position = Vector3({PLAYER_SPAWN_POS[0]}, {PLAYER_SPAWN_POS[1]}, {PLAYER_SPAWN_POS[2]})",
-        "",
-        '[node name="DistrictZoneA" parent="." instance=ExtResource("3_zone")]',
-        f"position = Vector3({ZONE_A_POS[0]}, {ZONE_A_POS[1]}, {ZONE_A_POS[2]})",
-        "zone_id = 0",
-        "",
-        '[node name="DistrictZoneB" parent="." instance=ExtResource("3_zone")]',
-        f"position = Vector3({ZONE_B_POS[0]}, {ZONE_B_POS[1]}, {ZONE_B_POS[2]})",
-        "zone_id = 1",
-        "",
-        '[node name="HUD" parent="." instance=ExtResource("4_hud")]',
-        "",
-        '[node name="SpawnPointTeam0" type="Node3D" parent="."]',
-        f"position = Vector3({SPAWN_TEAM0_POS[0]}, {SPAWN_TEAM0_POS[1]}, {SPAWN_TEAM0_POS[2]})",
-        'groups = ["spawn_team_0"]',
-        "",
-        '[node name="SpawnPointTeam1" type="Node3D" parent="."]',
-        f"position = Vector3({SPAWN_TEAM1_POS[0]}, {SPAWN_TEAM1_POS[1]}, {SPAWN_TEAM1_POS[2]})",
-        'groups = ["spawn_team_1"]',
-        "",
-    ]
-    return "\n".join(lines).encode("utf-8")
+    f = SectionFile()
+    f.raw(f'[gd_scene load_steps=9 format=3 uid="{uid}"]')
+    f.blank()
+    f.raw('[ext_resource type="Script" path="res://scripts/level_setup.gd" id="1_levelsetup"]')
+    f.raw('[ext_resource type="PackedScene" path="res://scenes/player_3d.tscn" id="2_player"]')
+    f.raw('[ext_resource type="PackedScene" path="res://scenes/district_zone.tscn" id="3_zone"]')
+    f.raw('[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="4_hud"]')
+    f.blank()
+    f.raw('[sub_resource type="Environment" id="Environment_1"]')
+    f.prop("background_mode", "1")
+    f.prop("background_color", _color(0.5, 0.6, 0.7, 1))
+    f.blank()
+    f.raw('[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]')
+    f.prop("size", _vector3(FLOOR_SIZE[0], FLOOR_SIZE[1], FLOOR_SIZE[2]))
+    f.blank()
+    f.raw('[sub_resource type="BoxMesh" id="BoxMesh_floor"]')
+    f.prop("size", _vector3(FLOOR_SIZE[0], FLOOR_SIZE[1], FLOOR_SIZE[2]))
+    f.blank()
+    f.raw('[sub_resource type="NavigationMesh" id="NavigationMesh_1"]')
+    f.blank()
+    f.raw('[node name="GrayboxDistrict" type="Node3D"]')
+    f.prop("script", _ext_resource("1_levelsetup"))
+    f.blank()
+    f.raw('[node name="WorldEnvironment" type="WorldEnvironment" parent="."]')
+    f.prop("environment", _sub_resource("Environment_1"))
+    f.blank()
+    f.raw('[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]')
+    f.prop("rotation_degrees", _vector3(-45, -30, 0))
+    f.blank()
+    f.raw('[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]')
+    f.prop("navigation_mesh", _sub_resource("NavigationMesh_1"))
+    f.blank()
+    f.raw('[node name="Floor" type="StaticBody3D" parent="."]')
+    f.prop("position", _vector3(FLOOR_POS[0], FLOOR_POS[1], FLOOR_POS[2]))
+    f.blank()
+    f.raw('[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]')
+    f.prop("shape", _sub_resource("BoxShape3D_floor"))
+    f.blank()
+    f.raw('[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]')
+    f.prop("mesh", _sub_resource("BoxMesh_floor"))
+    f.blank()
+    f.raw('[node name="Player" parent="." instance=ExtResource("2_player")]')
+    f.prop("position", _vector3(PLAYER_SPAWN_POS[0], PLAYER_SPAWN_POS[1], PLAYER_SPAWN_POS[2]))
+    f.blank()
+    f.raw('[node name="DistrictZoneA" parent="." instance=ExtResource("3_zone")]')
+    f.prop("position", _vector3(ZONE_A_POS[0], ZONE_A_POS[1], ZONE_A_POS[2]))
+    f.prop("zone_id", "0")
+    f.blank()
+    f.raw('[node name="DistrictZoneB" parent="." instance=ExtResource("3_zone")]')
+    f.prop("position", _vector3(ZONE_B_POS[0], ZONE_B_POS[1], ZONE_B_POS[2]))
+    f.prop("zone_id", "1")
+    f.blank()
+    f.raw('[node name="HUD" parent="." instance=ExtResource("4_hud")]')
+    f.blank()
+    f.raw('[node name="SpawnPointTeam0" type="Node3D" parent="."]')
+    f.prop("position", _vector3(SPAWN_TEAM0_POS[0], SPAWN_TEAM0_POS[1], SPAWN_TEAM0_POS[2]))
+    f.raw('groups = ["spawn_team_0"]')
+    f.blank()
+    f.raw('[node name="SpawnPointTeam1" type="Node3D" parent="."]')
+    f.prop("position", _vector3(SPAWN_TEAM1_POS[0], SPAWN_TEAM1_POS[1], SPAWN_TEAM1_POS[2]))
+    f.raw('groups = ["spawn_team_1"]')
+    f.blank()
+    return f.build()
 
 
 def _emit_project_tracking_md() -> bytes:

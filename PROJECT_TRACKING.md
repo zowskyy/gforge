@@ -519,9 +519,85 @@ Summary and phase status below; see the plan doc for full rationale.
      with no clarification round-trip needed. This is Phase 1's first
      real (non-mocked) end-to-end confirmation.
 
-### Phases 2-3 — not started
+### Phase 2 — Scaling & composability (2026-08-26)
 
-See the plan document.
+**2a. Declarative template-identity spec + single-source refactor** —
+closes the exact drift risk `test_template_identity_consistency.py`
+(Phase 0) could only *detect*, not prevent:
+- `packages/godotforge-core/src/godotforge_core/templates/*.spec.yaml`
+  (one per template): fixed inputs, behavior/role ids + per-field
+  min/max/default, weapon/ability id lists + shared ranges, and the
+  GDScript `behavior_resource_ids` each template unconditionally emits.
+- `creator/template_spec.py`: the loader (`TemplateSpec`/`load_template_spec`/
+  `registered_template_ids`), packaged as real data files (same pattern as
+  `schemas/goal.schema.json`).
+- `hub/goal.py`'s `_TEMPLATES`, `_ALLOWED_BEHAVIOR_KEYS_2D/3D`,
+  `_ALLOWED_PARAMETER_KEYS_2D/3D`, `_FIXED_INPUTS`/`_FIXED_INPUTS_3D` are now
+  *derived from* the spec files at import time instead of being hand-typed a
+  second time — the single biggest source of the Phase 0 drift risk is now
+  structurally gone, not just tested for.
+- `creator/manifest.py`'s `Decimal` MIN/MAX/DEFAULT constants deliberately
+  stay hand-authored and runtime-authoritative (per that module's own
+  docstring: range/precision enforcement is its job) — `tests/unit/
+  test_template_spec_consistency.py` drift-tests the spec against them
+  instead of re-deriving validation logic from YAML, plus verifies
+  `schemas/goal.schema.json`'s `game.template` enum and that every spec's
+  `behavior_resource_ids` has a `behaviors/registry.py` entry (closing
+  Phase 0.4's "hash-registry skeleton" loop retroactively for both
+  existing templates).
+- All existing template-identity/hub-goal unit tests pass unmodified
+  (`test_hub_goal.py`, `test_template_identity_consistency.py`) — this was
+  a refactor of *where the constants come from*, not a behavior change.
+
+**2b. Godot text-resource format builder (`creator/godot_text_format.py`)** —
+the roadmap plan's "scene-graph DSL" concern, scoped honestly after reading
+the real code: `.tscn`/`.tres`/`project.godot` aren't a node-tree
+composition problem so much as one shared textual format (`[section]`
+headers + `key = value` properties, blank-line-separated, single trailing
+newline) that 13 emitter functions in `creator/plan.py` each independently
+re-derived by hand. Built `SectionFile` (section/prop/raw/blank/build) plus
+literal helpers (`vector2`/`vector3`/`packed_vector2_array`/`color`/
+`ext_resource`/`sub_resource`), unit-tested on their own terms first
+(`tests/unit/test_godot_text_format.py`, 13 tests) before touching
+`plan.py`. Deliberately narrow: it has no opinion on node hierarchy or
+numeric display precision (`.1f`-style formatting stays each call site's
+job) — genericizing further risked silently changing emitted bytes, which
+is exactly what this phase's own acceptance test forbids.
+
+**All 13 `.tscn`/`.tres`/`project.godot` emitters in both templates ported**
+(`_emit_project_godot`, `_emit_project_godot_3d`, `_emit_scene_tscn`,
+`_character_tres`, `_weapon_tres`, `_ability_tres`, `_emit_scene_player_3d`,
+`_emit_scene_weapon_base`, `_emit_scene_ability_base`,
+`_emit_scene_district_zone`, `_emit_scene_hud`,
+`_emit_scene_graybox_district` — `_emit_project_tracking_md` stays a plain
+Markdown string, out of scope, not a Godot text-resource file). Verified
+byte-identical two ways, both real:
+1. The full existing test suite (`test_creator_plan.py`/`_v2`,
+   `test_creator_scene.py`, `test_tscn.py`, `test_project_godot*.py`,
+   `test_creator_verify.py`, etc.) — all pass unmodified after every single
+   emitter conversion, checked incrementally function-by-function rather
+   than as one large unverified batch.
+2. **Regenerated the 3D template from `district-kings-goal-001.json` via
+   the real `plan_creator_manifest()` planner and byte-compared all 42
+   output files against the actual, previously Godot-verified
+   `district-kings/` project already committed to this repo — zero
+   mismatches.** This is stronger evidence than fixture assertions alone:
+   it's the real shipped project, regenerated through the now-ported
+   emitters, matching byte-for-byte.
+
+**Explicitly out of scope, per the roadmap plan's own honest framing**:
+composing actual *gameplay logic* (movement controllers, ability systems)
+from reusable pinned-hash building blocks across genres. That remains "the
+real architectural bet, be honest about it" — this phase only proves the
+*format layer* is safely shareable; a 2D platformer's and 3D shooter's
+gameplay scripts are not parameter variants of the same logic, and nothing
+here claims otherwise.
+
+### Phase 3 — Scale-out / polish — not started
+
+See the plan document. Depends on real Phase 1 rejection-log usage data
+(`.godotforge/adapter-nl/rejections.jsonl`) to prioritize, which does not
+exist yet (zero real non-test users so far).
 
 ## Fixture Evidence (FIXTURE-0001, 2026-08-23)
 
