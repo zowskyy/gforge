@@ -9,6 +9,13 @@ from godotforge_core.hub.approval import (
     record_explicit_cli_authorization,
     require_authorization,
 )
+from godotforge_core.hub.cache import (
+    CacheEntry,
+    _compute_project_root_hash,
+    get_cached_plan,
+    invalidate_cache,
+    store_plan,
+)
 from godotforge_core.hub.definitions import (
     SPOKE_DEFINITION_SCHEMA_VERSION,
     Capability,
@@ -23,6 +30,7 @@ from godotforge_core.hub.goal import (
     GoalSpec,
     compile_goal,
     compute_goal_hash,
+    load_goal_lazy,
     load_goal_text,
     registered_templates,
 )
@@ -62,6 +70,7 @@ from godotforge_core.hub.run_record import (
     compute_proof_hash,
     fold_run,
     read_events,
+    read_events_streaming,
     run_store_path,
     verify_chain,
 )
@@ -69,6 +78,7 @@ from godotforge_core.hub.run_record import (
 __all__ = [
     "APPROVAL_MODE_EXPLICIT_CLI",
     "APPROVAL_SCOPE_APPLY",
+    "CacheEntry",
     "GOAL_SCHEMA_VERSION",
     "RUN_RECORD_SCHEMA_VERSION",
     "SPOKE_DEFINITION_SCHEMA_VERSION",
@@ -91,6 +101,7 @@ __all__ = [
     "RunState",
     "SpokeDefinition",
     "SpokeEvent",
+    "_compute_project_root_hash",
     "append_event",
     "compile_goal",
     "compute_event_hash",
@@ -101,11 +112,15 @@ __all__ = [
     "deregister_spoke",
     "fold_registry",
     "fold_run",
+    "get_cached_plan",
+    "invalidate_cache",
     "invoke",
     "ledger_path",
+    "load_goal_lazy",
     "load_goal_text",
     "preview_goal",
     "read_events",
+    "read_events_streaming",
     "read_ledger",
     "record_explicit_cli_authorization",
     "register_spoke",
@@ -115,6 +130,7 @@ __all__ = [
     "resume_run",
     "run_goal",
     "run_store_path",
+    "store_plan",
     "verify_chain",
     "verify_ledger",
 ]

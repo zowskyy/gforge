@@ -33,7 +33,8 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, Iterator
 
 from godotforge_core.creator.loading import load_json_manifest, load_yaml_manifest
 from godotforge_core.creator.manifest import (
@@ -139,18 +140,43 @@ def _reject_path_like(value: str, *, field: str) -> None:
         raise ValueError(f"{field} must not contain paths or traversal: {value!r}")
 
 
-def load_goal_text(text: str, *, format: str = "yaml") -> dict[str, Any]:
+def load_goal_text(text: str, *, format: str = "yaml", max_size: int | None = None) -> dict[str, Any]:
     """load_goal_text — parse structured YAML/JSON goal text via the shared
     Decimal-preserving, duplicate-rejecting ingestion boundary.
 
     ``format`` is ``"yaml"`` or ``"json"``. Raises ``ValueError`` for
     non-mapping documents, duplicates, or unknown formats. No file I/O.
+
+    Optional ``max_size`` limits the input text length (in bytes) to prevent
+    loading extremely large goal files entirely into memory.
     """
+    if max_size is not None and len(text.encode("utf-8")) > max_size:
+        raise ValueError(f"goal text exceeds max_size of {max_size} bytes")
     if format == "yaml":
         return load_yaml_manifest(text)
     if format == "json":
         return load_json_manifest(text)
     raise ValueError(f"goal format must be 'yaml' or 'json', got {format!r}")
+
+
+def load_goal_lazy(goal_path: Path, *, chunk_size: int = 8192) -> Iterator[dict[str, Any]]:
+    """load_goal_lazy — stream a large goal file in chunks (for future streaming).
+
+    Yields parsed chunks as dicts. For now, reads the full file and yields
+    a single parsed dict (the existing behavior). In the future, this can
+    be extended to yield incremental parsing results for very large goals.
+
+    Args:
+        goal_path: Path to the goal file (YAML or JSON).
+        chunk_size: Read chunk size in bytes (currently unused, reserved for
+            future streaming parser implementation).
+
+    Yields:
+        Parsed goal document as a dict (single yield for now).
+    """
+    text = goal_path.read_text(encoding="utf-8")
+    goal_format = "yaml" if goal_path.suffix.lower() in {".yaml", ".yml"} else "json"
+    yield load_goal_text(text, format=goal_format)
 
 
 def _resolve_parameters(raw: Any) -> tuple[dict[str, Any], tuple[str, ...]]:

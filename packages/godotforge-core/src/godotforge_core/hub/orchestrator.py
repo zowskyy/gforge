@@ -1,4 +1,4 @@
-"""Hub orchestrator — authorization-bound execution lifecycle (Slice 4B).
+"""Hub orchestrator — authorization-bound execution lifecycle (Slice 4B/4G).
 
 Connects the committed Hub contracts into one safe pipeline (hub-v1 §5/§8):
 
@@ -21,13 +21,18 @@ Safety invariants:
   recovery inspection; rollback is offered, never automatic.
 - No-op applies (null planHash) record only ``run_started`` and
   ``run_finalized`` — never authorization, backup, apply, or validation.
+- Plan computation cache: checked before planning; stored after successful
+  plan. Cache key includes project_root_hash for automatic invalidation.
+- Parallel artifact hashing: deterministic, bit-identical to sequential.
 
 Offline, deterministic, no AI, network, telemetry, or credentials.
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
+import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,6 +51,7 @@ from godotforge_core.hub.approval import (
     record_explicit_cli_authorization,
     require_authorization,
 )
+from godotforge_core.hub.cache import _compute_project_root_hash, get_cached_plan, store_plan
 from godotforge_core.hub.goal import compile_goal
 from godotforge_core.hub.run_record import (
     RunEvent,
@@ -185,16 +191,30 @@ def _hash_applied_artifacts(root: Path, plan: PatchPlan) -> dict[str, str]:
     """_hash_applied_artifacts — canonical post-apply hashes from the tree.
 
     Hashes the actual bytes of every CREATE target in the project tree
-    (sorted by path). Never relies on journal parsing; the journal remains
-    recovery evidence only.
+    (sorted by path). Uses ThreadPoolExecutor for parallel hashing of
+    independent files. Results are collected in sorted path order to
+    guarantee bit-identical output to sequential hashing.
     """
-    artifacts: dict[str, str] = {}
-    for op in plan.operations:
-        if op.kind is not OperationKind.CREATE:
-            continue
-        assert op.path is not None
-        artifacts[op.path] = hashlib.sha256((root / op.path).read_bytes()).hexdigest()
-    return dict(sorted(artifacts.items()))
+    # Collect CREATE ops sorted by path for deterministic ordering
+    create_ops = [
+        op for op in plan.operations if op.kind is OperationKind.CREATE and op.path is not None
+    ]
+    create_ops.sort(key=lambda op: op.path)
+    paths = [op.path for op in create_ops]
+
+    max_workers = min(8, os.cpu_count() or 1)
+
+    def _hash_one(rel_path: str) -> tuple[str, str]:
+        return rel_path, hashlib.sha256((root / rel_path).read_bytes()).hexdigest()
+
+    if max_workers == 1 or len(paths) <= 1:
+        # Sequential fallback for single file or single-core
+        return dict(_hash_one(p) for p in paths)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # executor.map preserves input order
+        results = executor.map(_hash_one, paths)
+        return dict(results)
 
 
 def _journal_rel(txid: str) -> str:
@@ -207,12 +227,23 @@ def preview_goal(root: Path, goal_data: dict[str, Any]) -> HubRunResult:
 
     No run-record reads or writes, no patch engine, no backups, no Godot —
     an open or even tampered run store never blocks preview.
+
+    Uses plan cache for performance (read-only cache lookup).
     """
     compilation = compile_goal(goal_data)
     if compilation.status == "clarification":
         return _clarification_result(compilation)
     assert compilation.manifest_dict is not None
-    patch = plan_creator_manifest(root, compilation.manifest_dict)
+    manifest_dict = compilation.manifest_dict
+
+    # Check plan cache (read-only, no writes in preview)
+    goal_path = str(Path(goal_data.get("game", {}).get("name", "unknown")).with_suffix(".yaml"))
+    cached_patch = get_cached_plan(root, goal_path, compilation.goal_hash)
+    if cached_patch is not None:
+        patch = cached_patch
+    else:
+        patch = plan_creator_manifest(root, manifest_dict)
+
     return HubRunResult(
         exit_code=ForgeExitCode.SUCCESS,
         noop=patch.plan is None,
@@ -455,7 +486,18 @@ def run_goal(
         return _clarification_result(compilation)
     assert compilation.manifest_dict is not None
     manifest_dict = compilation.manifest_dict
-    patch = plan_creator_manifest(root, manifest_dict)
+
+    # Check plan cache before planning (Slice 4G: plan computation cache)
+    goal_path = str(Path(goal_data.get("game", {}).get("name", "unknown")).with_suffix(".yaml"))
+    cached_patch = get_cached_plan(root, goal_path, compilation.goal_hash)
+    if cached_patch is not None:
+        patch = cached_patch
+    else:
+        patch = plan_creator_manifest(root, manifest_dict)
+        # Store in cache after successful planning
+        project_root_hash = _compute_project_root_hash(root)
+        store_plan(root, goal_path, compilation.goal_hash, project_root_hash, patch)
+
     common: dict[str, Any] = {
         "diff": _diff_for(patch),
         "plan_id": plan_id_for(patch.manifest),

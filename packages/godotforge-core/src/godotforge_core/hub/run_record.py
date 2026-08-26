@@ -258,6 +258,32 @@ def read_events(root: Path | str, run_id: str | None = None) -> tuple[RunEvent, 
     return tuple(events)
 
 
+def read_events_streaming(root: Path | str, run_id: str | None = None) -> Iterator[RunEvent]:
+    """read_events_streaming — yield events one at a time without loading all into memory.
+
+    Memory-efficient alternative to ``read_events`` for large run-record stores.
+    Yields events in the same order as ``read_events``, optionally filtered
+    to a single ``run_id``.
+
+    Does not validate the hash chain (use ``verify_chain`` separately if needed).
+    """
+    path = resolve_hub_metadata_path(root, RUN_RECORDS_RELATIVE)
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, start=1):
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"corrupt run-record store at line {line_number}: {exc}") from exc
+            event = RunEvent.from_dict(data)
+            if run_id is None or event.run_id == run_id:
+                yield event
+
+
 def verify_chain(root: Path | str) -> None:
     """verify_chain — recompute the global hash chain; raise on any tamper.
 

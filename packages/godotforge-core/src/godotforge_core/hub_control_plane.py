@@ -43,10 +43,11 @@ HUB_DIR_RELATIVE = ".godotforge/hub"
 
 RUN_RECORDS_RELATIVE = ".godotforge/hub/run-records.jsonl"
 SPOKE_LEDGER_RELATIVE = ".godotforge/hub/spoke-ledger.jsonl"
+PLAN_CACHE_RELATIVE = ".godotforge/hub/plan-cache.jsonl"
 
 #: The exact, closed set of Hub control-plane files. Nothing else is Hub
 #: metadata, regardless of name similarity, nesting, or shared prefix.
-HUB_METADATA_FILES: tuple[str, ...] = (RUN_RECORDS_RELATIVE, SPOKE_LEDGER_RELATIVE)
+HUB_METADATA_FILES: tuple[str, ...] = (RUN_RECORDS_RELATIVE, SPOKE_LEDGER_RELATIVE, PLAN_CACHE_RELATIVE)
 
 #: The exact directories required to contain the files above, project-root
 #: relative, POSIX, no trailing slash. Nothing else under ``.godotforge``
