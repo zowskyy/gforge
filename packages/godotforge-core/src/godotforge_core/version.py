@@ -1,6 +1,6 @@
 """Godot Forge version and contract schema versions."""
 
-__version__ = "0.1.0"
+__version__ = "0.6.0"
 
 SCHEMA_VERSIONS = {
     "output_envelope": 1,

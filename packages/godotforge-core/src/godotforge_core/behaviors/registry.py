@@ -15,9 +15,9 @@ _ALLOWLIST: dict[str, str] = {
 }
 
 PINNED_HASHES: dict[str, str] = {
-    "platformer_controller": "59449f62b5371e7c255583f2932a75e88ebc91531c1986113c518c824ae9ee0e",
-    "platformer_controller_v2": "1a7f8aa5c7ebd8bcf23a6ff818de6faa58a534722b7e3983b8b1b01fd532e1a0",
-    "collectible": "c80b9f8d4463739bb9db90b0d5caf4b05ff34db22b84a625774da63a0b6b8f16",
+    "platformer_controller": "c665c35d288ac10662cab3a9a7df3ef92386458a86e189afa5c00d33227a5721",
+    "platformer_controller_v2": "169d1881b9a06c2a09c4fe516a298b60555b59709d72260c933825eaf3b0a1ec",
+    "collectible": "4ee33afb31896c0a83510a815e2208732b0681a467e28ac16e9b663ccf16d015",
 }
 
 
