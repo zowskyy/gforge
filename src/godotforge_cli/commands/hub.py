@@ -1,9 +1,11 @@
 """``godotforge hub`` — goal-driven Hub orchestration.
 
-Slice 4A ships the read-only preview only: goal → compile → manifest →
-plan → envelope. No run-record writes, no authorization, no patch-engine
-invocation, no backups, no Godot. Authorization-bound apply, validation,
-and crash recovery land in Slice 4B (``docs/contracts/hub-v1.md`` §5/§8).
+Default ``hub run`` is a read-only preview (no run-record writes, no patch
+engine, no backups, no Godot). ``hub run --apply`` executes the
+authorization-bound lifecycle — run_started → authorization bound to the
+exact planHash → re-plan → backup → apply → isolated verify → finalized or
+failed (``docs/contracts/hub-v1.md`` §5/§8). ``hub resume`` completes or
+closes open runs; rollback is offered, never automatic.
 """
 
 from __future__ import annotations
@@ -13,18 +15,11 @@ from typing import Any
 
 import click
 from godotforge_core.creator.manifest import CreatorPreflightError
-from godotforge_core.creator.plan import (
-    canonical_manifest_hash,
-    plan_creator_manifest,
-    plan_id_for,
-)
 from godotforge_core.detection.workspace import resolve_forge_project_root
 from godotforge_core.exit_codes import ForgeExitCode
-from godotforge_core.hub.goal import compile_goal, load_goal_text
+from godotforge_core.hub.goal import load_goal_text
+from godotforge_core.hub.orchestrator import HubRunResult, preview_goal, resume_run, run_goal
 from godotforge_core.output import OutputFormat, build_envelope
-from godotforge_core.patch.diff import render_operation_diff
-from godotforge_core.patch.hashing import compute_plan_hash
-from godotforge_core.patch.models import OperationKind
 
 from godotforge_cli.errors import reraise
 from godotforge_cli.output import emit
@@ -38,26 +33,67 @@ except ImportError:
     _HAS_YAML = False
 
 
-def _goal_diff(patch) -> str | None:
-    """Combined diff for CREATE ops only; MKDIR produces no diff."""
-    if patch.plan is None:
-        return None
-    parts: list[str] = []
-    for op in patch.plan.operations:
-        if op.kind == OperationKind.MKDIR:
-            continue
-        # CREATE only in this slice; guard for future kinds
-        assert op.kind == OperationKind.CREATE
-        assert op.path is not None
-        desired = patch.desired_contents.get(op.path)
-        if desired is None:
-            continue  # never for MKDIR, but guard
-        entry = render_operation_diff(op, None, desired)
-        if entry.diff:
-            parts.append(entry.diff)
-    if not parts:
-        return None
-    return "\n".join(parts)
+def _resolve_root(ctx: click.Context) -> Path:
+    """_resolve_root — shared Forge root resolver (F-002 symlink rejection)."""
+    project: str | None = ctx.obj.get("project")
+    start = Path(project) if project else Path.cwd()
+    try:
+        return resolve_forge_project_root(start)
+    except ValueError as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+        return start  # unreachable: reraise always raises
+
+
+def _check_dry_run_conflict(ctx: click.Context, apply: bool) -> None:
+    """_check_dry_run_conflict — production helper."""
+    if ctx.obj.get("dry_run") and apply:
+        reraise(
+            ValueError("--dry-run and --apply are mutually exclusive"),
+            code=ForgeExitCode.CONFIGURATION_FAILURE,
+        )
+
+
+def _load_goal(goal_file: str) -> dict[str, Any]:
+    """_load_goal — read and parse a JSON/YAML goal document."""
+    goal_path = Path(goal_file)
+    text = goal_path.read_text(encoding="utf-8")
+    goal_format = "yaml" if goal_path.suffix.lower() in {".yaml", ".yml"} else "json"
+    if goal_format == "yaml" and not _HAS_YAML:
+        raise ValueError("YAML goal requires pyyaml (install pyyaml)")
+    data = load_goal_text(text, format=goal_format)
+    if not isinstance(data, dict):
+        raise ValueError("goal must be a mapping")
+    return data
+
+
+def _emit_hub_result(command: str, result: HubRunResult, fmt: OutputFormat) -> None:
+    """_emit_hub_result — canonical envelope from an orchestrator result."""
+    data: dict[str, Any] = {
+        "runId": result.run_id,
+        "state": result.state,
+        "applied": result.applied,
+        "noop": result.noop,
+        "diff": result.diff,
+        "planId": result.plan_id,
+        "planHash": result.plan_hash,
+        "goalHash": result.goal_hash,
+        "manifestHash": result.manifest_hash,
+        "outcome": result.outcome,
+        "proofHash": result.proof_hash,
+        "validationStatus": result.validation_status,
+    }
+    status = "ok" if result.exit_code == ForgeExitCode.SUCCESS else "fail"
+    emit(
+        build_envelope(
+            command=command,
+            status=status,
+            data=data,
+            diagnostics=list(result.diagnostics) or None,
+        ),
+        fmt,
+    )
+    if result.exit_code != ForgeExitCode.SUCCESS:
+        raise click.exceptions.Exit(int(result.exit_code))
 
 
 @click.group("hub")
@@ -67,78 +103,98 @@ def cli() -> None:
 
 @cli.command("run")
 @click.argument("goal_file", type=click.Path(exists=True, dir_okay=False, path_type=str))
+@click.option("--apply", "apply_flag", is_flag=True, help="Apply the plan (default is preview).")
+@click.option(
+    "--mode",
+    type=click.Choice(["import", "load", "boot", "full"], case_sensitive=False),
+    default="full",
+    show_default=True,
+    help="Validation mode (apply only).",
+)
+@click.option(
+    "--timeout",
+    type=float,
+    default=60.0,
+    show_default=True,
+    help="Per-stage validation timeout in seconds (apply only).",
+)
 @click.pass_context
-def run(ctx: click.Context, goal_file: str) -> None:
-    """Preview goal execution (read-only).
+def run(ctx: click.Context, goal_file: str, apply_flag: bool, mode: str, timeout: float) -> None:
+    """Preview goal execution, or apply it with --apply.
 
-    Compiles the goal, plans against the project root, and emits the
-    preview envelope. Writes nothing: no run records, no authorization, no
-    backups, no project files.
+    Preview (default) is read-only: compiles the goal, plans against the
+    project root, and emits the preview envelope. Writes nothing: no run
+    records, no authorization, no backups, no project files.
+
+    With --apply, executes the authorization-bound lifecycle: the run is
+    recorded, authorized against the exact planHash, re-planned, backed up,
+    applied, and verified in isolation. Validation failure closes the run as
+    failed; a partial or uncertain apply leaves the run open for recovery
+    (rollback is offered, never automatic).
     """
-    project: str | None = ctx.obj.get("project")
-    start = Path(project) if project else Path.cwd()
+    _check_dry_run_conflict(ctx, apply_flag)
+    root = _resolve_root(ctx)
     try:
-        root = resolve_forge_project_root(start)
-    except ValueError as exc:
-        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
-        raise  # unreachable: reraise always raises
-
-    goal_path = Path(goal_file)
-    text = goal_path.read_text(encoding="utf-8")
-    goal_format = "yaml" if goal_path.suffix.lower() in {".yaml", ".yml"} else "json"
-    fmt: OutputFormat = ctx.obj["output_format"]
-    try:
-        if goal_format == "yaml" and not _HAS_YAML:
-            raise ValueError("YAML goal requires pyyaml (install pyyaml)")
-        goal_data = load_goal_text(text, format=goal_format)
-        compilation = compile_goal(goal_data)
-    except ValueError as exc:
-        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
-        raise  # unreachable: reraise always raises
-
-    if compilation.status == "clarification":
-        diagnostics = [
-            {
-                "rule": "goal-clarification",
-                "severity": "error",
-                "message": issue.message,
-            }
-            for issue in compilation.issues
-        ]
-        emit(
-            build_envelope(
-                command="hub.run",
-                status="fail",
-                data={
-                    "applied": False,
-                    "noop": False,
-                    "diff": None,
-                    "planId": None,
-                    "planHash": None,
-                    "goalHash": None,
-                    "manifestHash": None,
-                },
-                diagnostics=diagnostics,
-            ),
-            fmt,
-        )
-        raise click.exceptions.Exit(int(ForgeExitCode.CONFIGURATION_FAILURE))
-
-    assert compilation.manifest_dict is not None
-    try:
-        patch = plan_creator_manifest(root, compilation.manifest_dict)
+        goal_data = _load_goal(goal_file)
+        if apply_flag:
+            result = run_goal(
+                root,
+                goal_data,
+                mode=mode.lower(),
+                timeout=timeout,
+                engine_path=ctx.obj.get("engine"),
+            )
+        else:
+            result = preview_goal(root, goal_data)
     except (ValueError, CreatorPreflightError) as exc:
         reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
         raise  # unreachable: reraise always raises
+    _emit_hub_result("hub.run", result, ctx.obj["output_format"])
 
-    plan_hash = compute_plan_hash(patch.plan) if patch.plan is not None else None
-    data: dict[str, Any] = {
-        "applied": False,
-        "noop": patch.plan is None,
-        "diff": _goal_diff(patch),
-        "planId": plan_id_for(patch.manifest),
-        "planHash": plan_hash,
-        "goalHash": compilation.goal_hash,
-        "manifestHash": canonical_manifest_hash(patch.manifest),
-    }
-    emit(build_envelope(command="hub.run", status="ok", data=data), fmt)
+
+@cli.command("resume")
+@click.argument("run_id")
+@click.option(
+    "--mark-interrupted",
+    is_flag=True,
+    help="Close an open authorized/needs_validation run as interrupted.",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(["import", "load", "boot", "full"], case_sensitive=False),
+    default="full",
+    show_default=True,
+    help="Validation mode.",
+)
+@click.option(
+    "--timeout",
+    type=float,
+    default=60.0,
+    show_default=True,
+    help="Per-stage validation timeout in seconds.",
+)
+@click.pass_context
+def resume(
+    ctx: click.Context, run_id: str, mark_interrupted: bool, mode: str, timeout: float
+) -> None:
+    """Complete or close an open run after a crash window.
+
+    Re-validates the stored manifest and recorded artifact hashes before
+    re-running isolated verification. Never auto-rolls back: ambiguous runs
+    (apply journal present without apply_committed) require manual recovery
+    and --mark-interrupted.
+    """
+    root = _resolve_root(ctx)
+    try:
+        result = resume_run(
+            root,
+            run_id,
+            mode=mode.lower(),
+            timeout=timeout,
+            engine_path=ctx.obj.get("engine"),
+            mark_interrupted=mark_interrupted,
+        )
+    except (ValueError, CreatorPreflightError) as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+        raise  # unreachable: reraise always raises
+    _emit_hub_result("hub.resume", result, ctx.obj["output_format"])

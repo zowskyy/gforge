@@ -251,9 +251,7 @@ def read_events(root: Path | str, run_id: str | None = None) -> tuple[RunEvent, 
             try:
                 data = json.loads(text)
             except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"corrupt run-record store at line {line_number}: {exc}"
-                ) from exc
+                raise ValueError(f"corrupt run-record store at line {line_number}: {exc}") from exc
             event = RunEvent.from_dict(data)
             if run_id is None or event.run_id == run_id:
                 events.append(event)
@@ -269,9 +267,7 @@ def verify_chain(root: Path | str) -> None:
     prev_hash: str | None = None
     for expected_seq, event in enumerate(read_events(root), start=1):
         if event.seq != expected_seq:
-            raise ValueError(
-                f"seq gap at store position {expected_seq}: found seq {event.seq}"
-            )
+            raise ValueError(f"seq gap at store position {expected_seq}: found seq {event.seq}")
         if event.prev_hash != prev_hash:
             raise ValueError(f"prev_hash mismatch at seq {event.seq}")
         recomputed = compute_event_hash(
@@ -316,9 +312,7 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
             continue
         order = _EVENT_ORDER.index(event.kind)
         if order <= highest:
-            raise ValueError(
-                f"event {event.kind.value!r} out of lifecycle order in {run_id}"
-            )
+            raise ValueError(f"event {event.kind.value!r} out of lifecycle order in {run_id}")
         highest = order
         if event.kind in _TERMINAL_KINDS:
             if terminal is not None:
@@ -395,9 +389,7 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
             raise ValueError("validation_completed payload requires stages list")
         engine_raw = vpayload.get("engine")
         if engine_raw is not None:
-            _check_hash(
-                engine_raw.get("executable_sha256", ""), field="engine.executable_sha256"
-            )
+            _check_hash(engine_raw.get("executable_sha256", ""), field="engine.executable_sha256")
             engine = {
                 "version": str(engine_raw["version"]),
                 "flavor": str(engine_raw["flavor"]),
@@ -406,9 +398,7 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
         validation = {
             "mode": mode,
             "status": str(vpayload.get("status")),
-            "stages": [
-                {"stage": str(s["stage"]), "status": str(s["status"])} for s in stages
-            ],
+            "stages": [{"stage": str(s["stage"]), "status": str(s["status"])} for s in stages],
         }
 
     proof_hash: str | None = None
@@ -461,18 +451,15 @@ def fold_run(events: tuple[RunEvent, ...] | list[RunEvent], run_id: str) -> RunR
     )
 
 
-def compute_proof_hash(record: RunRecord) -> str:
-    """compute_proof_hash — canonical evidence hash, volatile metadata excluded.
+def compute_proof_for_outcome(record: RunRecord, outcome: str) -> str:
+    """compute_proof_for_outcome — canonical proof body for a pre-final fold.
 
-    Covers goal/manifest/plan/artifact hashes, engine identity, validation
-    mode/status/stage statuses, and outcome. Never includes timestamps,
-    durations, temp paths, absolute paths, or raw logs. Requires a finalized
-    run (interrupted runs are unprovable).
+    The orchestrator computes the proof hash *before* appending
+    ``run_finalized``; the result equals :func:`compute_proof_hash` of the
+    finalized fold as long as the recorded outcome matches. Covers only
+    canonical evidence — never timestamps, durations, temp paths, absolute
+    paths, or raw logs.
     """
-    if record.state != RunState.FINALIZED:
-        raise ValueError(
-            f"proof requires a finalized run, got state {record.state.value!r}"
-        )
     body = {
         "schema_version": RUN_RECORD_SCHEMA_VERSION,
         "goal_hash": record.goal_hash,
@@ -482,9 +469,23 @@ def compute_proof_hash(record: RunRecord) -> str:
         "artifact_hash": record.artifact_hash,
         "engine": record.engine,
         "validation": record.validation,
-        "outcome": record.outcome,
+        "outcome": outcome,
     }
     return hashlib.sha256(_canonical_json(body).encode("utf-8")).hexdigest()
+
+
+def compute_proof_hash(record: RunRecord) -> str:
+    """compute_proof_hash — canonical evidence hash, volatile metadata excluded.
+
+    Covers goal/manifest/plan/artifact hashes, engine identity, validation
+    mode/status/stage statuses, and outcome. Never includes timestamps,
+    durations, temp paths, absolute paths, or raw logs. Requires a finalized
+    run (interrupted runs are unprovable).
+    """
+    if record.state != RunState.FINALIZED:
+        raise ValueError(f"proof requires a finalized run, got state {record.state.value!r}")
+    assert record.outcome is not None
+    return compute_proof_for_outcome(record, record.outcome)
 
 
 @dataclass(frozen=True)

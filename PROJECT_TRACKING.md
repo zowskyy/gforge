@@ -710,6 +710,66 @@ Known limitations:
 - `PATCH-0012` and creator-MVP follow-ups remain offline/AI-free; natural-language, if added later, outputs only candidate manifests.
 - No adapter-only expansion; do not silently alter UID/scene output on Godot rejection — pause and report failing evidence.
 
+## Hub Orchestrator Work (Slice 4B)
+
+Status: control-plane path-safety prerequisite committed
+(`40908e8`, `fix(hub): harden control-plane metadata paths`, following
+`ae6f8a0`, `fix(patch): retry transient Windows backup directory
+promotion`). The execution-lifecycle orchestrator/CLI/tests below remain
+implemented and gate-clean but **uncommitted**, pending review/commit
+approval as their own commit.
+
+Committed (`40908e8`):
+- `godotforge_core/hub_control_plane.py` — sole authority for Hub metadata
+  paths (`.godotforge/hub/run-records.jsonl`, `.godotforge/hub/spoke-ledger.jsonl`
+  only, exact allowlist, lstat-based no-follow safety). See AUDIT-0002-adjacent
+  path-safety review for the threat model.
+- `godotforge_core/creator/plan.py` preflight — no longer a broad
+  `.godotforge/hub` prefix tolerance; routes through
+  `hub_control_plane.validate_hub_metadata_dir()` for an exact-file allowlist,
+  and cache/reports/backups exemptions are now directory-boundary-anchored.
+- `godotforge_core/creator/verify.py`, `hub/registry.py` — Hub metadata
+  excluded from source hashing/secure-copy and hardened read/write,
+  respectively, via the same shared policy.
+- `godotforge_core/hub/run_record.py` (partial — see below) — `append_event`/
+  `read_events` route through `hub_control_plane.ensure_hub_metadata_parents`/
+  `resolve_hub_metadata_path` instead of raw path joins.
+
+Still uncommitted (this slice's own commit):
+- `godotforge_core/hub/orchestrator.py` — authorization-bound execution lifecycle:
+  `preview_goal` (read-only, unchanged from Slice 4A), `run_goal` (goal → manifest →
+  plan → `run_started` → `explicit_cli` authorization bound to the exact planHash →
+  immediate pre-apply re-plan → `check_plan` → backup → apply → actual-tree artifact
+  hashes, excluding Hub metadata by construction (only plan-operation paths are
+  hashed) → isolated verify → finalized/failed), `resume_run` (crash-window
+  recovery: abandoned/ambiguous/needs-validation paths, artifact-drift and
+  manifest-hash re-checks before trusting stored state, `--mark-interrupted`
+  operator close-out). Never reimplements patch/creator/engine behavior; calls
+  the existing seams only. Does not touch `spoke-ledger.jsonl` — that ledger is
+  capability registration only, a separate concern from goal-execution history
+  (`docs/contracts/hub-v1.md` §1-2 vs §8).
+- `godotforge_core/hub/run_record.py` (remainder) — `compute_proof_for_outcome()`
+  split out of `compute_proof_hash()` so the orchestrator can compute the
+  canonical proof hash before appending `run_finalized`.
+- `src/godotforge_cli/commands/hub.py` — `hub run --apply`, `hub resume <run-id>`
+  (`--mark-interrupted`, `--mode`, `--timeout`), shared envelope emission.
+- `tests/unit/test_hub_orchestrator.py` — full lifecycle, no-op purity, crash-window
+  resume (abandoned/ambiguous/needs_validation/artifact-drift/mark-interrupted),
+  open-run blocking, tampered-store integrity failures (fakes verification at the
+  orchestrator seam; deterministic without Godot), plus control-plane-adjacent
+  assertions (preview creates no Hub metadata, artifact_hash excludes it).
+- `tests/cli/test_hub_cli.py` — CLI-level coverage of the same lifecycle through
+  `godotforge hub run --apply` / `hub resume`.
+- `tests/integration/test_hub_run_godot.py` — pinned-Godot proof: full `run_goal`
+  apply finalizes with `outcome=applied` and a replayable proof hash (`@pytest.mark.integration`).
+
+Known gaps:
+- Not yet committed; target commit message: `feat(hub): add authorization-bound
+  execution lifecycle`.
+- `docs/contracts/hub-v1.md` has not been checked for whether it needs updates to
+  match the shipped `resume_run` recovery-path details (abandoned vs
+  recovery-required vs artifact-drift diagnostics) — verify before commit.
+
 ## Known Gaps
 
 - SARIF serializer emits a valid empty document; `rules`/`results` enrich in Phase 4.
@@ -717,3 +777,16 @@ Known limitations:
 - `fixtures/cases/*` contain only documented breakage; the parser/lint that
   detects them lands in Phases 2–4.
 - `--engine` global is wired into `doctor` but not yet consumed by later phases.
+
+### Hub Step 3 (GoalSpec) follow-ups — non-blocking, from AUDIT-0001 semantic review
+
+- Consolidate or cross-test `hub/goal.py` `_FIXED_INPUTS` against Creator fixed bindings
+  (`creator/manifest.py` `_FIXED_BINDINGS`) — currently duplicated; fail-safe because the
+  manifest validator rejects on divergence, but a drift point.
+- Consolidate or cross-test the Hub template allowlist (`hub/goal.py` `_TEMPLATES`) against the
+  Creator template authority (`creator/manifest.py` `_TEMPLATE_CONST`) — same fail-safe
+  duplication class.
+- Clarify that `schemas/goal.schema.json` validates the canonical resolved `GoalSpec`
+  (`GoalSpec.as_dict()` string-typed canonical parameters), or add a separate raw user-input
+  schema later — raw numeric-scalar goal documents accepted by `load_goal_text` do not validate
+  against the current schema.
