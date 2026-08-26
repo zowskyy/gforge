@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -189,7 +190,16 @@ def _append_event(
     provider_hash: str,
     reason: str,
 ) -> SpokeEvent:
-    """_append_event — append one hash-chained event; lines never rewritten."""
+    """_append_event — append one hash-chained event atomically; lines never rewritten.
+
+    Atomic write protocol:
+    - Read existing file content (if any)
+    - Write to a temporary file in the same directory (existing content + new line)
+    - Flush and fsync the temp file
+    - os.replace() the temp file over the destination (atomic on POSIX)
+    - fsync the parent directory to persist the directory entry
+    - Clean up temp file on any exception
+    """
     _validate_registration_id(registration_id)
     _check_hash(definition_hash, field="definition_hash")
     _check_hash(provider_hash, field="provider_hash")
@@ -219,14 +229,50 @@ def _append_event(
         ),
     )
     destination = ensure_hub_metadata_parents(root, SPOKE_LEDGER_RELATIVE)
-    line = (
+    new_line = (
         json.dumps(event.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\n"
     )
-    with destination.open("a", encoding="utf-8") as stream:
-        stream.write(line)
-        stream.flush()
-        os.fsync(stream.fileno())
+
+    # Read existing content for atomic append
+    existing_content = b""
+    if destination.exists():
+        existing_content = destination.read_bytes()
+
+    # Atomic write: temp file in same dir, fsync, replace, fsync parent dir
+    parent_dir = destination.parent
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=parent_dir,
+            prefix=".spoke-ledger.tmp.",
+            delete=False,
+            mode="wb",
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(existing_content)
+            tmp.write(new_line.encode("utf-8"))
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, destination)
+        # fsync parent directory to persist the directory entry (best effort, not on Windows)
+        try:
+            dir_fd = os.open(parent_dir, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except (AttributeError, OSError):
+            # O_DIRECTORY not available (Windows) or fsync on dir not supported
+            pass
+    except BaseException:
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+
     return event
 
 

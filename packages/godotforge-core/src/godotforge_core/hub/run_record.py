@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -207,13 +208,21 @@ def append_event(
     kind: RunEventKind | str,
     payload: dict[str, Any],
 ) -> RunEvent:
-    """append_event — append one hash-chained event to the store.
+    """append_event — append one hash-chained event to the store atomically.
 
     The sequence number and ``prev_hash`` are derived from the current tail of
     the store for this ``run_id``'s file position in the global chain: the
     chain is global across runs (seq and prev_hash span the whole file), so
     interleaved runs remain tamper-evident. The store file is created on
     first append; lines are never rewritten.
+
+    Atomic write protocol:
+    - Read existing file content (if any)
+    - Write to a temporary file in the same directory (existing content + new line)
+    - Flush and fsync the temp file
+    - os.replace() the temp file over the destination (atomic on POSIX)
+    - fsync the parent directory to persist the directory entry
+    - Clean up temp file on any exception
     """
     _check_run_id(run_id)
     kind = RunEventKind(kind)
@@ -229,11 +238,47 @@ def append_event(
         event_hash=compute_event_hash(seq, run_id, kind, dict(payload), prev_hash),
     )
     destination = ensure_hub_metadata_parents(root, RUN_RECORDS_RELATIVE)
-    line = _canonical_json(event.as_dict()) + "\n"
-    with destination.open("a", encoding="utf-8") as stream:
-        stream.write(line)
-        stream.flush()
-        os.fsync(stream.fileno())
+    new_line = _canonical_json(event.as_dict()) + "\n"
+
+    # Read existing content for atomic append
+    existing_content = b""
+    if destination.exists():
+        existing_content = destination.read_bytes()
+
+    # Atomic write: temp file in same dir, fsync, replace, fsync parent dir
+    parent_dir = destination.parent
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=parent_dir,
+            prefix=".run-records.tmp.",
+            delete=False,
+            mode="wb",
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(existing_content)
+            tmp.write(new_line.encode("utf-8"))
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, destination)
+        # fsync parent directory to persist the directory entry (best effort, not on Windows)
+        try:
+            dir_fd = os.open(parent_dir, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except (AttributeError, OSError):
+            # O_DIRECTORY not available (Windows) or fsync on dir not supported
+            pass
+    except BaseException:
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
+
     return event
 
 
@@ -529,3 +574,39 @@ class RunRecord:
             "validation": self.validation,
             "proof_hash": self.proof_hash,
         }
+
+
+def verify_ledger_integrity(root: Path | str) -> dict[str, Any]:
+    """verify_ledger_integrity — verify both run-record chain and spoke ledger.
+
+    Runs :func:`verify_chain` on the run-records store and :func:`verify_ledger`
+    on the spoke-ledger store. Returns a dict with the verification status of
+    each store and a list of any issues found.
+
+    This can be called periodically or on demand to detect tampering in either
+    store. It does not modify any state.
+    """
+    # Lazy import to avoid circular dependency (registry imports Authorization from here)
+    from godotforge_core.hub.registry import verify_ledger
+
+    issues: list[str] = []
+    run_records_ok = True
+    spoke_ledger_ok = True
+
+    try:
+        verify_chain(root)
+    except ValueError as exc:
+        run_records_ok = False
+        issues.append(f"run_records: {exc}")
+
+    try:
+        verify_ledger(root)
+    except ValueError as exc:
+        spoke_ledger_ok = False
+        issues.append(f"spoke_ledger: {exc}")
+
+    return {
+        "run_records": run_records_ok,
+        "spoke_ledger": spoke_ledger_ok,
+        "issues": issues,
+    }
