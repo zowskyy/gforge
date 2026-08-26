@@ -18,6 +18,7 @@ from typing import Any
 from godotforge_core.creator.manifest import validate_manifest_dict
 from godotforge_core.creator.plan import _plan_id_for
 from godotforge_core.engine.validate import ValidateMode, ValidationResult, validate_project
+from godotforge_core.hub_control_plane import HUB_METADATA_FILES
 
 # Limits for secure copy — prevents resource exhaustion.
 MAX_COPY_FILES = 4096
@@ -26,6 +27,13 @@ MAX_COPY_BYTES = 64 * 1024 * 1024  # 64 MiB
 # Pruned during copy — never copied to temp.
 PRUNED_DIRS = {".git", ".godot", ".pytest-tmp", "__pycache__", "build", "builds"}
 PRUNED_PREFIXES = (".godotforge/cache", ".godotforge/reports", ".godotforge/backups")
+# Hub control-plane files are excluded by exact path (never a broad
+# `.godotforge/hub` prefix — godotforge_core.hub_control_plane is the sole
+# authority on what those paths are). Run records/ledgers are operational
+# evidence, not project content: they must never enter source hashing
+# (source_before_hash/source_after_hash) or the isolated copy handed to
+# Godot for import/load/boot.
+PRUNED_HUB_FILES = HUB_METADATA_FILES
 
 # Pinned validator hash — must match package resource.
 PINNED_VALIDATOR_SHA256 = "1e01c7a59baa856ebeb4a14d2f39d143640e2162f1fc31aee2d80df69cbd525c"
@@ -86,6 +94,8 @@ def _hash_source_files(root: Path) -> str:
         for fn in sorted(filenames):
             fp = Path(dirpath) / fn
             rel = fp.relative_to(root).as_posix()
+            if rel in PRUNED_HUB_FILES:
+                continue
             if any(rel == p or rel.startswith(p + "/") for p in PRUNED_PREFIXES):
                 continue
             if rel.startswith(".godot/"):
@@ -144,6 +154,12 @@ def _secure_copy(src: Path, dst: Path) -> None:
                 continue
             if src_file.is_symlink():
                 raise ValueError(f"symlink file rejected: {rel}")
+            # Hub control-plane files (exact match only, never copied to the
+            # isolated Godot workspace): checked after the unconditional
+            # symlink rejection above, so a symlinked hub path is still
+            # rejected rather than silently excluded.
+            if rel in PRUNED_HUB_FILES:
+                continue
             # Size limits
             total_files += 1
             if total_files > MAX_COPY_FILES:

@@ -16,6 +16,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from godotforge_core.hub_control_plane import HubPathSafetyError, validate_hub_metadata_dir
 from godotforge_core.patch.hashing import hash_bytes
 from godotforge_core.patch.models import OperationKind, PatchOperation, PatchPlan
 
@@ -172,9 +173,7 @@ def _emit_scene_tscn(manifest: CreatorManifest) -> bytes:
     lines.append('script = ExtResource("1_script")')
     if manifest.schema_version == 2:
         assert manifest.parameters is not None
-        lines.append(
-            f"speed = {format_canonical(manifest.parameters.speed, name='speed')}"
-        )
+        lines.append(f"speed = {format_canonical(manifest.parameters.speed, name='speed')}")
         lines.append(
             "jump_velocity = "
             f"{format_canonical(manifest.parameters.jump_velocity, name='jump_velocity')}"
@@ -253,6 +252,17 @@ def _check_preflight(root: Path) -> None:
                     p.resolve().relative_to(root.resolve())
                 except (OSError, ValueError) as exc:
                     raise CreatorPreflightError(f"symlink escapes root: {p}: {exc}") from exc
+    # Hub control plane: the *only* authority for `.godotforge/hub` path
+    # handling (godotforge_core.hub_control_plane). Validates `.godotforge`
+    # and `.godotforge/hub` are real (non-symlink) directories and that every
+    # entry directly under `.godotforge/hub` is one of the exact two known
+    # control-plane files, each a real (non-symlink) regular file — never a
+    # broad prefix. Anything else (nested files, wrong names, symlinks) is a
+    # hard preflight rejection, not a silent skip.
+    try:
+        hub_metadata_files = validate_hub_metadata_dir(root)
+    except HubPathSafetyError as exc:
+        raise CreatorPreflightError(str(exc)) from exc
     # Collect relative posix for all files (not dirs)
     rel_files: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -265,10 +275,22 @@ def _check_preflight(root: Path) -> None:
         for fn in filenames:
             fp = Path(dirpath) / fn
             rel = fp.relative_to(root).as_posix()
-            # Skip .godotforge/cache/reports/backups — managed ignored
-            if rel.startswith(".godotforge/cache") or rel.startswith(
-                ".godotforge/reports"
-            ) or rel.startswith(".godotforge/backups"):
+            # Exactly the two validated Hub control-plane files (never a
+            # broad `.godotforge/hub` prefix — see validate_hub_metadata_dir).
+            if rel in hub_metadata_files:
+                continue
+            # Skip .godotforge/cache, /reports, /backups — managed Forge
+            # state owned by other subsystems (graph cache, scan reports,
+            # patch-engine backups). Anchored on the directory boundary, not
+            # a bare string prefix: ".godotforge/cachex" must NOT match.
+            if rel in (".godotforge/cache", ".godotforge/reports", ".godotforge/backups") or any(
+                rel.startswith(f"{prefix}/")
+                for prefix in (
+                    ".godotforge/cache",
+                    ".godotforge/reports",
+                    ".godotforge/backups",
+                )
+            ):
                 continue
             # Skip .godot dir entirely (already pruned but be safe)
             if rel.startswith(".godot/"):
@@ -278,10 +300,14 @@ def _check_preflight(root: Path) -> None:
     if not rel_files_sorted:
         # Check dirs: empty or only allowed empty dirs
         # State A — empty root (allow empty scenes/scripts dirs)
-        allowed_empty_dirs = {root / "scenes", root / "scripts", root / ".godotforge"}
+        allowed_empty_dirs = {root / "scenes", root / "scripts"}
         for p in root.iterdir():
             if p.is_dir():
                 if p in allowed_empty_dirs and _is_empty_dir(p):
+                    continue
+                # .godotforge may hold managed state only (any unmanaged file
+                # inside it would have been collected into rel_files above).
+                if p.name == ".godotforge":
                     continue
                 # .godot allowed to exist empty or not
                 if p.name == ".godot":

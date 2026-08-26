@@ -25,9 +25,15 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from godotforge_core.hub_control_plane import (
+    RUN_RECORDS_RELATIVE,
+    ensure_hub_metadata_parents,
+    resolve_hub_metadata_path,
+)
+
 RUN_RECORD_SCHEMA_VERSION = 1
 
-RUN_STORE_RELATIVE = Path(".godotforge") / "hub" / "run-records.jsonl"
+RUN_STORE_RELATIVE = Path(RUN_RECORDS_RELATIVE)
 
 _RUN_ID_PATTERN = re.compile(r"^run-[0-9a-f]{12}$")
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -222,8 +228,7 @@ def append_event(
         prev_hash=prev_hash,
         event_hash=compute_event_hash(seq, run_id, kind, dict(payload), prev_hash),
     )
-    destination = run_store_path(root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = ensure_hub_metadata_parents(root, RUN_RECORDS_RELATIVE)
     line = _canonical_json(event.as_dict()) + "\n"
     with destination.open("a", encoding="utf-8") as stream:
         stream.write(line)
@@ -234,8 +239,8 @@ def append_event(
 
 def read_events(root: Path | str, run_id: str | None = None) -> tuple[RunEvent, ...]:
     """read_events — read all events, optionally filtered to one run."""
-    path = run_store_path(root)
-    if not path.is_file():
+    path = resolve_hub_metadata_path(root, RUN_RECORDS_RELATIVE)
+    if not path.exists():
         return ()
     events: list[RunEvent] = []
     with path.open("r", encoding="utf-8") as stream:

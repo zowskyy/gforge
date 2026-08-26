@@ -399,3 +399,80 @@ def test_noop_purity_rejects_authorization_apply_validation(tmp_path: Path) -> N
         append_event(tmp_path, run_id, kind, event_payload)
         with pytest.raises(ValueError, match="no-op run"):
             fold_run(read_events(tmp_path), run_id)
+
+
+# --- Hub control-plane path safety (remediation for the confirmed
+# symlink-redirect defect: append_event/read_events must reject a symlinked
+# store, via godotforge_core.hub_control_plane, before opening anything) ---
+
+
+def test_append_event_rejects_symlinked_store_before_writing_any_bytes_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-planted symlink at the run-record path must not be followed.
+
+    Simulates the symlink via ``os.lstat`` (real symlinks require elevated
+    privilege on this host — see the paired real-symlink test below) and
+    proves the *target* file's bytes are untouched: the append must fail
+    before opening the destination for write, not merely fail loudly after
+    corrupting the target.
+    """
+    import os
+    import stat
+
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    victim = tmp_path / "project.godot"
+    original_bytes = b'config_version=5\n[application]\nconfig/name="X"\n'
+    victim.write_bytes(original_bytes)
+    link = hub_dir / "run-records.jsonl"
+    link.write_bytes(b"")  # placeholder so lstat/exists reasoning matches a real symlink
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == link:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    with pytest.raises(ValueError, match="symlink"):
+        append_event(tmp_path, RUN, RunEventKind.RUN_STARTED, dict(START_PAYLOAD))
+    assert victim.read_bytes() == original_bytes
+
+
+def test_append_event_rejects_symlinked_store_real(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    victim = tmp_path / "project.godot"
+    original_bytes = b'config_version=5\n[application]\nconfig/name="X"\n'
+    victim.write_bytes(original_bytes)
+    link = hub_dir / "run-records.jsonl"
+    try:
+        link.symlink_to(victim)
+    except OSError:
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")
+    with pytest.raises(ValueError, match="symlink"):
+        append_event(tmp_path, RUN, RunEventKind.RUN_STARTED, dict(START_PAYLOAD))
+    assert victim.read_bytes() == original_bytes
+
+
+def test_read_events_rejects_symlinked_store_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+    import stat
+
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    link = hub_dir / "run-records.jsonl"
+    link.write_text('{"seq":1}\n', encoding="utf-8")
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == link:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    with pytest.raises(ValueError, match="symlink"):
+        read_events(tmp_path)

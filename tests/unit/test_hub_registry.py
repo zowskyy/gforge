@@ -342,3 +342,81 @@ def test_invoke_invalid_provider_handler_rejected(tmp_path: Path) -> None:
     auth = Authorization(mode="explicit_cli", plan_hash=H_PLAN, scope="apply")
     with pytest.raises(ValueError, match="invalid provider"):
         invoke(state, {}, "patch.apply", {}, authorization=auth)
+
+
+# --- Hub control-plane path safety (remediation for the confirmed
+# symlink-redirect defect: the ledger writer must reject a symlinked target
+# before opening it, via godotforge_core.hub_control_plane) ---
+
+
+def test_register_spoke_rejects_symlinked_ledger_before_writing_any_bytes_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-planted symlink at the spoke-ledger path must not be followed.
+
+    Simulates the symlink via ``os.lstat`` (real symlinks require elevated
+    privilege on this host) and proves the *target* file's bytes are
+    untouched: the append must fail before opening the destination for
+    write.
+    """
+    import os
+    import stat
+
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    victim = tmp_path / "project.godot"
+    original_bytes = b'config_version=5\n[application]\nconfig/name="X"\n'
+    victim.write_bytes(original_bytes)
+    link = hub_dir / "spoke-ledger.jsonl"
+    link.write_bytes(b"")
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == link:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    definition, provider = _definition(), _provider()
+    with pytest.raises(ValueError, match="symlink"):
+        register_spoke(tmp_path, REG, definition, provider, "one")
+    assert victim.read_bytes() == original_bytes
+
+
+def test_register_spoke_rejects_symlinked_ledger_real(tmp_path: Path) -> None:
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    victim = tmp_path / "project.godot"
+    original_bytes = b'config_version=5\n[application]\nconfig/name="X"\n'
+    victim.write_bytes(original_bytes)
+    link = hub_dir / "spoke-ledger.jsonl"
+    try:
+        link.symlink_to(victim)
+    except OSError:
+        pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")
+    definition, provider = _definition(), _provider()
+    with pytest.raises(ValueError, match="symlink"):
+        register_spoke(tmp_path, REG, definition, provider, "one")
+    assert victim.read_bytes() == original_bytes
+
+
+def test_read_ledger_rejects_symlinked_ledger_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+    import stat
+
+    hub_dir = tmp_path / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    link = hub_dir / "spoke-ledger.jsonl"
+    link.write_text('{"seq":1}\n', encoding="utf-8")
+    real_lstat = os.lstat
+
+    def _fake_lstat(path, *, dir_fd=None):  # noqa: ANN001
+        if Path(path) == link:
+            return os.stat_result((stat.S_IFLNK | 0o777, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        return real_lstat(path)
+
+    monkeypatch.setattr(os, "lstat", _fake_lstat)
+    with pytest.raises(ValueError, match="symlink"):
+        read_ledger(tmp_path)

@@ -176,6 +176,48 @@ def test_secure_copy_prunes_managed(tmp_path: Path) -> None:
     assert (dst / ".godotforge" / "project.yaml").is_file()
 
 
+def test_secure_copy_excludes_hub_metadata(tmp_path: Path) -> None:
+    """Hub run-record store and spoke ledger must never reach the isolated
+    Godot-validation copy — they are operational evidence, not project
+    content, and are excluded by exact path (not a broad prefix)."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    hub_dir = src / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    dst = tmp_path / "dst"
+    dst.mkdir()
+    _secure_copy(src, dst)
+    # Excluded by exact path, not a directory-level prune (bullet 3: no
+    # broad `.godotforge/hub` prefix) — the two known files must not be
+    # copied; an incidental empty destination directory is harmless.
+    assert not (dst / ".godotforge" / "hub" / "run-records.jsonl").exists()
+    assert not (dst / ".godotforge" / "hub" / "spoke-ledger.jsonl").exists()
+    assert (dst / "project.godot").is_file()
+
+
+def test_hash_source_files_excludes_hub_metadata(tmp_path: Path) -> None:
+    """Appending Hub run-record events must not change source_before/after
+    hashes — otherwise Hub's own bookkeeping would make every apply look
+    like a source mutation."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
+    before = _hash_source_files(src)
+    hub_dir = src / ".godotforge" / "hub"
+    hub_dir.mkdir(parents=True)
+    (hub_dir / "run-records.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    (hub_dir / "spoke-ledger.jsonl").write_text('{"seq":1}\n', encoding="utf-8")
+    after_hub_write = _hash_source_files(src)
+    assert after_hub_write == before
+    # A real (non-Hub) source change must still be detected.
+    (src / "project.godot").write_text("config_version=5\nextra\n", encoding="utf-8")
+    after_real_change = _hash_source_files(src)
+    assert after_real_change != before
+
+
 def test_inject_validator(tmp_path: Path) -> None:
     """Validator must be injected at .godotforge/validate_boot.gd with pinned hash."""
     dst = tmp_path / "dst"

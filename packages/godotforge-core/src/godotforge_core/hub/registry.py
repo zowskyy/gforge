@@ -38,10 +38,15 @@ from godotforge_core.hub.definitions import (
     SpokeDefinition,
 )
 from godotforge_core.hub.run_record import Authorization
+from godotforge_core.hub_control_plane import (
+    SPOKE_LEDGER_RELATIVE,
+    ensure_hub_metadata_parents,
+    resolve_hub_metadata_path,
+)
 
 SPOKE_LEDGER_SCHEMA_VERSION = 1
 
-LEDGER_RELATIVE = Path(".godotforge") / "hub" / "spoke-ledger.jsonl"
+LEDGER_RELATIVE = Path(SPOKE_LEDGER_RELATIVE)
 
 _REGISTRATION_ID_PATTERN = re.compile(r"^reg-[0-9a-f]{12}$")
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -158,8 +163,8 @@ def _check_hash(value: str, *, field: str) -> None:
 
 def read_ledger(root: Path | str) -> tuple[SpokeEvent, ...]:
     """read_ledger — read all ledger events in append order."""
-    path = ledger_path(root)
-    if not path.is_file():
+    path = resolve_hub_metadata_path(root, SPOKE_LEDGER_RELATIVE)
+    if not path.exists():
         return ()
     events: list[SpokeEvent] = []
     with path.open("r", encoding="utf-8") as stream:
@@ -213,8 +218,7 @@ def _append_event(
             prev_hash,
         ),
     )
-    destination = ledger_path(root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = ensure_hub_metadata_parents(root, SPOKE_LEDGER_RELATIVE)
     line = (
         json.dumps(event.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\n"
