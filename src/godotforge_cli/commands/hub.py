@@ -2,10 +2,11 @@
 
 Default ``hub run`` is a read-only preview (no run-record writes, no patch
 engine, no backups, no Godot). ``hub run --apply`` executes the
-authorization-bound lifecycle — run_started → authorization bound to the
-exact planHash → re-plan → backup → apply → isolated verify → finalized or
+authorization-bound lifecycle — run_started → authorization bound to the exact
+planHash → re-plan → backup → apply → isolated verify → finalized or
 failed (``docs/contracts/hub-v1.md`` §5/§8). ``hub resume`` completes or
-closes open runs; rollback is offered, never automatic.
+closes open runs; rollback is offered, never automatic. ``hub report`` emits
+a proof-verified run report with optional markdown formatting.
 """
 
 from __future__ import annotations
@@ -19,6 +20,15 @@ from godotforge_core.detection.workspace import resolve_forge_project_root
 from godotforge_core.exit_codes import ForgeExitCode
 from godotforge_core.hub.goal import load_goal_text
 from godotforge_core.hub.orchestrator import HubRunResult, preview_goal, resume_run, run_goal
+from godotforge_core.hub.run_record import (
+    RunEventKind,
+    RunRecord,
+    RunState,
+    compute_proof_hash,
+    fold_run,
+    read_events,
+    verify_chain,
+)
 from godotforge_core.output import OutputFormat, build_envelope
 
 from godotforge_cli.errors import reraise
@@ -31,6 +41,36 @@ try:
 except ImportError:
     yaml = None  # type: ignore[assignment]
     _HAS_YAML = False
+
+
+def _emit_hub_result(command: str, result: HubRunResult, fmt: OutputFormat) -> None:
+    """_emit_hub_result — canonical envelope from an orchestrator result."""
+    data: dict[str, Any] = {
+        "runId": result.run_id,
+        "state": result.state,
+        "applied": result.applied,
+        "noop": result.noop,
+        "diff": result.diff,
+        "planId": result.plan_id,
+        "planHash": result.plan_hash,
+        "goalHash": result.goal_hash,
+        "manifestHash": result.manifest_hash,
+        "outcome": result.outcome,
+        "proofHash": result.proof_hash,
+        "validationStatus": result.validation_status,
+    }
+    status = "ok" if result.exit_code == ForgeExitCode.SUCCESS else "fail"
+    emit(
+        build_envelope(
+            command=command,
+            status=status,
+            data=data,
+            diagnostics=list(result.diagnostics) or None,
+        ),
+        fmt,
+    )
+    if result.exit_code != ForgeExitCode.SUCCESS:
+        raise click.exceptions.Exit(int(result.exit_code))
 
 
 def _resolve_root(ctx: click.Context) -> Path:
@@ -66,34 +106,110 @@ def _load_goal(goal_file: str) -> dict[str, Any]:
     return data
 
 
-def _emit_hub_result(command: str, result: HubRunResult, fmt: OutputFormat) -> None:
-    """_emit_hub_result — canonical envelope from an orchestrator result."""
+def _read_verified_run_record(root: Path, run_id: str) -> RunRecord:
+    """_read_verified_run_record — verify chain and fold one run record."""
+    verify_chain(root)
+    events = read_events(root, run_id)
+    if not events:
+        raise ValueError(f"unknown run {run_id!r}")
+    return fold_run(events, run_id)
+
+
+def _build_report_data(record: RunRecord) -> dict[str, Any]:
+    """_build_report_data — construct the canonical report data payload."""
+    proof_verified = False
+    if record.state == RunState.FINALIZED and record.proof_hash is not None:
+        try:
+            computed_proof = compute_proof_hash(record)
+            proof_verified = computed_proof == record.proof_hash
+        except ValueError:
+            proof_verified = False
+
     data: dict[str, Any] = {
-        "runId": result.run_id,
-        "state": result.state,
-        "applied": result.applied,
-        "noop": result.noop,
-        "diff": result.diff,
-        "planId": result.plan_id,
-        "planHash": result.plan_hash,
-        "goalHash": result.goal_hash,
-        "manifestHash": result.manifest_hash,
-        "outcome": result.outcome,
-        "proofHash": result.proof_hash,
-        "validationStatus": result.validation_status,
+        "runId": record.run_id,
+        "state": record.state.value,
+        "goalHash": record.goal_hash,
+        "manifestHash": record.manifest_hash,
+        "planId": record.plan_id,
+        "planHash": record.plan_hash,
+        "artifactHash": record.artifact_hash,
+        "authorization": record.authorization.as_dict() if record.authorization else None,
+        "engine": record.engine,
+        "validation": record.validation,
+        "outcome": record.outcome,
+        "proofHash": record.proof_hash,
+        "proofVerified": proof_verified,
     }
-    status = "ok" if result.exit_code == ForgeExitCode.SUCCESS else "fail"
-    emit(
-        build_envelope(
-            command=command,
-            status=status,
-            data=data,
-            diagnostics=list(result.diagnostics) or None,
-        ),
-        fmt,
-    )
-    if result.exit_code != ForgeExitCode.SUCCESS:
-        raise click.exceptions.Exit(int(result.exit_code))
+    return data
+
+
+def _format_report_markdown(data: dict[str, Any]) -> str:
+    """_format_report_markdown — render report as human-readable markdown."""
+    lines = [
+        f"# Hub Run Report: {data['runId']}",
+        "",
+        f"**State:** {data['state']}",
+        f"**Goal Hash:** {data['goalHash']}",
+        f"**Manifest Hash:** {data['manifestHash']}",
+        f"**Plan ID:** {data['planId']}",
+        f"**Plan Hash:** {data['planHash'] or 'noop'}",
+        f"**Outcome:** {data['outcome'] or 'N/A'}",
+        f"**Proof Hash:** {data['proofHash'] or 'N/A'}",
+        f"**Proof Verified:** {'✅ Yes' if data['proofVerified'] else '❌ No'}",
+        "",
+    ]
+
+    if data["authorization"]:
+        auth = data["authorization"]
+        lines.extend(
+            [
+                "## Authorization",
+                f"- **Mode:** {auth['mode']}",
+                f"- **Scope:** {auth['scope']}",
+                f"- **Plan Hash:** {auth['plan_hash']}",
+                "",
+            ]
+        )
+
+    if data["engine"]:
+        eng = data["engine"]
+        lines.extend(
+            [
+                "## Engine",
+                f"- **Version:** {eng['version']}",
+                f"- **Flavor:** {eng['flavor']}",
+                f"- **Executable SHA256:** {eng['executable_sha256']}",
+                "",
+            ]
+        )
+
+    if data["validation"]:
+        val = data["validation"]
+        lines.extend(
+            [
+                "## Validation",
+                f"- **Mode:** {val['mode']}",
+                f"- **Status:** {val['status']}",
+                "",
+                "### Stages",
+            ]
+        )
+        for stage in val.get("stages", []):
+            lines.append(f"- {stage['stage']}: {stage['status']}")
+        lines.append("")
+
+    if data["artifactHash"]:
+        lines.extend(
+            [
+                "## Artifacts",
+                "",
+            ]
+        )
+        for path, digest in sorted(data["artifactHash"].items()):
+            lines.append(f"- `{path}`: {digest}")
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 @click.group("hub")
@@ -198,3 +314,57 @@ def resume(
         reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
         raise  # unreachable: reraise always raises
     _emit_hub_result("hub.resume", result, ctx.obj["output_format"])
+
+
+@cli.command("report")
+@click.argument("run_id")
+@click.option(
+    "--format",
+    "report_format",
+    type=click.Choice(["markdown", "json"], case_sensitive=False),
+    default="markdown",
+    show_default=True,
+    help="Output format for the report.",
+)
+@click.pass_context
+def report(ctx: click.Context, run_id: str, report_format: str) -> None:
+    """Emit a proof-verified report for a completed run.
+
+    Reads the run record, verifies the hash chain integrity, recomputes the
+    proof hash against the recorded proof, and emits a structured report
+    envelope. For finalized runs, ``proofVerified`` confirms the proof hash
+    matches the canonical evidence. Non-finalized runs report ``proofVerified``
+    as false with the recorded proof hash (if any).
+
+    Output formats:
+    - ``markdown`` (default): human-readable report printed to stdout
+    - ``json``: canonical envelope with all structured data
+    """
+    root = _resolve_root(ctx)
+    try:
+        record = _read_verified_run_record(root, run_id)
+    except ValueError as exc:
+        reraise(exc, code=ForgeExitCode.CONFIGURATION_FAILURE)
+        raise  # unreachable
+
+    data = _build_report_data(record)
+
+    if report_format.lower() == "markdown":
+        # Emit markdown directly to stdout (not an envelope)
+        markdown = _format_report_markdown(data)
+        click.echo(markdown)
+        return
+
+    # JSON: emit canonical envelope
+    status = "ok" if record.state == RunState.FINALIZED else "fail"
+    emit(
+        build_envelope(
+            command="hub.report",
+            status=status,
+            data=data,
+            diagnostics=None,
+        ),
+        ctx.obj["output_format"],
+    )
+    if record.state != RunState.FINALIZED:
+        raise click.exceptions.Exit(int(ForgeExitCode.CONFIGURATION_FAILURE))
