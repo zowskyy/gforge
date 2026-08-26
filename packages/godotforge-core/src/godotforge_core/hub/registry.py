@@ -29,6 +29,7 @@ import re
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -229,8 +230,12 @@ def _append_event(
         ),
     )
     destination = ensure_hub_metadata_parents(root, SPOKE_LEDGER_RELATIVE)
+    # Include last_seen in the written JSON (ISO8601 UTC) but NOT in the hash chain
+    # This maintains backward compatibility: old readers ignore it, new readers use it
+    event_dict = event.as_dict()
+    event_dict["last_seen"] = datetime.now(timezone.utc).isoformat()
     new_line = (
-        json.dumps(event.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        json.dumps(event_dict, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\n"
     )
 
@@ -356,6 +361,7 @@ def fold_registry(
     events: tuple[SpokeEvent, ...] | list[SpokeEvent],
     definitions: dict[str, SpokeDefinition],
     providers: dict[str, ProviderDescriptor],
+    ledger_root: Path | str | None = None,
 ) -> RegistryState:
     """fold_registry — fold ledger events into deterministic current state.
 
@@ -371,6 +377,9 @@ def fold_registry(
       ``ValueError`` (invalid provider/definition)
     - deregister of an unknown or inactive registration_id → ``ValueError``
     - deregister appends a tombstone; the register event stays in history
+
+    If ``ledger_root`` is provided, it is attached to the returned state for
+    use by ``is_healthy`` (operational only, not part of state hash).
     """
     active: dict[str, ActiveRegistration] = {}
     by_registration: dict[str, str] = {}
@@ -425,7 +434,10 @@ def fold_registry(
                     f"spoke {spoke_id!r} at seq {event.seq}"
                 )
             del active[spoke_id]
-    return RegistryState(active=active, history=tuple(events))
+    state = RegistryState(active=active, history=tuple(events))
+    if ledger_root is not None:
+        object.__setattr__(state, "_ledger_root", Path(ledger_root).resolve())
+    return state
 
 
 def register_spoke(
@@ -549,3 +561,108 @@ def invoke(
                 f"(spoke declares gated permissions); use the approval gate"
             )
     return handler(request)
+
+
+def discover_spokes(root: Path | str) -> RegistryState:
+    """discover_spokes — read spoke-ledger.jsonl, fold into current RegistryState.
+
+    Reads the ledger and returns a RegistryState with history populated.
+    The caller must resolve capabilities by calling ``fold_registry`` with
+    the appropriate definitions and providers maps.
+    """
+    events = read_ledger(root)
+    state = RegistryState(active={}, history=events)
+    # Store root for later use by is_healthy (non-hash, operational only)
+    object.__setattr__(state, "_ledger_root", Path(root).resolve())
+    return state
+
+
+def is_healthy(state: RegistryState, max_age_seconds: float = 300.0) -> dict[str, bool]:
+    """is_healthy — check if active spokes have been seen recently.
+
+    Returns a mapping of spoke_id -> healthy (True/False).
+    A spoke is healthy if it has a ``last_seen`` timestamp and
+    ``(now - last_seen).total_seconds() < max_age_seconds``.
+    Deregistered spokes are excluded (only active spokes are checked).
+    Missing or unparseable ``last_seen`` is treated as unhealthy.
+    """
+    now = datetime.now(timezone.utc)
+    healthy: dict[str, bool] = {}
+
+    # Get the ledger root from the state (set by discover_spokes)
+    ledger_root = getattr(state, "_ledger_root", None)
+    if ledger_root is None:
+        # No root available - all spokes unhealthy
+        for spoke_id in state.active:
+            healthy[spoke_id] = False
+        return healthy
+
+    # Read raw ledger lines to extract last_seen (not stored in SpokeEvent hash chain)
+    ledger_path = ledger_root / LEDGER_RELATIVE
+    if not ledger_path.exists():
+        for spoke_id in state.active:
+            healthy[spoke_id] = False
+        return healthy
+
+    # Build map of spoke_id -> last_seen from REGISTER events for active spokes
+    last_seen_by_spoke: dict[str, datetime] = {}
+
+    with ledger_path.open("r", encoding="utf-8") as stream:
+        for line in stream:
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                continue
+
+            # Only consider REGISTER events for currently active spokes
+            if data.get("action") != LedgerAction.REGISTER.value:
+                continue
+            spoke_id = data.get("spoke_id")
+            if spoke_id not in state.active:
+                continue
+
+            # Parse last_seen if present
+            last_seen_str = data.get("last_seen")
+            if last_seen_str:
+                try:
+                    last_seen = datetime.fromisoformat(last_seen_str.replace("Z", "+00:00"))
+                    last_seen_by_spoke[spoke_id] = last_seen
+                except ValueError:
+                    pass  # Invalid timestamp - treat as missing
+
+    # Evaluate health for each active spoke
+    for spoke_id in state.active:
+        last_seen = last_seen_by_spoke.get(spoke_id)
+        if last_seen is None:
+            healthy[spoke_id] = False
+        else:
+            elapsed = (now - last_seen).total_seconds()
+            healthy[spoke_id] = elapsed < max_age_seconds
+
+    return healthy
+
+
+def can_accept_run(
+    state: RegistryState, required_capabilities: set[str], max_age_seconds: float = 300.0
+) -> list[ActiveRegistration]:
+    """can_accept_run — return spokes that have ALL required capabilities and are healthy.
+
+    Filters active spokes by:
+    1. Health check (via ``is_healthy``)
+    2. Capability coverage (spoke must offer ALL required capabilities)
+
+    Returns list of ``ActiveRegistration`` sorted by ``spoke_id`` for determinism.
+    """
+    health = is_healthy(state, max_age_seconds)
+    eligible: list[ActiveRegistration] = []
+    for spoke_id in sorted(state.active):
+        if not health.get(spoke_id, False):
+            continue
+        registration = state.active[spoke_id]
+        spoke_capabilities = {cap.id for cap in registration.definition.capabilities}
+        if required_capabilities.issubset(spoke_capabilities):
+            eligible.append(registration)
+    return eligible
