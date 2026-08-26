@@ -24,6 +24,9 @@ Authority boundaries (locked):
   unsupported behavior requests, and path-shaped strings are rejected with
   ``ValueError``.
 
+Offline/single-user mode: no access control or rate limiting. Network exposure
+requires separate hardening.
+
 See ``docs/contracts/hub-v1.md`` §8 and ``schemas/goal.schema.json``.
 """
 
@@ -33,7 +36,10 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+import jsonschema
 
 from godotforge_core.creator.loading import load_json_manifest, load_yaml_manifest
 from godotforge_core.creator.manifest import (
@@ -133,6 +139,45 @@ class GoalCompilation:
     goal_hash: str | None
 
 
+# Load goal schema for validation
+_GOAL_SCHEMA = None
+
+
+def _load_goal_schema() -> dict[str, Any]:
+    """_load_goal_schema — load and cache the goal JSON schema."""
+    global _GOAL_SCHEMA
+    if _GOAL_SCHEMA is None:
+        schema_path = Path(__file__).parent.parent / "schemas" / "goal.schema.json"
+        with schema_path.open("r", encoding="utf-8") as f:
+            _GOAL_SCHEMA = json.load(f)
+    return _GOAL_SCHEMA
+
+
+MAX_GOAL_FILE_SIZE = 1024 * 1024  # 1MB
+
+
+def _validate_goal_schema(data: dict[str, Any]) -> None:
+    """_validate_goal_schema — validate parsed goal data against goal.schema.json."""
+    schema = _load_goal_schema()
+    jsonschema.validate(data, schema)
+
+
+def _reject_path_like_in_mapping(data: dict[str, Any], *, prefix: str = "") -> None:
+    """_reject_path_like_in_mapping — recursively reject path-like strings in any field."""
+    for key, value in data.items():
+        field = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, str):
+            _reject_path_like(value, field=field)
+        elif isinstance(value, dict):
+            _reject_path_like_in_mapping(value, prefix=field)
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                if isinstance(item, str):
+                    _reject_path_like(item, field=f"{field}[{i}]")
+                elif isinstance(item, dict):
+                    _reject_path_like_in_mapping(item, prefix=f"{field}[{i}]")
+
+
 def _reject_path_like(value: str, *, field: str) -> None:
     """_reject_path_like — reject absolute paths, traversal, and URIs."""
     if _PATH_LIKE_PATTERN.search(value):
@@ -151,6 +196,50 @@ def load_goal_text(text: str, *, format: str = "yaml") -> dict[str, Any]:
     if format == "json":
         return load_json_manifest(text)
     raise ValueError(f"goal format must be 'yaml' or 'json', got {format!r}")
+
+
+def load_goal_file(path: Path | str, *, format: str = "yaml") -> dict[str, Any]:
+    """load_goal_file — load and validate a goal file from disk.
+
+    Performs the following validations before parsing:
+    - File size must not exceed 1MB.
+    - File content must be valid YAML/JSON (via load_goal_text).
+    - Parsed content must validate against goal.schema.json.
+    - No string field may contain path-like patterns (absolute paths,
+      traversal ``..``, ``//``, ``res://``, ``uid://``).
+
+    Args:
+        path: Path to the goal file.
+        format: ``"yaml"`` or ``"json"``.
+
+    Returns:
+        Parsed and validated goal dict.
+
+    Raises:
+        ValueError: If file is too large, format is invalid, schema validation
+            fails, or path-like strings are detected.
+        FileNotFoundError: If the file does not exist.
+    """
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"goal file not found: {path}")
+
+    # Check file size
+    file_size = path.stat().st_size
+    if file_size > MAX_GOAL_FILE_SIZE:
+        raise ValueError(f"goal file exceeds 1MB limit: {file_size} bytes")
+
+    text = path.read_text(encoding="utf-8")
+    data = load_goal_text(text, format=format)
+
+    # Path traversal rejection on all string fields (before schema validation
+    # so we catch traversal attempts with a clear error message)
+    _reject_path_like_in_mapping(data)
+
+    # Schema validation
+    _validate_goal_schema(data)
+
+    return data
 
 
 def _resolve_parameters(raw: Any) -> tuple[dict[str, Any], tuple[str, ...]]:
@@ -199,6 +288,11 @@ def compile_goal(data: dict[str, Any]) -> GoalCompilation:
     """
     if not isinstance(data, dict):
         raise ValueError("goal must be a mapping")
+
+    # Path traversal rejection on all string fields (defense in depth for
+    # callers that bypass load_goal_file)
+    _reject_path_like_in_mapping(data)
+
     schema_version = data.get("schema_version")
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise ValueError(

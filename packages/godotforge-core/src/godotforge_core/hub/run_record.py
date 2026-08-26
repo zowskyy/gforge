@@ -26,6 +26,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from godotforge_core.hub.audit import append_audit
 from godotforge_core.hub_control_plane import (
     RUN_RECORDS_RELATIVE,
     ensure_hub_metadata_parents,
@@ -279,6 +280,7 @@ def append_event(
                 pass
         raise
 
+    append_audit(root, run_id, "append_run_record", {"kind": kind.value, "seq": seq, "event_hash": event.event_hash})
     return event
 
 

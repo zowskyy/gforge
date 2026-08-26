@@ -34,6 +34,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from godotforge_core.hub.audit import append_audit
 from godotforge_core.hub.definitions import (
     Permission,
     ProviderDescriptor,
@@ -278,6 +279,12 @@ def _append_event(
                 pass
         raise
 
+    append_audit(
+        root,
+        registration_id,
+        "append_spoke_event",
+        {"action": action.value, "seq": seq, "spoke_id": spoke_id, "event_hash": event.event_hash},
+    )
     return event
 
 
