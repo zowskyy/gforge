@@ -431,9 +431,97 @@ Summary and phase status below; see the plan doc for full rationale.
    moment any of them drift apart — the low-risk fix the plan document
    explicitly allowed as sufficient for Phase 0.
 
-### Phases 1-3 — not started
+### Phase 1 — External candidate-manifest producer (1a + 1b complete, 2026-08-26)
 
-See the plan document. Phase 1 (natural-language authoring layer) is next.
+1. **`docs/contracts/candidate-manifest-adapter.md` (1a)** — the contract
+   `hub-v1.md` §6/§13 promised but never wrote. Full goal-schema reference
+   (both templates, every tunable field and its real min/max/default,
+   cross-checked line-by-line against `creator/manifest.py`'s actual
+   constants), the `compile_goal()` three-outcome contract (ok /
+   clarification / `ValueError`), a template catalog stating plainly what
+   each template can't do, and an explicit "when an idea doesn't fit"
+   rejection contract. Usable today, informally, by pasting it into any
+   LLM chat as operating instructions — verified by manually simulating 5
+   realistic requests (two successful compiles, a clarification
+   round-trip, a deliberate out-of-range mistake, all behaving exactly as
+   documented) against the real `compile_goal()`.
+2. **`packages/godotforge-adapter-nl/` (1b)** — `godotforge-compose` CLI:
+   shells out to an LLM CLI (default `claude -p`, prompt via stdin,
+   `--llm-cmd` to override), extracts JSON from the response, drives the
+   real `compile_goal()` loop (writes the goal file on `status="ok"`;
+   asks the human directly for missing fields on `status="clarification"`
+   — no further LLM round-trip needed for filling in one structured
+   field; reports and stops on `ValueError`, never retries blindly).
+   Never auto-applies — only ever writes a goal file and prints the exact
+   `hub run`/`hub run --apply` commands. 14 unit tests, LLM invocation
+   mocked throughout (a real subprocess call to an AI CLI has no place in
+   a deterministic test run).
+   - **Real, separate optional package** (`packages/godotforge-adapter-nl/`,
+     own `pyproject.toml`, own `godotforge-compose` console script) — not
+     grafted onto the existing `godotforge hub` command group, because
+     `hub-v1.md` §6's AI-free boundary explicitly covers both
+     `godotforge_core` *and* `godotforge_cli`. Depends on `godotforge-core`
+     one-directionally; neither `godotforge-core` nor `godotforge-cli`
+     depend on it (confirmed structurally — it's absent from both
+     `pyproject.toml`s' `dependencies`) and mechanically
+     (`tests/unit/test_ai_free_core_boundary.py`, see below).
+   - **Real gap found and partially closed while building this**:
+     `hub-v1.md` §12 lists "AST/import, dependency, credential, and
+     runtime-adapter checks (§6)" as a required, passing acceptance test
+     class — no such test existed anywhere in the repo. Added
+     `tests/unit/test_ai_free_core_boundary.py`, an AST-based scan of
+     `godotforge_core`/`godotforge_cli` for imports of AI SDKs, generic
+     network-HTTP clients, or `godotforge_adapter_nl` itself. Scoped
+     honestly: this covers imports only, not §6's full spec (the
+     credential-read scan, the subprocess shell/tuple-args shape check, or
+     the dynamic-import runtime-adapter check) — those remain open, not
+     silently claimed as done.
+   - **Real bug, found by the user running the tool for real** (2026-08-26):
+     `godotforge-compose "..."` crashed on Windows with
+     `FileNotFoundError: [WinError 2] The system cannot find the file
+     specified` on the first real invocation against `claude -p`. Root
+     cause: `invoke_llm()` originally called
+     `subprocess.run(shlex.split(command), shell=False)`; on Windows,
+     npm-installed CLI tools (including `claude`) resolve to a `.cmd`/`.ps1`
+     shim, which `CreateProcess` cannot launch directly via a list-of-args
+     call even with the executable fully resolved on `PATH` — only
+     `cmd.exe` (`shell=True`) can invoke the shim. Confirmed via
+     `Get-Command claude` (-> `claude.ps1`) and the npm bin dir listing
+     `claude`/`claude.cmd`/`claude.ps1` side by side. Fixed by changing
+     `invoke_llm(command: str, ...)` to call
+     `subprocess.run(command, shell=True, ...)` directly (no more
+     `shlex.split`), with a documented rationale for why `shell=True` is
+     safe here: `command` is a locally-controlled `--llm-cmd` flag value
+     (equivalent trust to the person typing it in their own terminal), and
+     the untrusted game-description text is piped via stdin as the prompt,
+     never interpolated into the shell command string. All 14
+     `test_adapter_nl_compose.py` tests updated to the new `str`-typed
+     mock interface and re-confirmed passing, alongside the boundary test
+     (16/16). Deliberately NOT verified end-to-end against a real `claude
+     -p` subprocess call from within this session — doing so would spawn a
+     nested Claude Code process from inside the session driving this very
+     tool; real-world confirmation required the user re-running the exact
+     command that originally crashed.
+   - **Second real bug, found on the user's retest of the fix above**
+     (2026-08-26): past the `shell=True` fix, the same command then failed
+     with `UnicodeEncodeError: 'charmap' codec can't encode character
+     '→'`. Root cause: `subprocess.run(..., text=True)` without an
+     explicit `encoding=` falls back to the Windows console's active
+     codepage (cp1252) for stdin/stdout, and the contract doc piped into
+     the LLM prompt contains non-ASCII characters (`→`) cp1252 cannot
+     represent. Fixed by passing `encoding="utf-8"` explicitly to the
+     `subprocess.run` call in `invoke_llm()`. The user then re-ran the
+     exact command a second time and it worked end-to-end for real: the
+     LLM (`claude -p`) correctly picked `3d-tactical-shooter` and mapped
+     "really fast but fragile" to `scout.move_speed`/`sprint_multiplier`
+     up and `scout.health`/`armor` down, serialized as canonical decimal
+     strings, and `compile_with_clarification` wrote a valid `goal.json`
+     with no clarification round-trip needed. This is Phase 1's first
+     real (non-mocked) end-to-end confirmation.
+
+### Phases 2-3 — not started
+
+See the plan document.
 
 ## Fixture Evidence (FIXTURE-0001, 2026-08-23)
 

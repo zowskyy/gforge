@@ -4,6 +4,7 @@ requires-python = ">=3.12, <3.14"
 
 [manifest]
 members = [
+    "godotforge-adapter-nl",
     "godotforge-cli",
     "godotforge-core",
 ]
@@ -62,6 +63,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/de/39/041c1705dba6450c6
 wheels = [
     { url = "https://files.pythonhosted.org/packages/36/fe/afcf23a58b3e20897484b546d86741a7ea0d8cf57ae616c1677482b47f61/gdtoolkit-4.5.0-py3-none-any.whl", hash = "sha256:f25c5bf7f7fe861e1127164c5d73e0a7fb204ec74cf05d375b76a5dcf8610cdb", size = 62698, upload-time = "2025-10-09T14:23:28.284Z" },
 ]
+
+[[package]]
+name = "godotforge-adapter-nl"
+version = "0.1.0"
+source = { editable = "packages/godotforge-adapter-nl" }
+dependencies = [
+    { name = "godotforge-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "godotforge-core", editable = "packages/godotforge-core" }]
 
 [[package]]
 name = "godotforge-cli"

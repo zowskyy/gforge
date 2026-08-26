@@ -23,6 +23,7 @@ node_modules/
 .godotforge/index.sqlite.new
 .godotforge/reports/
 .godotforge/audit/
+.godotforge/adapter-nl/
 
 # Claude Code local session/worktree state — never source content
 .claude/
@@ -39,3 +40,7 @@ Thumbs.db
 .pytest-tmp/
 .cache/
 .worktrees/
+
+# godotforge-compose's default --out target when run from the repo root
+# (a manual test/demo artifact, not a tracked goal definition)
+/goal.json
