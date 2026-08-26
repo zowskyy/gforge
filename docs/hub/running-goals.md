@@ -69,41 +69,43 @@ godotforge hub run goal.yaml --apply [--mode MODE] [--timeout SECONDS] [--engine
 
 ## Goal Format
 
-Goals are YAML or JSON documents. Key sections:
+Goals are YAML or JSON documents validated against `schemas/goal.schema.json`. There is no freeform `features:` list — `game.template` is a fixed enum (currently `2d-platformer-minimal` or `3d-tactical-shooter`), and each template exposes its own typed `parameters` shape:
 
 ```yaml
+schema_version: 1
 game:
-  name: "mygame"           # Required: project name
-  version: "1.0.0"         # Required: semantic version
-
-features:                  # List of features to create
-  - id: "feature_name"     # Required: unique identifier
-    type: "node_type"      # Godot node type or feature type
-    properties: {}         # Node properties
-    scripts: []            # Script files to create
-    scenes: []             # Scene files to create
+  name: "mygame"                    # Required, 1-64 chars
+  template: "2d-platformer-minimal" # Required, must be a registered template
+parameters:
+  platformer_controller:
+    speed: "250.0"                  # Canonical decimal string, not a bare number
+    jump_velocity: "-400.0"
 ```
 
-**Full schema:** `schemas/goal.schema.json` in the Godot Forge distribution.
+An unknown `game.template`, an unknown `parameters` key, or an out-of-range value is rejected with a structured error before anything is planned — `compile_goal()` (`hub/goal.py`) is the single authority for this.
 
 ---
 
 ## Goal Parameters
 
-Goals support parameterization via `{{variable}}` syntax:
+There is no `{{variable}}` templating syntax — a goal is the final, resolved document, not a template-of-a-template. Each template defines exactly which fields are tunable, with pinned min/max ranges and defaults (`creator/manifest.py`); fields you omit take the template's canonical default, and omitted fields are recorded in `resolved_defaults` for auditability, never silently guessed.
+
+For `3d-tactical-shooter`, tunable fields go beyond per-character `parameters` — `renderer`, `physics_3d`, `weapon_overrides`, and `ability_overrides` are all goal-level, all optional, all per-field (see `PROJECT_TRACKING.md`'s "Goal-tunable stats" section for the full example):
 
 ```yaml
+schema_version: 1
 game:
-  name: "{{game_name}}"
-  version: "{{version}}"
-
-features:
-  - id: "player"
-    properties:
-      speed: "{{player_speed}}"
+  name: "District Kings"
+  template: "3d-tactical-shooter"
+parameters:
+  scout: { health: "90.0", move_speed: "9.5" }
+weapon_overrides:
+  sniper: { damage: "150.0", fire_rate: "2.0", magazine_size: 3 }
+ability_overrides:
+  heal: { cooldown: "5.0", magnitude: "60.0" }
 ```
 
-**Pass parameters via CLI** (future enhancement) or preprocess the goal file.
+Anything you don't mention — `enforcer`/`fixer`, `rifle`/`shotgun`, `dash`/`shield` in the example above — keeps its fixed template default.
 
 ---
 

@@ -10,6 +10,7 @@ tactical-shooter template — against the same class of transcription error.
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 
 import importlib.resources
 
@@ -75,3 +76,51 @@ def test_game_event_signals_not_shipped() -> None:
     never did)."""
     ids = allowed_behavior_ids()
     assert not any("game_event_signals" in bid for bid in ids)
+
+
+def test_allowlist_and_pinned_hashes_agree_on_ids() -> None:
+    """_ALLOWLIST and PINNED_HASHES are two independently hand-maintained
+    dicts keyed by the same ids. Catches drift in either direction: an id
+    added to one but not the other (a KeyError at runtime that would
+    otherwise only surface the first time someone actually requests that
+    specific behavior)."""
+    from godotforge_core.behaviors.registry import _ALLOWLIST, PINNED_HASHES  # noqa: SLF001
+
+    allowlist_ids = set(_ALLOWLIST)
+    pinned_ids = set(PINNED_HASHES)
+    assert allowlist_ids == pinned_ids, (
+        f"_ALLOWLIST/PINNED_HASHES key drift: "
+        f"in _ALLOWLIST only: {sorted(allowlist_ids - pinned_ids)}; "
+        f"in PINNED_HASHES only: {sorted(pinned_ids - allowlist_ids)}"
+    )
+
+
+def test_no_orphaned_resource_files() -> None:
+    """Every .gd file actually present under behaviors/resources/ is
+    registered in _ALLOWLIST — catches the opposite drift direction from
+    test_every_allowlisted_id_hash_matches_pinned: a file added to the
+    resources directory (e.g. copy-pasted in during development) but never
+    wired into the registry, which would otherwise sit there silently,
+    unreachable and untested, indefinitely."""
+    from godotforge_core.behaviors.registry import _ALLOWLIST  # noqa: SLF001
+
+    registered_filenames = set(_ALLOWLIST.values())
+
+    # tests/unit/test_behaviors_registry.py -> repo root is two parents up.
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    resources_root = (
+        repo_root
+        / "packages" / "godotforge-core" / "src" / "godotforge_core"
+        / "behaviors" / "resources"
+    )
+    assert resources_root.is_dir(), f"expected resources dir not found: {resources_root}"
+
+    on_disk = {
+        p.relative_to(resources_root).as_posix()
+        for p in resources_root.rglob("*.gd")
+    }
+    orphaned = on_disk - registered_filenames
+    assert not orphaned, (
+        f".gd files present on disk but not registered in _ALLOWLIST: {sorted(orphaned)} "
+        f"— run tools/register_behavior.py to register them"
+    )

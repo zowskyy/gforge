@@ -25,32 +25,37 @@ This document describes breaking changes and migration paths for Hub v1.
 
 ## From Pre-Hub (Creator CLI)
 
-If you used the pre-Hub `godotforge creator` commands:
+`godotforge creator {preview,apply,verify}` still exists and still works — it's a lower-level, still-registered command group that takes a raw `CreatorManifest` directly via `--manifest <file>`, bypassing goal compilation entirely. It has **not** been removed; `hub run` is the recommended path going forward because it adds authorization binding, run records, and proof on top of the same planner:
 
-| Old Command | New Command | Notes |
+| Old / low-level | New / recommended | Notes |
 |-------------|-------------|-------|
-| `godotforge creator plan` | `godotforge hub run goal.yaml` (preview) | Goal file replaces manifest args |
-| `godotforge creator apply` | `godotforge hub run goal.yaml --apply` | Authorization-bound, with proof |
-| `godotforge creator verify` | Included in `hub run --apply` | Isolated verification is mandatory |
-| `godotforge creator diff` | Included in `hub run` output | `diff` field in envelope |
+| `godotforge creator preview --manifest manifest.json` | `godotforge hub run goal.yaml` (preview) | Goal file (template + typed `parameters`) replaces a hand-written manifest |
+| `godotforge creator apply --manifest manifest.json --apply` | `godotforge hub run goal.yaml --apply` | Authorization-bound, with proof; `creator apply` has no authorization/run-record layer |
+| `godotforge creator verify --manifest manifest.json` | Included automatically in `hub run --apply` | Isolated verification is mandatory in the Hub path |
 
 ### Goal File Migration
 
-**Old (manifest args):**
-```bash
-godotforge creator plan --name mygame --feature player --speed 300
+**Old (raw manifest, `schemas/creator-manifest.schema.json`):**
+```json
+{
+  "schema_version": 1,
+  "game": { "name": "mygame", "template": "2d-platformer-minimal" },
+  "input": [
+    { "name": "move_left", "binding": "ui_left" },
+    { "name": "move_right", "binding": "ui_right" },
+    { "name": "jump", "binding": "ui_accept" }
+  ]
+}
 ```
 
-**New (goal.yaml):**
+**New (goal.yaml, `schemas/goal.schema.json` — fixed inputs are implied by `template`, not hand-listed):**
 ```yaml
+schema_version: 1
 game:
   name: "mygame"
-  version: "1.0.0"
-features:
-  - id: "player"
-    type: "kinematic_body_2d"
-    properties:
-      speed: 300
+  template: "2d-platformer-minimal"
+parameters:
+  platformer_controller: { speed: "250.0", jump_velocity: "-400.0" }
 ```
 
 ```bash
@@ -107,15 +112,13 @@ godotforge hub run goal.yaml --apply
 
 ## Configuration
 
-**forge.yaml** (new in Hub v1):
-```yaml
-project:
-  name: "mygame"
-  godot_version: "4.3"
-hub:
-  default_mode: "full"
-  default_timeout: 60.0
-```
+There is no `forge.yaml` project-config file. Configuration is resolved by
+`config/loader.py`'s layered `ConfigLayer`/`ResolvedConfig` (env vars,
+`--engine`/`--mode`/`--timeout` CLI flags, and built-in defaults) — see
+`godotforge config show` to inspect the effective resolved config for a
+project. Per-generated-project state that *does* exist lives in
+`.godotforge/project.yaml` (human-editable) and `.godotforge/project.lock`
+(machine-written engine identity lock), not a hand-authored `forge.yaml`.
 
 ---
 
@@ -123,9 +126,9 @@ hub:
 
 ### Old Pipeline
 ```yaml
-- creator plan
-- creator apply
-- creator verify  # optional
+- creator preview --manifest manifest.json
+- creator apply --manifest manifest.json --apply
+- creator verify --manifest manifest.json  # optional
 ```
 
 ### New Pipeline

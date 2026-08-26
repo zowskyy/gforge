@@ -265,19 +265,70 @@ CharacterParameters dataclasses partially wired before this pass started;
 
 ### Open dependencies
 
-- Weapon/ability stats (`data/weapons/*.tres`, `data/abilities/*.tres`) are
-  fixed deterministic literals — no `WeaponParameters`/`AbilityParameters`
-  manifest schema exists yet to make them goal-tunable, unlike character
-  stats which already flow from `manifest.parameters`.
-- `hub/goal.py`'s `_resolve_parameters` for the 3D template only reads the
-  `enforcer` key from a goal's `parameters` block — a goal author cannot
-  currently override `scout`/`fixer` through the goal surface (only by
-  hand-authoring a v3 manifest directly). `manifest.py`'s validator already
-  supports all three roles.
+- Ability stats (`data/abilities/*.tres`) remain fixed deterministic
+  literals — no `AbilityOverride` schema exists yet. Weapon stats
+  (`damage`/`fire_rate`/`magazine_size`) are now goal-tunable via
+  `weapon_overrides` (see "Goal-tunable stats" below); `pellet_count`/
+  `reload_time` are not yet exposed.
 - `GoalSpec.directory_structure`/`.external_repos`/`.resources` remain
   schema-validated but not consumed by the planner (deliberately left
   inert — the 3D template's file/dir structure is fully deterministic via
   `_G_FILES_3D`/`_G_DIRS_3D`, not goal-driven).
+- Pre-existing, unrelated to this feature: `schemas/goal.schema.json`
+  types `physics_3d.gravity`/`.floor_snap_length` as JSON `number`, but
+  `GoalSpec.as_dict()`/`Physics3DSettings.as_dict()` always serialize them
+  as canonical strings (e.g. `"9.8"`) — `jsonschema.validate(goal.as_dict(),
+  schema)` fails on any goal that actually sets `physics_3d`. Already noted
+  in this file's original "Hub Step 3 (GoalSpec) follow-ups" — confirmed
+  still open, not touched by this pass.
+
+### Goal-tunable stats (character + weapon overrides)
+
+Character stats were already goal-tunable via `manifest.parameters`, but
+`hub/goal.py`'s `_resolve_parameters` only ever read the `enforcer` key —
+`scout`/`fixer` overrides were silently dropped at the goal layer even
+though `manifest.py`'s validator already supported all three roles. Fixed:
+`_resolve_parameters` now resolves all three roles independently (each
+field defaults independently per role, same as the manifest layer already
+did) and `resolved_defaults` now actually records scout/fixer defaults too
+(previously invisible — a real, if minor, violation of this module's own
+"nothing is hidden inside execution" contract).
+
+Weapon stats (`damage`, `fire_rate`, `magazine_size`) are now goal-tunable
+via a new `weapon_overrides` block, keyed by weapon id — new
+`WeaponOverride`/`WeaponOverrides` dataclasses in `creator/manifest.py`,
+validated with flat ranges (damage 1.0–200.0, fire_rate 0.02–5.0,
+magazine_size 1–200), merged into `manifest_dict` before validation in
+`hub/goal.py` (same pattern as `renderer`/`physics_3d`/`input_map`), and
+applied per-field in `creator/plan.py`'s `_weapon_tres` — a weapon or field
+absent from `weapon_overrides` keeps its fixed default. Also fixed a
+round-trip bug found while testing this: `WeaponOverride.as_dict()`
+canonicalizes `magazine_size` to a string, but the validator only accepted
+a raw `int` — a `manifest_dict` that had already been through `as_dict()`
+once (e.g. `compiled.manifest_dict` from `compile_goal`) would fail
+re-validation. Fixed to accept int or numeric string, mirroring
+`parse_canonical_decimal`'s existing int/str/Decimal tolerance.
+
+Example goal JSON:
+
+```json
+{
+  "schema_version": 1,
+  "game": { "name": "District Kings", "template": "3d-tactical-shooter" },
+  "parameters": {
+    "scout": { "health": "90.0", "move_speed": "9.5" },
+    "fixer": { "armor": "60.0" }
+  },
+  "weapon_overrides": {
+    "sniper": { "damage": "150.0", "fire_rate": "2.0", "magazine_size": 3 },
+    "shotgun": { "damage": "12.0" }
+  }
+}
+```
+
+`enforcer` and `rifle` are untouched here, so they keep the template's
+fixed defaults; `shotgun.fire_rate`/`.magazine_size` also keep their
+defaults since only `damage` was specified for it.
 
 ### Verification evidence
 
@@ -328,6 +379,61 @@ authoritative, working verification path.
   fails on `HEAD` (references a nonexistent `HubRunResult.artifact_hash`
   attribute) — confirmed via `git diff HEAD` showing zero changes to that
   test file; out of scope for this feature, not fixed.
+
+## Roadmap: "Any Imagination, No Coding Required"
+
+Strategic roadmap toward the locked north star — full plan document at
+`~/.claude/plans/claude-district-reactive-bear.md` (four phases: hygiene,
+the natural-language authoring layer, scaling/composability, polish).
+Summary and phase status below; see the plan doc for full rationale.
+
+### Phase 0 — Foundation & hygiene (complete, 2026-08-26)
+
+1. **`docs/contracts/hub-v1.md` ratified** — was `PROPOSED (authoritative
+   pending review)` / `Implementation: NOT APPROVED` while fully shipped
+   and in production use; status, §11/§14 headers, and the Approval log
+   updated to match reality, with an honest note that this is a
+   documentation correction, not a new design review. Also documented two
+   out-of-band amendments to its §11 "no changes to" claim (the pinned
+   behavior hashes; `validate_boot.gd`/`PINNED_VALIDATOR_SHA256`).
+2. **`docs/hub/*.md` fixed** — `getting-started.md` (rewritten),
+   `running-goals.md`, `migration.md` described a `godotforge project init`
+   command, a `forge.yaml` config file, and a freeform `features:` goal
+   schema that never existed; all now match the real CLI and
+   `schemas/goal.schema.json`. `docs/hub/api/*.md`, `cli/reference.md`,
+   `resuming-runs.md`, `understanding-reports.md`,
+   `multi-spoke-coordination.md` were checked and found accurate —
+   untouched.
+3. **`docs/contracts/{behavior-library,creator-manifest}.md` synced** —
+   behavior-library.md's allowlist table only listed the original 3
+   behaviors; added the 25 District Kings entries (hashes copied verbatim
+   from `registry.py`) plus a note on the dropped `game_event_signals.gd`.
+   creator-manifest.md's "template must be `2d-platformer-minimal`" claim
+   was actually still correct (scoped to `schema_version: 1`) — added a
+   scope note pointing to this file's 3D section instead of editing a
+   correct line.
+4. **Behavior-hash tooling built** — `tools/register_behavior.py`
+   (`register` and `--verify` modes) replaces the hand-`sha256sum`-and-paste
+   workflow that caused the original pinned-hash bug. Verify-after-edit
+   with automatic rollback on failure; this safety net caught two real
+   bugs in the tool itself during testing (a whole-file hash-extraction
+   search that matched the wrong dict) before they could corrupt
+   `registry.py` — see the tool's own docstring/comments for the story.
+   `tests/unit/test_behaviors_registry.py` extended with bidirectional
+   drift checks (`_ALLOWLIST`/`PINNED_HASHES` key agreement; no `.gd` file
+   on disk left unregistered).
+5. **Template-identity consistency test added**
+   (`tests/unit/test_template_identity_consistency.py`) — rather than a
+   risky runtime unification of the 4+ independently hand-maintained
+   "template identity" sources (`goal.schema.json`'s enum, `hub/goal.py`'s
+   `_TEMPLATES`/`_FIXED_INPUTS_3D`/`_ALLOWED_*_KEYS_3D`,
+   `creator/manifest.py`'s `_FIXED_BINDINGS_3D`), a test now fails CI the
+   moment any of them drift apart — the low-risk fix the plan document
+   explicitly allowed as sufficient for Phase 0.
+
+### Phases 1-3 — not started
+
+See the plan document. Phase 1 (natural-language authoring layer) is next.
 
 ## Fixture Evidence (FIXTURE-0001, 2026-08-23)
 

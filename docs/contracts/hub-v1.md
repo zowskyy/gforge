@@ -1,7 +1,12 @@
 # Hub v1 Contract — GodotForge Hub, Managed Updates, Platformer Vertical Slice, Replayable Proof
 
-**Status:** PROPOSED (authoritative pending review). Documentation only — no
-implementation, commit, or push is authorized by this document.
+**Status:** IMPLEMENTED (ratified 2026-08-26). This contract's design was
+carried out in full — see §11/§14 for what was built and the Approval log
+for verification evidence. The `3d-tactical-shooter` template (not part of
+this contract's original §10 vertical-slice scope) has since shipped on top
+of the same Hub without any change to this contract's core seams — see
+`PROJECT_TRACKING.md`'s "District Kings 3D Template" section for that
+work's own record.
 
 **Milestone:** GodotForge Hub v1 + safe managed updates + one complete
 validated platformer vertical slice + replayable proof + no AI runtime
@@ -342,7 +347,7 @@ a finished commercial game:
 - Intentionally excluded: HUD, audio, enemies, multiple levels,
   sprites/textures, custom input bindings (fixed three inputs stay fixed).
 
-## 11. Required new files (implementation phase — not authorized yet)
+## 11. Required new files (implemented — see Approval log)
 
 Core (`packages/godotforge-core/src/godotforge_core/hub/`): `__init__.py`,
 `definitions.py`, `registry.py`, `goal.py`, `run_record.py`, `approval.py`,
@@ -359,7 +364,15 @@ Minimal additive modifications only: public `plan_id_for()` in
 `creator/plan.py` (CLI currently reaches into `_plan_id_for`); tracking docs
 after implementation. **No changes to:** behavior registry pins,
 `validate_boot.gd` / `PINNED_VALIDATOR_SHA256` (PATCH-0016 §10), the v1
-manifest path, or exit-code values.
+manifest path, or exit-code values. *(This constraint held for the original
+2D-only Hub v1 implementation. Two later, out-of-band amendments broke it,
+both recorded in `PROJECT_TRACKING.md`'s "District Kings 3D Template"
+section: (1) the original 3 `PINNED_HASHES` entries were discovered to be
+transcribed wrong, breaking the 2D suite — fixed, unrelated to 3D scope; (2)
+`validate_boot.gd`'s Camera2D-only boot check was generalized to accept
+Camera2D or Camera3D and `PINNED_VALIDATOR_SHA256` bumped accordingly, since
+the original check unconditionally failed any 3D main scene. Neither change
+altered the v1 manifest path or exit codes.)*
 
 ## 12. Tests and acceptance criteria
 
@@ -424,7 +437,7 @@ crash-recovery simulation per §7.5 (interrupted journal, unfinalized ledger).
 - Any change to PATCH-0016; `patch-0016.md` remains authoritative for the v2
   manifest surface, and `patch-0016-amendment.md` remains a review artifact.
 
-## 14. Implementation order (after this contract is approved)
+## 14. Implementation order (as executed)
 
 1. Hub schemas and append-only event/run records.
 2. Registry seams and capability discovery.
@@ -444,6 +457,8 @@ crash-recovery simulation per §7.5 (interrupted journal, unfinalized ledger).
 | Design proposal | SUBMITTED | 2026-08-24 |
 | Contract amendments (9 items) | INCORPORATED | 2026-08-24 |
 | Refinements: pins derived at generation-creation then frozen as literals; `explicit_cli`-only authorization; non-destructive `needs_validation` crash recovery; unbounded append-only ledgers | CONFIRMED | 2026-08-24 |
-| Contract document | PROPOSED — pending review | — |
-| Implementation | NOT APPROVED | — |
-| Commit / push | NOT APPROVED | — |
+| Contract document | RATIFIED — status corrected to match shipped implementation | 2026-08-26 |
+| Implementation | APPROVED — all §11 modules exist and are wired into `app.py`; §12 unit/CLI/integration test classes exist and pass (`tests/unit/test_hub_*.py`, `tests/cli/test_hub_cli.py`, `tests/integration/test_hub_run_godot.py`); §10's platformer vertical slice is demonstrated, and a second, larger vertical slice (`3d-tactical-shooter`) has since been built and verified end-to-end on the same Hub with zero changes to orchestrator.py (confirming §1's spoke/seam design held up under real extension) | 2026-08-26 |
+| Commit / push | Already committed to `district-kings-001` and pushed to `origin` prior to this ratification — this document is catching up to, not authorizing, that history | 2026-08-26 |
+
+**Note on this ratification's nature:** this is a documentation correction performed by an AI coding assistant acting under the repo owner's direction (see `PROJECT_TRACKING.md`'s "District Kings 3D Template" section and this repo's git history for the session that did this work), not a human design/legal review. It records that the document's claimed status now matches the verified, tested, shipped state of the code — it does not represent a new round of design scrutiny beyond what §§1–13 already specify.

@@ -5,6 +5,20 @@ network, API key, telemetry, or generated source. Manifests are produced by
 forms/templates/fixtures and validated here. No backup/apply/CLI mutation in
 this slice — preview only.
 
+**Scope note (added 2026-08-26):** this document covers only the
+`schema_version: 1` manifest contract (the `2d-platformer-minimal`
+template) — everything below, including "`template` must be
+`2d-platformer-minimal` in v1," is accurate as written for that scope.
+A second manifest surface, `schema_version: 3` (template
+`3d-tactical-shooter`), was added later and is validated by the same
+`creator/manifest.py`/`creator/plan.py` but is not covered by this
+document — see `PROJECT_TRACKING.md`'s "District Kings 3D Template"
+section for its contract (renderer/physics/input-map/character-role/
+weapon-override/ability-override fields, the 3D `_G_FILES_3D`/pinned
+behavior set, etc.). `schema_version: 2` (PATCH-0016, optional
+`speed`/`jump_velocity` parameters on the same 2D template) is covered by
+`docs/contracts/patch-0016.md`, not here.
+
 Refs: `packages/godotforge-core/src/godotforge_core/creator/manifest.py:1`,
 `creator/uid.py:1`, `creator/plan.py:1`, schema `schemas/creator-manifest.schema.json:1`.
 
