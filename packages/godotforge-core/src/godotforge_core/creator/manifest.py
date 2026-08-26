@@ -34,7 +34,7 @@ _JUMP_MIN = Decimal("-1000.0")
 _JUMP_MAX = Decimal("-100.0")
 _JUMP_DEFAULT = Decimal("-350.0")
 _ALLOWED_TOP_LEVEL_KEYS_V2 = frozenset({"schema_version", "game", "input", "parameters"})
-_ALLOWED_TOP_LEVEL_KEYS_V3 = frozenset({"schema_version", "game", "input", "parameters", "renderer", "physics_3d", "input_map"})
+_ALLOWED_TOP_LEVEL_KEYS_V3 = frozenset({"schema_version", "game", "input", "parameters", "renderer", "physics_3d", "input_map", "weapon_overrides", "ability_overrides"})
 
 # 3D template constants
 _FIXED_BINDINGS_3D: dict[str, str] = {
@@ -94,6 +94,31 @@ _FIXER_MOVE_SPEED_DEFAULT = Decimal("7.0")
 _FIXER_SPRINT_MIN = Decimal("1.0")
 _FIXER_SPRINT_MAX = Decimal("2.0")
 _FIXER_SPRINT_DEFAULT = Decimal("1.5")
+
+# Weapon override contract — goal-tunable subset of weapon stats. Ranges are
+# flat (not per-weapon-id) since weapon archetypes vary by design, not role.
+_WEAPON_IDS = frozenset({"rifle", "shotgun", "sniper"})
+_WEAPON_DAMAGE_MIN = Decimal("1.0")
+_WEAPON_DAMAGE_MAX = Decimal("200.0")
+_WEAPON_FIRE_RATE_MIN = Decimal("0.02")
+_WEAPON_FIRE_RATE_MAX = Decimal("5.0")
+_WEAPON_MAGAZINE_SIZE_MIN = 1
+_WEAPON_MAGAZINE_SIZE_MAX = 200
+_WEAPON_PELLET_COUNT_MIN = 1
+_WEAPON_PELLET_COUNT_MAX = 20
+_WEAPON_RELOAD_TIME_MIN = Decimal("0.2")
+_WEAPON_RELOAD_TIME_MAX = Decimal("10.0")
+
+# Ability override contract — same flat-range shape as weapons.
+_ABILITY_IDS = frozenset({"dash", "shield", "heal"})
+_ABILITY_COOLDOWN_MIN = Decimal("0.5")
+_ABILITY_COOLDOWN_MAX = Decimal("60.0")
+_ABILITY_DURATION_MIN = Decimal("0.0")
+_ABILITY_DURATION_MAX = Decimal("30.0")
+_ABILITY_MAGNITUDE_MIN = Decimal("0.0")
+_ABILITY_MAGNITUDE_MAX = Decimal("500.0")
+_ABILITY_RADIUS_MIN = Decimal("0.0")
+_ABILITY_RADIUS_MAX = Decimal("50.0")
 
 
 class CreatorPreflightError(ValueError):
@@ -194,6 +219,83 @@ class CharacterParameters:
 
 
 @dataclass(frozen=True)
+class WeaponOverride:
+    """WeaponOverride — optional stat overrides for one weapon.
+
+    Fields left unset (``None``) keep the template's fixed default for that
+    stat — mirrors CharacterParameters' "omitted takes default" contract,
+    but per-field rather than whole-object, since a goal may want to tune
+    only ``damage`` and leave the rest alone.
+    """
+
+    damage: Decimal | None = None
+    fire_rate: Decimal | None = None
+    magazine_size: int | None = None
+    pellet_count: int | None = None
+    reload_time: Decimal | None = None
+
+    def as_dict(self) -> dict[str, str]:
+        result: dict[str, str] = {}
+        if self.damage is not None:
+            result["damage"] = format_canonical(self.damage, name="damage")
+        if self.fire_rate is not None:
+            result["fire_rate"] = format_canonical(self.fire_rate, name="fire_rate")
+        if self.magazine_size is not None:
+            result["magazine_size"] = str(self.magazine_size)
+        if self.pellet_count is not None:
+            result["pellet_count"] = str(self.pellet_count)
+        if self.reload_time is not None:
+            result["reload_time"] = format_canonical(self.reload_time, name="reload_time")
+        return result
+
+
+@dataclass(frozen=True)
+class WeaponOverrides:
+    """WeaponOverrides — validated ``weapon_overrides`` block, keyed by
+    weapon id (``rifle``/``shotgun``/``sniper``). Weapons absent from the
+    dict are entirely unaffected (keep their fixed template stats)."""
+
+    overrides: dict[str, WeaponOverride]
+
+    def as_dict(self) -> dict[str, dict[str, str]]:
+        return {wid: wo.as_dict() for wid, wo in sorted(self.overrides.items())}
+
+
+@dataclass(frozen=True)
+class AbilityOverride:
+    """AbilityOverride — optional stat overrides for one ability. Same
+    per-field "omitted takes default" contract as WeaponOverride."""
+
+    cooldown: Decimal | None = None
+    duration: Decimal | None = None
+    magnitude: Decimal | None = None
+    radius: Decimal | None = None
+
+    def as_dict(self) -> dict[str, str]:
+        result: dict[str, str] = {}
+        if self.cooldown is not None:
+            result["cooldown"] = format_canonical(self.cooldown, name="cooldown")
+        if self.duration is not None:
+            result["duration"] = format_canonical(self.duration, name="duration")
+        if self.magnitude is not None:
+            result["magnitude"] = format_canonical(self.magnitude, name="magnitude")
+        if self.radius is not None:
+            result["radius"] = format_canonical(self.radius, name="radius")
+        return result
+
+
+@dataclass(frozen=True)
+class AbilityOverrides:
+    """AbilityOverrides — validated ``ability_overrides`` block, keyed by
+    ability id (``dash``/``shield``/``heal``)."""
+
+    overrides: dict[str, AbilityOverride]
+
+    def as_dict(self) -> dict[str, dict[str, str]]:
+        return {aid: ao.as_dict() for aid, ao in sorted(self.overrides.items())}
+
+
+@dataclass(frozen=True)
 class CreatorInput:
     """CreatorInput — production class."""
     name: str
@@ -211,6 +313,8 @@ class CreatorManifest:
     renderer: str | None = None
     physics_3d: Physics3DSettings | None = None
     input_map: InputMapConfig | None = None
+    weapon_overrides: WeaponOverrides | None = None
+    ability_overrides: AbilityOverrides | None = None
 
     def as_dict(self) -> dict:
         """as_dict — production method.
@@ -237,6 +341,10 @@ class CreatorManifest:
                 payload["physics_3d"] = self.physics_3d.as_dict()
             if self.input_map is not None:
                 payload["input_map"] = self.input_map.as_dict()
+            if self.weapon_overrides is not None:
+                payload["weapon_overrides"] = self.weapon_overrides.as_dict()
+            if self.ability_overrides is not None:
+                payload["ability_overrides"] = self.ability_overrides.as_dict()
         return payload
 
 
@@ -436,6 +544,166 @@ def _validate_input_map(raw: object) -> InputMapConfig:
     return InputMapConfig(bindings=bindings)
 
 
+def _parse_canonical_int(value: object, *, name: str) -> int:
+    """Parse an int field that tolerates a real int or a numeric string —
+    mirrors parse_canonical_decimal's int/str/Decimal tolerance so a
+    manifest_dict round-tripped through an override's as_dict() canonical
+    string form re-validates cleanly, not just a freshly hand-authored one.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be int, got {value!r}")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and re.fullmatch(r"-?[0-9]+", value):
+        return int(value)
+    raise ValueError(f"{name} must be int, got {value!r}")
+
+
+def _validate_weapon_overrides(raw: object) -> WeaponOverrides | None:
+    """_validate_weapon_overrides — validate optional ``weapon_overrides`` block.
+
+    Shape: ``{<weapon_id>: {damage?, fire_rate?, magazine_size?, pellet_count?,
+    reload_time?}}``. Unknown weapon ids or fields, and out-of-range values,
+    raise ``ValueError``. Omitted block returns ``None`` (no overrides — all
+    weapons keep their fixed template stats).
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"weapon_overrides must be a mapping, got {raw!r}")
+    unknown_weapons = set(raw) - _WEAPON_IDS
+    if unknown_weapons:
+        raise ValueError(
+            f"unknown weapon id(s) in weapon_overrides: {sorted(unknown_weapons)}; "
+            f"supported: {sorted(_WEAPON_IDS)}"
+        )
+    overrides: dict[str, WeaponOverride] = {}
+    known_fields = {"damage", "fire_rate", "magazine_size", "pellet_count", "reload_time"}
+    for weapon_id, fields in raw.items():
+        if not isinstance(fields, dict):
+            raise ValueError(f"weapon_overrides.{weapon_id} must be a mapping, got {fields!r}")
+        unknown_fields = set(fields) - known_fields
+        if unknown_fields:
+            raise ValueError(
+                f"unknown field(s) for weapon_overrides.{weapon_id}: {sorted(unknown_fields)}"
+            )
+        damage: Decimal | None = None
+        if "damage" in fields:
+            damage = parse_canonical_decimal(fields["damage"], name="damage")
+            if not (_WEAPON_DAMAGE_MIN <= damage <= _WEAPON_DAMAGE_MAX):
+                raise ValueError(
+                    f"weapon_overrides.{weapon_id}.damage {damage} out of range "
+                    f"{_WEAPON_DAMAGE_MIN}..{_WEAPON_DAMAGE_MAX} (inclusive)"
+                )
+        fire_rate: Decimal | None = None
+        if "fire_rate" in fields:
+            fire_rate = parse_canonical_decimal(fields["fire_rate"], name="fire_rate")
+            if not (_WEAPON_FIRE_RATE_MIN <= fire_rate <= _WEAPON_FIRE_RATE_MAX):
+                raise ValueError(
+                    f"weapon_overrides.{weapon_id}.fire_rate {fire_rate} out of range "
+                    f"{_WEAPON_FIRE_RATE_MIN}..{_WEAPON_FIRE_RATE_MAX} (inclusive)"
+                )
+        magazine_size: int | None = None
+        if "magazine_size" in fields:
+            magazine_size = _parse_canonical_int(
+                fields["magazine_size"], name=f"weapon_overrides.{weapon_id}.magazine_size"
+            )
+            if not (_WEAPON_MAGAZINE_SIZE_MIN <= magazine_size <= _WEAPON_MAGAZINE_SIZE_MAX):
+                raise ValueError(
+                    f"weapon_overrides.{weapon_id}.magazine_size {magazine_size} out of range "
+                    f"{_WEAPON_MAGAZINE_SIZE_MIN}..{_WEAPON_MAGAZINE_SIZE_MAX} (inclusive)"
+                )
+        pellet_count: int | None = None
+        if "pellet_count" in fields:
+            pellet_count = _parse_canonical_int(
+                fields["pellet_count"], name=f"weapon_overrides.{weapon_id}.pellet_count"
+            )
+            if not (_WEAPON_PELLET_COUNT_MIN <= pellet_count <= _WEAPON_PELLET_COUNT_MAX):
+                raise ValueError(
+                    f"weapon_overrides.{weapon_id}.pellet_count {pellet_count} out of range "
+                    f"{_WEAPON_PELLET_COUNT_MIN}..{_WEAPON_PELLET_COUNT_MAX} (inclusive)"
+                )
+        reload_time: Decimal | None = None
+        if "reload_time" in fields:
+            reload_time = parse_canonical_decimal(fields["reload_time"], name="reload_time")
+            if not (_WEAPON_RELOAD_TIME_MIN <= reload_time <= _WEAPON_RELOAD_TIME_MAX):
+                raise ValueError(
+                    f"weapon_overrides.{weapon_id}.reload_time {reload_time} out of range "
+                    f"{_WEAPON_RELOAD_TIME_MIN}..{_WEAPON_RELOAD_TIME_MAX} (inclusive)"
+                )
+        overrides[weapon_id] = WeaponOverride(
+            damage=damage,
+            fire_rate=fire_rate,
+            magazine_size=magazine_size,
+            pellet_count=pellet_count,
+            reload_time=reload_time,
+        )
+    return WeaponOverrides(overrides=overrides)
+
+
+def _validate_ability_overrides(raw: object) -> AbilityOverrides | None:
+    """_validate_ability_overrides — validate optional ``ability_overrides``
+    block. Shape: ``{<ability_id>: {cooldown?, duration?, magnitude?, radius?}}``.
+    Same contract as _validate_weapon_overrides.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"ability_overrides must be a mapping, got {raw!r}")
+    unknown_abilities = set(raw) - _ABILITY_IDS
+    if unknown_abilities:
+        raise ValueError(
+            f"unknown ability id(s) in ability_overrides: {sorted(unknown_abilities)}; "
+            f"supported: {sorted(_ABILITY_IDS)}"
+        )
+    overrides: dict[str, AbilityOverride] = {}
+    known_fields = {"cooldown", "duration", "magnitude", "radius"}
+    for ability_id, fields in raw.items():
+        if not isinstance(fields, dict):
+            raise ValueError(f"ability_overrides.{ability_id} must be a mapping, got {fields!r}")
+        unknown_fields = set(fields) - known_fields
+        if unknown_fields:
+            raise ValueError(
+                f"unknown field(s) for ability_overrides.{ability_id}: {sorted(unknown_fields)}"
+            )
+        cooldown: Decimal | None = None
+        if "cooldown" in fields:
+            cooldown = parse_canonical_decimal(fields["cooldown"], name="cooldown")
+            if not (_ABILITY_COOLDOWN_MIN <= cooldown <= _ABILITY_COOLDOWN_MAX):
+                raise ValueError(
+                    f"ability_overrides.{ability_id}.cooldown {cooldown} out of range "
+                    f"{_ABILITY_COOLDOWN_MIN}..{_ABILITY_COOLDOWN_MAX} (inclusive)"
+                )
+        duration: Decimal | None = None
+        if "duration" in fields:
+            duration = parse_canonical_decimal(fields["duration"], name="duration")
+            if not (_ABILITY_DURATION_MIN <= duration <= _ABILITY_DURATION_MAX):
+                raise ValueError(
+                    f"ability_overrides.{ability_id}.duration {duration} out of range "
+                    f"{_ABILITY_DURATION_MIN}..{_ABILITY_DURATION_MAX} (inclusive)"
+                )
+        magnitude: Decimal | None = None
+        if "magnitude" in fields:
+            magnitude = parse_canonical_decimal(fields["magnitude"], name="magnitude")
+            if not (_ABILITY_MAGNITUDE_MIN <= magnitude <= _ABILITY_MAGNITUDE_MAX):
+                raise ValueError(
+                    f"ability_overrides.{ability_id}.magnitude {magnitude} out of range "
+                    f"{_ABILITY_MAGNITUDE_MIN}..{_ABILITY_MAGNITUDE_MAX} (inclusive)"
+                )
+        radius: Decimal | None = None
+        if "radius" in fields:
+            radius = parse_canonical_decimal(fields["radius"], name="radius")
+            if not (_ABILITY_RADIUS_MIN <= radius <= _ABILITY_RADIUS_MAX):
+                raise ValueError(
+                    f"ability_overrides.{ability_id}.radius {radius} out of range "
+                    f"{_ABILITY_RADIUS_MIN}..{_ABILITY_RADIUS_MAX} (inclusive)"
+                )
+        overrides[ability_id] = AbilityOverride(
+            cooldown=cooldown, duration=duration, magnitude=magnitude, radius=radius
+        )
+    return AbilityOverrides(overrides=overrides)
+
+
 def validate_manifest_dict(data: dict) -> CreatorManifest:
     """Validate raw dict per schema and fixed rules; return frozen CreatorManifest.
 
@@ -462,6 +730,8 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
     renderer: str | None = None
     physics_3d: Physics3DSettings | None = None
     input_map: InputMapConfig | None = None
+    weapon_overrides: WeaponOverrides | None = None
+    ability_overrides: AbilityOverrides | None = None
 
     if schema_version == 1:
         unknown_top = set(data) - {"schema_version", "game", "input"}
@@ -480,6 +750,8 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
         renderer = _validate_renderer(data.get("renderer"))
         physics_3d = _validate_physics_3d(data.get("physics_3d"))
         input_map = _validate_input_map(data.get("input_map"))
+        weapon_overrides = _validate_weapon_overrides(data.get("weapon_overrides"))
+        ability_overrides = _validate_ability_overrides(data.get("ability_overrides"))
     else:
         # Should not reach here due to earlier check
         raise ValueError(f"unsupported schema_version {schema_version}")
@@ -584,6 +856,8 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
         renderer=renderer,
         physics_3d=physics_3d,
         input_map=input_map,
+        weapon_overrides=weapon_overrides,
+        ability_overrides=ability_overrides,
     )
 
 

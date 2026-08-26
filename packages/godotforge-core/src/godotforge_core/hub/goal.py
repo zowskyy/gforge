@@ -77,7 +77,7 @@ _FIXED_INPUTS_3D: tuple[dict[str, str], ...] = (
     {"name": "interact", "binding": "interact"},
 )
 
-_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources"})
+_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources", "weapon_overrides", "ability_overrides"})
 _ALLOWED_GAME_KEYS = frozenset({"name", "template"})
 _ALLOWED_BEHAVIOR_KEYS_2D = frozenset({"platformer_controller"})
 _ALLOWED_BEHAVIOR_KEYS_3D = frozenset({"enforcer", "scout", "fixer"})
@@ -139,6 +139,8 @@ class GoalSpec:
     directory_structure: dict[str, list[str]] | None = None
     external_repos: list[str] | None = None
     resources: dict[str, list[str]] | None = None
+    weapon_overrides: dict[str, dict[str, str]] | None = None
+    ability_overrides: dict[str, dict[str, str]] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """as_dict — canonical serialization matching goal.schema.json shape."""
@@ -159,6 +161,10 @@ class GoalSpec:
             result["external_repos"] = self.external_repos
         if self.resources is not None:
             result["resources"] = self.resources
+        if self.weapon_overrides is not None:
+            result["weapon_overrides"] = self.weapon_overrides
+        if self.ability_overrides is not None:
+            result["ability_overrides"] = self.ability_overrides
         return result
 
 
@@ -317,9 +323,19 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
     and canonical-format enforcement stay with ``validate_manifest_dict``.
     """
     if template == "3d-tactical-shooter":
-        prefix = "parameters.enforcer"  # default to enforcer, can be extended
+        # All three roles are resolvable from the goal — not enforcer-only.
+        # Each role independently: omitted role -> all 4 fields default;
+        # partial role -> only the supplied fields are explicit, the rest
+        # default. Matches validate_manifest_dict's per-role defaulting in
+        # _validate_character_parameters, but now the goal layer actually
+        # *records* those defaults (module contract: "Defaults are resolved
+        # explicitly and recorded... nothing is hidden inside execution" —
+        # previously true for enforcer only; scout/fixer defaults were
+        # applied by the manifest validator but never recorded here).
+        roles = ("enforcer", "scout", "fixer")
+        fields = ("health", "armor", "move_speed", "sprint_multiplier")
         if raw is None:
-            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
+            raw = {}
         if not isinstance(raw, dict):
             raise ValueError(f"parameters must be a mapping, got {raw!r}")
         unknown_behaviors = set(raw) - _ALLOWED_BEHAVIOR_KEYS_3D
@@ -328,21 +344,25 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
                 f"unsupported behavior request(s): {sorted(unknown_behaviors)}; "
                 f"supported: {sorted(_ALLOWED_BEHAVIOR_KEYS_3D)}"
             )
-        behavior = raw.get("enforcer")  # default to enforcer
-        if behavior is None:
-            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
-        if not isinstance(behavior, dict):
-            raise ValueError(f"parameters.enforcer must be a mapping, got {behavior!r}")
-        unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_3D
-        if unknown_params:
-            raise ValueError(
-                f"unknown parameter(s): {sorted(unknown_params)}; "
-                f"supported: {sorted(_ALLOWED_PARAMETER_KEYS_3D)}"
-            )
-        defaults = tuple(
-            f"{prefix}.{name}" for name in ("health", "armor", "move_speed", "sprint_multiplier") if name not in behavior
-        )
-        return {"enforcer": dict(behavior)}, defaults
+        resolved: dict[str, Any] = {}
+        defaults: list[str] = []
+        for role in roles:
+            role_prefix = f"parameters.{role}"
+            behavior = raw.get(role)
+            if behavior is None:
+                defaults.extend(f"{role_prefix}.{name}" for name in fields)
+                continue
+            if not isinstance(behavior, dict):
+                raise ValueError(f"parameters.{role} must be a mapping, got {behavior!r}")
+            unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_3D
+            if unknown_params:
+                raise ValueError(
+                    f"unknown parameter(s): {sorted(unknown_params)}; "
+                    f"supported: {sorted(_ALLOWED_PARAMETER_KEYS_3D)}"
+                )
+            resolved[role] = dict(behavior)
+            defaults.extend(f"{role_prefix}.{name}" for name in fields if name not in behavior)
+        return resolved, tuple(defaults)
     else:
         # 2D platformer
         prefix = "parameters.platformer_controller"
@@ -481,12 +501,18 @@ def compile_goal(data: dict[str, Any]) -> GoalCompilation:
         renderer_raw = data.get("renderer")
         physics_3d_raw = data.get("physics_3d")
         input_map_raw = data.get("input_map")
+        weapon_overrides_raw = data.get("weapon_overrides")
+        ability_overrides_raw = data.get("ability_overrides")
         if renderer_raw is not None:
             manifest_dict["renderer"] = renderer_raw
         if physics_3d_raw is not None:
             manifest_dict["physics_3d"] = physics_3d_raw
         if input_map_raw is not None:
             manifest_dict["input_map"] = input_map_raw
+        if weapon_overrides_raw is not None:
+            manifest_dict["weapon_overrides"] = weapon_overrides_raw
+        if ability_overrides_raw is not None:
+            manifest_dict["ability_overrides"] = ability_overrides_raw
 
     # The manifest validator is the single authority for name pattern,
     # ranges, canonical numerics, and unknown keys; failures propagate as
@@ -514,6 +540,14 @@ def compile_goal(data: dict[str, Any]) -> GoalCompilation:
         directory_structure=directory_structure,
         external_repos=external_repos,
         resources=resources,
+        weapon_overrides=(
+            manifest.weapon_overrides.as_dict() if manifest.weapon_overrides is not None else None
+        ),
+        ability_overrides=(
+            manifest.ability_overrides.as_dict()
+            if manifest.ability_overrides is not None
+            else None
+        ),
     )
     return GoalCompilation(
         status="ok",

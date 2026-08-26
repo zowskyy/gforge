@@ -87,16 +87,22 @@ from godotforge_core.hub.observability import (
     setup_structured_logging,
 )
 from godotforge_core.creator.manifest import (
+    AbilityOverride,
+    AbilityOverrides,
     BehaviorParameters3D,
     CharacterParameters,
     InputMapConfig,
     Physics3DSettings,
     RendererType,
+    WeaponOverride,
+    WeaponOverrides,
 )
 
 __all__ = [
     "APPROVAL_MODE_EXPLICIT_CLI",
     "APPROVAL_SCOPE_APPLY",
+    "AbilityOverride",
+    "AbilityOverrides",
     "CacheEntry",
     "GOAL_SCHEMA_VERSION",
     "RUN_RECORD_SCHEMA_VERSION",
@@ -104,6 +110,7 @@ __all__ = [
     "SPOKE_LEDGER_SCHEMA_VERSION",
     "ActiveRegistration",
     "Authorization",
+    "BehaviorParameters3D",
     "Capability",
     "CharacterParameters",
     "ClarificationIssue",
@@ -126,6 +133,8 @@ __all__ = [
     "SpokeDefinition",
     "SpokeEvent",
     "TimelineEvent",
+    "WeaponOverride",
+    "WeaponOverrides",
     "_compute_project_root_hash",
     "append_event",
     "can_accept_run",

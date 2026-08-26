@@ -134,16 +134,15 @@
     },
     "physics_3d": {
       "type": "object",
+      "description": "Numeric fields are canonical decimal strings (e.g. \"9.8\"), matching every other numeric field in this schema and GoalSpec.as_dict()'s actual serialization — never a bare JSON number (see PATCH-0016-amendment.md's canonical numeric serialization contract).",
       "properties": {
         "gravity": {
-          "type": "number",
-          "minimum": 0.1,
-          "maximum": 50.0
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
         },
         "floor_snap_length": {
-          "type": "number",
-          "minimum": 0.1,
-          "maximum": 2.0
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
         }
       },
       "additionalProperties": false
@@ -275,7 +274,77 @@
         }
       },
       "additionalProperties": false
+    },
+    "weapon_overrides": {
+      "type": "object",
+      "description": "Goal-tunable weapon stats, keyed by weapon id. Fields left unset keep the template's fixed default for that weapon.",
+      "properties": {
+        "rifle": { "$ref": "#/$defs/weaponOverride" },
+        "shotgun": { "$ref": "#/$defs/weaponOverride" },
+        "sniper": { "$ref": "#/$defs/weaponOverride" }
+      },
+      "additionalProperties": false
+    },
+    "ability_overrides": {
+      "type": "object",
+      "description": "Goal-tunable ability stats, keyed by ability id. Fields left unset keep the template's fixed default for that ability.",
+      "properties": {
+        "dash": { "$ref": "#/$defs/abilityOverride" },
+        "shield": { "$ref": "#/$defs/abilityOverride" },
+        "heal": { "$ref": "#/$defs/abilityOverride" }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "weaponOverride": {
+      "type": "object",
+      "properties": {
+        "damage": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        },
+        "fire_rate": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        },
+        "magazine_size": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "pellet_count": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "reload_time": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "abilityOverride": {
+      "type": "object",
+      "properties": {
+        "cooldown": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        },
+        "duration": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        },
+        "magnitude": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        },
+        "radius": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.?[0-9]*$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }
