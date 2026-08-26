@@ -65,7 +65,7 @@ wheels = [
 
 [[package]]
 name = "godotforge-cli"
-version = "0.1.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -94,7 +94,7 @@ dev = [
 
 [[package]]
 name = "godotforge-core"
-version = "0.1.0"
+version = "0.6.0"
 source = { editable = "packages/godotforge-core" }
 dependencies = [
     { name = "jsonschema" },
