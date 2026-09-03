@@ -29,7 +29,7 @@ import re
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -234,10 +234,9 @@ def _append_event(
     # Include last_seen in the written JSON (ISO8601 UTC) but NOT in the hash chain
     # This maintains backward compatibility: old readers ignore it, new readers use it
     event_dict = event.as_dict()
-    event_dict["last_seen"] = datetime.now(timezone.utc).isoformat()
+    event_dict["last_seen"] = datetime.now(UTC).isoformat()
     new_line = (
-        json.dumps(event_dict, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        + "\n"
+        json.dumps(event_dict, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
     )
 
     # Read existing content for atomic append
@@ -593,7 +592,7 @@ def is_healthy(state: RegistryState, max_age_seconds: float = 300.0) -> dict[str
     Deregistered spokes are excluded (only active spokes are checked).
     Missing or unparseable ``last_seen`` is treated as unhealthy.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     healthy: dict[str, bool] = {}
 
     # Get the ledger root from the state (set by discover_spokes)

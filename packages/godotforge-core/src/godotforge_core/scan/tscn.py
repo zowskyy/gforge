@@ -20,6 +20,7 @@ _EXT_RE = re.compile(r'ExtResource\(\s*"([^"]*)"\s*\)')
 @dataclass
 class ExtResourceRef:
     """ExtResourceRef — production class."""
+
     id: str
     type: str | None
     path: str | None
@@ -28,6 +29,7 @@ class ExtResourceRef:
 @dataclass
 class SubResourceRef:
     """SubResourceRef — production class."""
+
     id: str
     type: str | None
 
@@ -35,6 +37,7 @@ class SubResourceRef:
 @dataclass
 class NodeRef:
     """NodeRef — production class."""
+
     name: str
     type: str | None
     parent: str | None
@@ -45,6 +48,7 @@ class NodeRef:
 @dataclass
 class SceneModel:
     """SceneModel — production class."""
+
     path: str
     format: int | None
     uid: str | None

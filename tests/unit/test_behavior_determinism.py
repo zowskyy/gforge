@@ -19,22 +19,17 @@ BASELINE_PLAYER = (
     b"\n"
     b"func _physics_process(_delta: float) -> void:\n"
     b"\tvar direction := 0\n"
-    b"\tif Input.is_action_pressed(\"move_left\"):\n"
+    b'\tif Input.is_action_pressed("move_left"):\n'
     b"\t\tdirection -= 1\n"
-    b"\tif Input.is_action_pressed(\"move_right\"):\n"
+    b'\tif Input.is_action_pressed("move_right"):\n'
     b"\t\tdirection += 1\n"
     b"\tvelocity.x = direction * SPEED\n"
-    b"\tif Input.is_action_just_pressed(\"jump\") and is_on_floor():\n"
+    b'\tif Input.is_action_just_pressed("jump") and is_on_floor():\n'
     b"\t\tvelocity.y = JUMP_VELOCITY\n"
     b"\tvelocity.y += 980.0 * _delta\n"
     b"\tmove_and_slide()\n"
 )
-BASELINE_COIN = (
-    b"extends Area2D\n"
-    b"\n"
-    b"func _on_body_entered(_body: Node) -> void:\n"
-    b"\tqueue_free()\n"
-)
+BASELINE_COIN = b"extends Area2D\n\nfunc _on_body_entered(_body: Node) -> void:\n\tqueue_free()\n"
 
 MANIFEST = {
     "schema_version": 1,
@@ -51,18 +46,23 @@ def test_old_new_bytes_identical() -> None:
     """Old literal bytes must equal registry-loaded bytes (byte identity)."""
     assert load_behavior("platformer_controller") == BASELINE_PLAYER
     assert load_behavior("collectible") == BASELINE_COIN
-    assert hashlib.sha256(load_behavior("platformer_controller")).hexdigest() == hashlib.sha256(
-        BASELINE_PLAYER
-    ).hexdigest()
+    assert (
+        hashlib.sha256(load_behavior("platformer_controller")).hexdigest()
+        == hashlib.sha256(BASELINE_PLAYER).hexdigest()
+    )
 
 
 def test_old_new_desired_hashes_identical(tmp_path: Path) -> None:
     """Old desired hashes must equal new desired hashes for scripts."""
     patch = plan_creator_manifest(tmp_path, MANIFEST)
-    assert hash_bytes(patch.desired_contents["scripts/player_controller.gd"]) == hashlib.sha256(
-        BASELINE_PLAYER
-    ).hexdigest()
-    assert hash_bytes(patch.desired_contents["scripts/coin.gd"]) == hashlib.sha256(BASELINE_COIN).hexdigest()  # noqa: E501
+    assert (
+        hash_bytes(patch.desired_contents["scripts/player_controller.gd"])
+        == hashlib.sha256(BASELINE_PLAYER).hexdigest()
+    )
+    assert (
+        hash_bytes(patch.desired_contents["scripts/coin.gd"])
+        == hashlib.sha256(BASELINE_COIN).hexdigest()
+    )  # noqa: E501
 
 
 def test_old_new_plan_hashes_identical(tmp_path: Path) -> None:
@@ -95,7 +95,10 @@ def test_state_b_plan_hash_differs_from_a_but_bytes_same(tmp_path: Path) -> None
     assert p_b.plan is not None and len(p_b.plan.operations) == 4
     assert compute_plan_hash(p_a.plan) != compute_plan_hash(p_b.plan)
     # But script bytes identical
-    assert p_a.desired_contents["scripts/player_controller.gd"] == p_b.desired_contents["scripts/player_controller.gd"]  # noqa: E501
+    assert (
+        p_a.desired_contents["scripts/player_controller.gd"]
+        == p_b.desired_contents["scripts/player_controller.gd"]
+    )  # noqa: E501
 
 
 def test_registry_ordering_stable() -> None:

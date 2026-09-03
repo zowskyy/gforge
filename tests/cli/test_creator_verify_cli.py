@@ -110,14 +110,16 @@ def test_verify_symlink_rejected(tmp_path: Path) -> None:
     """Symlink project root and nested symlink must be rejected (exit 2)."""
     real = tmp_path / "real"
     real.mkdir()
-    (real / "project.godot").write_text('config_version=5\n', encoding="utf-8")
+    (real / "project.godot").write_text("config_version=5\n", encoding="utf-8")
     link = tmp_path / "link"
     try:
         link.symlink_to(real, target_is_directory=True)
     except OSError:
         pytest.skip("host cannot create symlinks (elevated privilege / Developer Mode required)")  # noqa: E501
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(link), "--format", "json", "creator", "verify", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(link), "--format", "json", "creator", "verify", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 2
 
 
@@ -150,7 +152,9 @@ def test_verify_plan_id_manifest_only(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]
+    )  # noqa: E501
     data = json.loads(r.output)
     assert data["data"]["planId"].startswith("cr-")
     assert data["data"]["verification"]["planHash"] is None
@@ -162,7 +166,9 @@ def test_verify_no_auto_verify_or_rollback(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    _invoke(["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)])  # noqa: E501
+    _invoke(
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]
+    )  # noqa: E501
     # No backup created by verify
     assert not (root / ".godotforge" / "backups").exists() or not any(
         (root / ".godotforge" / "backups").iterdir()
@@ -174,7 +180,14 @@ def test_verify_sanitized_output_no_secrets(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]
+    )  # noqa: E501
     out = r.output
     assert "FORGE_" not in out or "FORGE_GODOT_PATH" not in out
-    assert "<verify-temp>" in out or "TEMP_REDACTED" in out or tmp_path.as_posix() not in out or r.exit_code != 0  # noqa: E501
+    assert (
+        "<verify-temp>" in out
+        or "TEMP_REDACTED" in out
+        or tmp_path.as_posix() not in out
+        or r.exit_code != 0
+    )  # noqa: E501

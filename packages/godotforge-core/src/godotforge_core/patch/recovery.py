@@ -16,6 +16,7 @@ from .models import OperationKind, PatchOperation, PatchPlan
 
 class RecoveryState(StrEnum):
     """RecoveryState — production class."""
+
     NOT_APPLIED = "not_applied"
     APPLIED = "applied"
     UNKNOWN = "unknown"
@@ -24,6 +25,7 @@ class RecoveryState(StrEnum):
 @dataclass(frozen=True)
 class RecoveryEntry:
     """RecoveryEntry — production class."""
+
     operation_index: int
     operation: PatchOperation
     journal_state: JournalState
@@ -34,6 +36,7 @@ class RecoveryEntry:
 @dataclass(frozen=True)
 class RecoveryReport:
     """RecoveryReport — production class."""
+
     transaction_id: str
     plan_id: str
     plan_hash: str

@@ -15,6 +15,7 @@ import click
 
 class LazyGroup(click.Group):
     """LazyGroup — production class."""
+
     def __init__(
         self,
         *args: Any,

@@ -178,7 +178,12 @@ from godotforge_core.patch.backup import create_backup
 ```python
 # At application startup
 from godotforge_core.hub.registry import register_spoke, discover_spokes
-from godotforge_core.hub.definitions import SpokeDefinition, ProviderDescriptor, Capability, Permission
+from godotforge_core.hub.definitions import (
+    SpokeDefinition,
+    ProviderDescriptor,
+    Capability,
+    Permission,
+)
 
 register_spoke(root, reg_id, definition, provider, "Startup")
 ```

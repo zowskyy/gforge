@@ -6,8 +6,7 @@ Covers spoke discovery, health checks, and concurrent run eligibility.
 from __future__ import annotations
 
 import json
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -18,7 +17,6 @@ from godotforge_core.hub.definitions import (
     SpokeDefinition,
 )
 from godotforge_core.hub.registry import (
-    ActiveRegistration,
     LedgerAction,
     RegistryState,
     SpokeEvent,
@@ -122,7 +120,6 @@ def test_discover_spokes_preserves_ledger_order(tmp_path: Path) -> None:
 def test_spoke_event_has_optional_last_seen_field() -> None:
     """SpokeEvent payload includes optional last_seen field (ISO8601 string)."""
     # Create a SpokeEvent with last_seen
-    now = datetime.now(timezone.utc).isoformat()
     event = SpokeEvent(
         seq=1,
         action=LedgerAction.REGISTER,
@@ -137,10 +134,9 @@ def test_spoke_event_has_optional_last_seen_field() -> None:
     )
     # as_dict should include last_seen if present
     # Since we can't directly add it to the dataclass, we test the JSON serialization
-    # The schema change adds it as optional in the payload
-    event_dict = event.as_dict()
-    # last_seen is not in the canonical hash input, so it won't be in as_dict by default
-    # The _append_event will add it to the written JSON
+    # The schema change adds it as optional in the payload; last_seen is not in the
+    # canonical hash input so it won't be in as_dict — _append_event adds it to JSON.
+    event.as_dict()  # verify call does not raise
 
 
 def test_append_event_includes_last_seen_iso8601(tmp_path: Path) -> None:
@@ -234,7 +230,9 @@ def test_is_healthy_returns_false_for_stale_spoke(tmp_path: Path) -> None:
 def test_is_healthy_excludes_deregistered_spokes(tmp_path: Path) -> None:
     """is_healthy only checks currently active (not deregistered) spokes."""
     d1, p1 = _definition(), _provider()
-    d2 = _definition(spoke_id="spoke.creator", caps=(Capability(id="creator.plan", description="p"),))
+    d2 = _definition(
+        spoke_id="spoke.creator", caps=(Capability(id="creator.plan", description="p"),)
+    )
     p2 = _provider(content_hash=H_PROV2, provider_id="godotforge.core.creator")
 
     register_spoke(tmp_path, REG, d1, p1, "one")
@@ -283,12 +281,15 @@ def test_is_healthy_handles_missing_last_seen_gracefully(tmp_path: Path) -> None
 
 def test_can_accept_run_returns_spokes_with_all_required_capabilities(tmp_path: Path) -> None:
     """can_accept_run returns spokes that have ALL required capabilities and are healthy."""
-    d1, p1 = _definition(
-        caps=(
-            Capability(id="patch.apply", description="apply"),
-            Capability(id="patch.preview", description="preview"),
-        )
-    ), _provider()
+    d1, p1 = (
+        _definition(
+            caps=(
+                Capability(id="patch.apply", description="apply"),
+                Capability(id="patch.preview", description="preview"),
+            )
+        ),
+        _provider(),
+    )
     d2 = _definition(
         spoke_id="spoke.creator",
         caps=(Capability(id="creator.plan", description="plan"),),
@@ -310,9 +311,7 @@ def test_can_accept_run_returns_spokes_with_all_required_capabilities(tmp_path: 
 
 def test_can_accept_run_filters_by_health(tmp_path: Path) -> None:
     """can_accept_run excludes unhealthy spokes even if they have capabilities."""
-    d1, p1 = _definition(
-        caps=(Capability(id="patch.apply", description="apply"),)
-    ), _provider()
+    d1, p1 = _definition(caps=(Capability(id="patch.apply", description="apply"),)), _provider()
     d2 = _definition(
         spoke_id="spoke.creator",
         caps=(Capability(id="creator.plan", description="plan"),),

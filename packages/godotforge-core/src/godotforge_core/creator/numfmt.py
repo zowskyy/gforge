@@ -79,9 +79,7 @@ def _to_decimal(value: object, *, name: str) -> Decimal:
     if isinstance(value, int):
         return Decimal(value)
     if isinstance(value, float):
-        raise TypeError(
-            f"{name}: binary float input is forbidden; pass int, str, or Decimal"
-        )
+        raise TypeError(f"{name}: binary float input is forbidden; pass int, str, or Decimal")
     if isinstance(value, str):
         text = value.strip()
         if not _NUMERIC_TEXT_RE.match(text):

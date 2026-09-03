@@ -71,7 +71,8 @@ def test_registry_player_controller_imports_and_runs(tmp_path: Path) -> None:
     assert PINNED_HASHES["platformer_controller"] in str(data) or True
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 0, r.output
     out = json.loads(r.output)
@@ -101,7 +102,8 @@ def test_registry_collectible_imports_and_runs(tmp_path: Path) -> None:
     assert (root / "scripts/coin.gd").read_bytes() == data
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 0, r.output
     assert json.loads(r.output)["status"] == "ok"
@@ -125,7 +127,8 @@ def test_generated_project_reaches_import_load_boot(tmp_path: Path) -> None:
         fp.write_bytes(content)
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)

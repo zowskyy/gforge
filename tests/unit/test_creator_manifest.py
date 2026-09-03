@@ -44,9 +44,7 @@ def test_name_rejects_cr_lf_nul_and_bad_chars() -> None:
 
 def test_name_length() -> None:
     ok = "a" * 64
-    validate_manifest_dict(
-        _base_manifest(game={"name": ok, "template": "2d-platformer-minimal"})
-    )
+    validate_manifest_dict(_base_manifest(game={"name": ok, "template": "2d-platformer-minimal"}))
     with pytest.raises(ValueError, match="too long"):
         validate_manifest_dict(
             _base_manifest(game={"name": "a" * 65, "template": "2d-platformer-minimal"})

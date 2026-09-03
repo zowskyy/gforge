@@ -70,7 +70,7 @@ def test_godot_import_and_load_proof() -> None:
         assert scene.uid is not None and scene.uid.startswith("uid://")
         # Deterministic header
         raw = (root / "scenes/main.tscn").read_text(encoding="utf-8")
-        assert "load_steps=6" in raw and 'format=3' in raw
+        assert "load_steps=6" in raw and "format=3" in raw
 
         # --import gate
         proc = run_process(str(engine), ["--headless", "--path", str(root), "--import"], timeout=60)
@@ -91,8 +91,7 @@ def test_godot_import_and_load_proof() -> None:
         assert not proc.timed_out
         # Normalized must be ok (warnings allowed), no SCRIPT ERROR / UID fatal
         assert norm.status == "ok", (
-            f"import normalized status {norm.status}, "
-            f"diagnostics: {norm.diagnostics[:3]}"
+            f"import normalized status {norm.status}, diagnostics: {norm.diagnostics[:3]}"
         )
         assert "SCRIPT ERROR" not in proc.stderr
         assert "UID" not in proc.stderr or "uid" not in proc.stderr.lower() or norm.status == "ok"
@@ -111,8 +110,6 @@ def test_godot_import_and_load_proof() -> None:
             stage="load",
             engine_version="4.7.1",
         )
-        assert proc2.exit_code == 0, (
-            f"load exit {proc2.exit_code}\nstderr:{proc2.stderr[:2000]}"
-        )
+        assert proc2.exit_code == 0, f"load exit {proc2.exit_code}\nstderr:{proc2.stderr[:2000]}"
         assert norm2.status in {"ok", "warn"}, f"load status {norm2.status}"
         assert "SCRIPT ERROR" not in proc2.stderr

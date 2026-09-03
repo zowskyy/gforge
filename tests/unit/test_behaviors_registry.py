@@ -10,7 +10,6 @@ tactical-shooter template — against the same class of transcription error.
 from __future__ import annotations
 
 import hashlib
-
 import importlib.resources
 
 from godotforge_core.behaviors.registry import (
@@ -50,10 +49,19 @@ def test_every_allowlisted_id_loads_without_raising() -> None:
 def test_3d_behavior_ids_present() -> None:
     ids = set(allowed_behavior_ids())
     expected = {
-        "event_bus", "character_data", "weapon_data", "ability_data",
-        "game_manager", "input_manager", "damageable", "ability_system",
-        "district_zone_behavior", "bot_state_machine", "weapon_controller",
-        "hud_controller", "player_controller_3d",
+        "event_bus",
+        "character_data",
+        "weapon_data",
+        "ability_data",
+        "game_manager",
+        "input_manager",
+        "damageable",
+        "ability_system",
+        "district_zone_behavior",
+        "bot_state_machine",
+        "weapon_controller",
+        "hud_controller",
+        "player_controller_3d",
         "external/world_generator/map_generator",
         "external/world_generator/city_noise_generator",
         "external/world_generator/terrain_utils",

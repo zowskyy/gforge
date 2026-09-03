@@ -4,22 +4,18 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import pytest
-from godotforge_core.hub.run_record import (
-    RunEventKind,
-    append_event,
-)
 from godotforge_core.hub.observability import (
-    RunMetrics,
-    TimelineEvent,
     compute_metrics,
     get_run_logger,
     get_timeline,
     setup_structured_logging,
 )
-
+from godotforge_core.hub.run_record import (
+    RunEventKind,
+    append_event,
+)
 
 H = "a" * 64
 H2 = "b" * 64
@@ -79,7 +75,12 @@ def _full_run_failed(root: Path, run_id: str = RUN) -> None:
     append_event(root, run_id, RunEventKind.AUTHORIZATION_RECORDED, AUTH_PAYLOAD)
     append_event(root, run_id, RunEventKind.APPLY_COMMITTED, APPLY_PAYLOAD)
     append_event(root, run_id, RunEventKind.VALIDATION_COMPLETED, VALIDATION_PAYLOAD_FAILED)
-    append_event(root, run_id, RunEventKind.RUN_FAILED, {"reason": "validation_failed", "stage": "validation"})
+    append_event(
+        root,
+        run_id,
+        RunEventKind.RUN_FAILED,
+        {"reason": "validation_failed", "stage": "validation"},
+    )
 
 
 def _noop_run(root: Path, run_id: str = RUN) -> None:
@@ -91,9 +92,11 @@ def _noop_run(root: Path, run_id: str = RUN) -> None:
 
 def _create_artifact_files(root: Path) -> None:
     """Create actual artifact files for size correlation."""
-    (root / "project.godot").write_text("config_version=5\n[application]\nconfig/name=\"Test\"\n")
+    (root / "project.godot").write_text('config_version=5\n[application]\nconfig/name="Test"\n')
     (root / "scenes").mkdir()
-    (root / "scenes" / "main.tscn").write_text("[gd_scene load_steps=1 format=3]\n[ext_resource path=\"res://script.gd\" type=\"Script\" id=1]")
+    (root / "scenes" / "main.tscn").write_text(
+        '[gd_scene load_steps=1 format=3]\n[ext_resource path="res://script.gd" type="Script" id=1]'
+    )
 
 
 class TestComputeMetrics:
@@ -187,13 +190,17 @@ class TestGetRunLogger:
         assert kwargs1["extra"]["run_id"] == "run-111111111111"
         assert kwargs2["extra"]["run_id"] == "run-222222222222"
 
-    def test_setup_structured_logging_configures_format(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_setup_structured_logging_configures_format(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         # Don't call setup_structured_logging - it replaces handlers
         # Instead test that the format string is correct
         from godotforge_core.hub.observability import _RunIdFilter
+
         filter_obj = _RunIdFilter()
         # Filter should always return True and ensure run_id exists
         import logging
+
         record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
         assert filter_obj.filter(record) is True
         assert record.run_id == "N/A"  # Default when not set
@@ -290,12 +297,14 @@ class TestGetTimeline:
 
 
 def _finalize_run(root: Path, run_id: str = RUN) -> None:
-    from godotforge_core.hub.run_record import fold_run, compute_proof_for_outcome, read_events
+    from godotforge_core.hub.run_record import compute_proof_for_outcome, fold_run, read_events
 
     events = read_events(root, run_id)
     record = fold_run(events, run_id)
     proof = compute_proof_for_outcome(record, "applied")
-    append_event(root, run_id, RunEventKind.RUN_FINALIZED, {"proof_hash": proof, "outcome": "applied"})
+    append_event(
+        root, run_id, RunEventKind.RUN_FINALIZED, {"proof_hash": proof, "outcome": "applied"}
+    )
 
 
 class TestSetupStructuredLogging:
@@ -313,4 +322,5 @@ class TestSetupStructuredLogging:
         setup_structured_logging(logging.INFO)
         logger = logging.getLogger()
         from godotforge_core.hub.observability import _RunIdFilter
+
         assert any(isinstance(f, _RunIdFilter) for f in logger.filters)

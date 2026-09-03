@@ -14,6 +14,7 @@ _HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 class OperationKind(StrEnum):
     """OperationKind — production class."""
+
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
@@ -23,6 +24,7 @@ class OperationKind(StrEnum):
 
 class TransactionStatus(StrEnum):
     """TransactionStatus — production class."""
+
     PLANNED = "planned"
     PREVIEWED = "previewed"
     APPROVED = "approved"
@@ -119,6 +121,7 @@ def _validate_relative_path(value: str | None, field_name: str) -> None:
 @dataclass(frozen=True)
 class PatchOperation:
     """PatchOperation — production class."""
+
     kind: OperationKind
     path: str | None = None
     from_path: str | None = None
@@ -206,6 +209,7 @@ class PatchOperation:
 @dataclass(frozen=True)
 class PatchPlan:
     """PatchPlan — production class."""
+
     id: str
     operations: tuple[PatchOperation, ...]
     created_at: str | None = None
@@ -241,6 +245,7 @@ class PatchPlan:
 @dataclass(frozen=True)
 class BackupRecord:
     """BackupRecord — production class."""
+
     path: str
     backup_path: str
     hash: str | None
@@ -276,6 +281,7 @@ class BackupRecord:
 @dataclass(frozen=True)
 class Transaction:
     """Transaction — production class."""
+
     id: str
     plan: PatchPlan
     status: TransactionStatus
@@ -328,6 +334,7 @@ class Transaction:
 @dataclass(frozen=True)
 class Conflict:
     """Conflict — production class."""
+
     path: str
     expected_hash: str | None
     actual_hash: str | None
@@ -368,6 +375,7 @@ class Conflict:
 @dataclass(frozen=True)
 class PatchResult:
     """PatchResult — production class."""
+
     transaction_id: str
     status: TransactionStatus
     conflicts: tuple[Conflict, ...] = field(default_factory=tuple)

@@ -21,6 +21,7 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -280,7 +281,12 @@ def append_event(
                 pass
         raise
 
-    append_audit(root, run_id, "append_run_record", {"kind": kind.value, "seq": seq, "event_hash": event.event_hash})
+    append_audit(
+        root,
+        run_id,
+        "append_run_record",
+        {"kind": kind.value, "seq": seq, "event_hash": event.event_hash},
+    )
     return event
 
 

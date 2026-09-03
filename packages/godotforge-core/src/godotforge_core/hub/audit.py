@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +83,7 @@ def append_audit(
         "schema_version": AUDIT_LOG_SCHEMA_VERSION,
         "run_id": run_id,
         "action": action,
-        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "details": dict(details),
     }
 

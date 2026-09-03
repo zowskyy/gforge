@@ -35,9 +35,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import jsonschema
 
@@ -77,7 +78,19 @@ _FIXED_INPUTS_3D: tuple[dict[str, str], ...] = (
     {"name": "interact", "binding": "interact"},
 )
 
-_ALLOWED_TOP_LEVEL_KEYS = frozenset({"schema_version", "game", "parameters", "renderer", "physics_3d", "input_map", "directory_structure", "external_repos", "resources"})
+_ALLOWED_TOP_LEVEL_KEYS = frozenset(
+    {
+        "schema_version",
+        "game",
+        "parameters",
+        "renderer",
+        "physics_3d",
+        "input_map",
+        "directory_structure",
+        "external_repos",
+        "resources",
+    }
+)
 _ALLOWED_GAME_KEYS = frozenset({"name", "template"})
 _ALLOWED_BEHAVIOR_KEYS_2D = frozenset({"platformer_controller"})
 _ALLOWED_BEHAVIOR_KEYS_3D = frozenset({"enforcer", "scout", "fixer"})
@@ -225,7 +238,9 @@ def _reject_path_like(value: str, *, field: str) -> None:
         raise ValueError(f"{field} must not contain paths or traversal: {value!r}")
 
 
-def load_goal_text(text: str, *, format: str = "yaml", max_size: int | None = None) -> dict[str, Any]:
+def load_goal_text(
+    text: str, *, format: str = "yaml", max_size: int | None = None
+) -> dict[str, Any]:
     """load_goal_text — parse structured YAML/JSON goal text via the shared
     Decimal-preserving, duplicate-rejecting ingestion boundary.
 
@@ -319,7 +334,12 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
     if template == "3d-tactical-shooter":
         prefix = "parameters.enforcer"  # default to enforcer, can be extended
         if raw is None:
-            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
+            return {}, (
+                f"{prefix}.health",
+                f"{prefix}.armor",
+                f"{prefix}.move_speed",
+                f"{prefix}.sprint_multiplier",
+            )
         if not isinstance(raw, dict):
             raise ValueError(f"parameters must be a mapping, got {raw!r}")
         unknown_behaviors = set(raw) - _ALLOWED_BEHAVIOR_KEYS_3D
@@ -330,7 +350,12 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
             )
         behavior = raw.get("enforcer")  # default to enforcer
         if behavior is None:
-            return {}, (f"{prefix}.health", f"{prefix}.armor", f"{prefix}.move_speed", f"{prefix}.sprint_multiplier")
+            return {}, (
+                f"{prefix}.health",
+                f"{prefix}.armor",
+                f"{prefix}.move_speed",
+                f"{prefix}.sprint_multiplier",
+            )
         if not isinstance(behavior, dict):
             raise ValueError(f"parameters.enforcer must be a mapping, got {behavior!r}")
         unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_3D
@@ -340,7 +365,9 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
                 f"supported: {sorted(_ALLOWED_PARAMETER_KEYS_3D)}"
             )
         defaults = tuple(
-            f"{prefix}.{name}" for name in ("health", "armor", "move_speed", "sprint_multiplier") if name not in behavior
+            f"{prefix}.{name}"
+            for name in ("health", "armor", "move_speed", "sprint_multiplier")
+            if name not in behavior
         )
         return {"enforcer": dict(behavior)}, defaults
     else:
@@ -360,7 +387,9 @@ def _resolve_parameters(raw: Any, template: str) -> tuple[dict[str, Any], tuple[
         if behavior is None:
             return {}, (f"{prefix}.speed", f"{prefix}.jump_velocity")
         if not isinstance(behavior, dict):
-            raise ValueError(f"parameters.platformer_controller must be a mapping, got {behavior!r}")
+            raise ValueError(
+                f"parameters.platformer_controller must be a mapping, got {behavior!r}"
+            )
         unknown_params = set(behavior) - _ALLOWED_PARAMETER_KEYS_2D
         if unknown_params:
             raise ValueError(
@@ -459,16 +488,16 @@ def compile_goal(data: dict[str, Any]) -> GoalCompilation:
             f"unknown template {template!r}; supported: {list(registered_templates())}"
         )
 
-    # Get template-specific fixed inputs
-    fixed_inputs = _FIXED_INPUTS_3D if template == "3d-tactical-shooter" else _FIXED_INPUTS
-    
     # Resolve parameters with template awareness
     parameters_dict, resolved_defaults = _resolve_parameters(data.get("parameters"), template)
 
     manifest_dict: dict[str, Any] = {
         "schema_version": _TEMPLATES[template],
         "game": {"name": name, "template": template},
-        "input": [dict(entry) for entry in (_FIXED_INPUTS_3D if template == "3d-tactical-shooter" else _FIXED_INPUTS)],
+        "input": [
+            dict(entry)
+            for entry in (_FIXED_INPUTS_3D if template == "3d-tactical-shooter" else _FIXED_INPUTS)
+        ],
         "parameters": parameters_dict,
     }
     # 3D-specific optional fields must be merged in *before* validation so

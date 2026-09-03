@@ -19,6 +19,7 @@ OUTPUT_SCHEMA_VERSION = 1
 
 class OutputFormat(StrEnum):
     """OutputFormat — production class."""
+
     HUMAN = "human"
     JSON = "json"
     JSONL = "jsonl"
@@ -28,6 +29,7 @@ class OutputFormat(StrEnum):
 @dataclass
 class Envelope:
     """Envelope — production class."""
+
     schema_version: int = OUTPUT_SCHEMA_VERSION
     command: str = ""
     status: str = "ok"

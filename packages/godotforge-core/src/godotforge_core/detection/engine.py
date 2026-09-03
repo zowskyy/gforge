@@ -14,12 +14,14 @@ from pathlib import Path
 
 class Flavor(StrEnum):
     """Flavor — production class."""
+
     STANDARD = "standard"
     MONO = "mono"
 
 
 class EngineInfo:
     """EngineInfo — production class."""
+
     __slots__ = ("executable", "raw_version", "version", "flavor")
 
     def __init__(self, executable: Path, raw_version: str, version: str, flavor: str) -> None:
@@ -41,6 +43,7 @@ class EngineInfo:
 @dataclass(frozen=True)
 class EngineProbeResult:
     """EngineProbeResult — production class."""
+
     executable: str
     version: str
     flavor: str

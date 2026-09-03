@@ -421,7 +421,9 @@ def test_backup_destination_under_workspace(tmp_path: pathlib.Path) -> None:
 
 def _win_permission_error(winerror: int) -> OSError:
     """A PermissionError carrying a specific `.winerror`, as Windows raises."""
-    return OSError(errno.EACCES, "simulated access denied", None, winerror)
+    exc = OSError(errno.EACCES, "simulated access denied")
+    exc.winerror = winerror  # OSError(errno, msg, None, winerror) only sets .winerror on Windows
+    return exc
 
 
 def _make_backup_plan(tmp_path: pathlib.Path) -> tuple[PatchPlan, PreconditionReport]:
@@ -491,6 +493,7 @@ def test_promote_backup_dir_winerror5_then_success(
         return None
 
     monkeypatch.setattr(backup_module.os, "replace", _replace)
+    monkeypatch.setattr(backup_module.sys, "platform", "win32")
     sleeps: list[float] = []
 
     _promote_backup_dir(tmp_path / "tx-w5.tmp", tmp_path / "tx-w5", sleep=sleeps.append)
@@ -516,6 +519,7 @@ def test_promote_backup_dir_winerror32_then_success(
         return None
 
     monkeypatch.setattr(backup_module.os, "replace", _replace)
+    monkeypatch.setattr(backup_module.sys, "platform", "win32")
     sleeps: list[float] = []
 
     _promote_backup_dir(tmp_path / "tx-w32.tmp", tmp_path / "tx-w32", sleep=sleeps.append)
@@ -557,6 +561,7 @@ def test_promote_backup_dir_exhausts_retries_and_cleans_up(
     final_dir = tmp_path / ".godotforge" / "backups" / "tx-exhaust"
     replace_fn, calls = _flaky_replace(fail_times=99, winerror=5, only_dst=final_dir)
     monkeypatch.setattr(backup_module.os, "replace", replace_fn)
+    monkeypatch.setattr(backup_module.sys, "platform", "win32")
     sleeps: list[float] = []
     monkeypatch.setattr(backup_module.time, "sleep", lambda s: sleeps.append(s))
 

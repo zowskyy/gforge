@@ -41,7 +41,5 @@ def test_hub_schema_parity(name: str) -> None:
 def test_hub_schemas_are_valid_jsonschema(name: str) -> None:
     import jsonschema
 
-    schema = json.loads(
-        (files("godotforge_core") / "schemas" / name).read_text(encoding="utf-8")
-    )
+    schema = json.loads((files("godotforge_core") / "schemas" / name).read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator.check_schema(schema)

@@ -147,7 +147,9 @@ def load_behavior(behavior_id: str) -> bytes:
         raise FileNotFoundError(f"behavior resource missing: {behavior_id}: {exc}") from exc
     actual = hashlib.sha256(data).hexdigest()
     if actual != expected:
-        raise ValueError(f"behavior hash mismatch for {behavior_id!r}: expected {expected}, got {actual}")  # noqa: E501
+        raise ValueError(
+            f"behavior hash mismatch for {behavior_id!r}: expected {expected}, got {actual}"
+        )  # noqa: E501
     return data
 
 

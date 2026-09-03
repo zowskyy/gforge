@@ -137,8 +137,8 @@ Append a tombstone for an active registration. The original register event remai
 ```python
 @dataclass(frozen=True)
 class RegistryState:
-    active: dict[str, ActiveRegistration]    # spoke_id → registration
-    history: tuple[SpokeEvent, ...]           # all events (register + tombstones)
+    active: dict[str, ActiveRegistration]  # spoke_id → registration
+    history: tuple[SpokeEvent, ...]  # all events (register + tombstones)
 ```
 
 ### `ActiveRegistration`
@@ -158,7 +158,7 @@ class ActiveRegistration:
 @dataclass(frozen=True)
 class SpokeEvent:
     seq: int
-    action: LedgerAction          # REGISTER | DEREGISTER
+    action: LedgerAction  # REGISTER | DEREGISTER
     registration_id: str
     spoke_id: str
     definition_hash: str

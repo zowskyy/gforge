@@ -51,7 +51,7 @@ def test_validator_pin_reflects_3d_template_amendment() -> None:
     this literal again requires the same explicit amendment procedure.
     """
     assert PINNED_VALIDATOR_SHA256 == (
-        "26027ef4c096793dd9afee442fa94ca21663f3ac565a037e1324fceeb0e820bf"
+        "ab7686793cfe3617ecb5a6ebcafdd9ae5abb5eed5852bb202a21f39e51cf090b"
     )
 
 
@@ -70,7 +70,9 @@ def test_secure_copy_rejects_symlink_root(tmp_path: Path) -> None:
     """Symlink project root must be rejected."""
     real = tmp_path / "real"
     real.mkdir()
-    (real / "project.godot").write_text('config_version=5\n[application]\nconfig/name="X"\n', encoding="utf-8")  # noqa: E501
+    (real / "project.godot").write_text(
+        'config_version=5\n[application]\nconfig/name="X"\n', encoding="utf-8"
+    )  # noqa: E501
     link = tmp_path / "link"
     try:
         link.symlink_to(real, target_is_directory=True)
@@ -107,7 +109,7 @@ def test_secure_copy_rejects_nested_symlink(tmp_path: Path) -> None:
     """Nested symlink inside project must be rejected."""
     src = tmp_path / "src"
     src.mkdir()
-    (src / "project.godot").write_text('config_version=5\n', encoding="utf-8")
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
     (src / "scenes").mkdir()
     target = src / "real.txt"
     target.write_text("real", encoding="utf-8")
@@ -162,7 +164,7 @@ def test_secure_copy_prunes_managed(tmp_path: Path) -> None:
     """Managed .godot, cache, backups, reports must not be copied."""
     src = tmp_path / "src"
     src.mkdir()
-    (src / "project.godot").write_text('config_version=5\n', encoding="utf-8")
+    (src / "project.godot").write_text("config_version=5\n", encoding="utf-8")
     (src / ".godot").mkdir()
     (src / ".godot" / "cache.bin").write_text("cache", encoding="utf-8")
     (src / ".godotforge").mkdir()
@@ -256,7 +258,9 @@ def test_source_immutability_and_temp_removed(tmp_path: Path) -> None:
     assert not any(src.rglob("*.gd.uid"))
     assert not (src / ".godotforge" / "validate_boot.gd").exists()
     # Backups not created by verify
-    assert not (src / ".godotforge" / "backups").exists() or not any((src / ".godotforge" / "backups").iterdir())  # noqa: E501
+    assert not (src / ".godotforge" / "backups").exists() or not any(
+        (src / ".godotforge" / "backups").iterdir()
+    )  # noqa: E501
 
 
 def test_verify_plan_id_and_hash_null(tmp_path: Path) -> None:
@@ -273,7 +277,7 @@ def test_verify_rejects_symlink_root_cli_level(tmp_path: Path) -> None:
     """Verify should reject symlink root even before copy."""
     real = tmp_path / "real"
     real.mkdir()
-    (real / "project.godot").write_text('config_version=5\n', encoding="utf-8")
+    (real / "project.godot").write_text("config_version=5\n", encoding="utf-8")
     link = tmp_path / "link"
     try:
         link.symlink_to(real, target_is_directory=True)

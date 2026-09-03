@@ -59,9 +59,9 @@ Verify both run-record chain and spoke ledger. Runs `verify_chain` on the run-re
 **Returns:**
 ```python
 {
-    "run_records": True,      # bool
-    "spoke_ledger": True,     # bool
-    "issues": []              # list[str]
+    "run_records": True,  # bool
+    "spoke_ledger": True,  # bool
+    "issues": [],  # list[str]
 }
 ```
 

@@ -44,6 +44,7 @@ IGNORED_SHUTDOWN_PATTERNS: dict[str, tuple[str, ...]] = {
 @dataclass(frozen=True)
 class NormalizedDiagnostic:
     """NormalizedDiagnostic — production class."""
+
     severity: str  # error | warning | info
     code: str | None
     message: str
@@ -58,6 +59,7 @@ class NormalizedDiagnostic:
 @dataclass(frozen=True)
 class NormalizedResult:
     """NormalizedResult — production class."""
+
     status: str  # ok | fail | warn | inconclusive
     exit_code: int
     duration_ms: float
