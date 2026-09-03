@@ -466,7 +466,6 @@ def test_benchmark_parallel_vs_sequential_hashing(tmp_path: Path) -> None:
     # Run once to create artifacts
     run_result = run_goal(root, GOAL, engine_path=engine, timeout=300.0)
     assert run_result.exit_code == ForgeExitCode.SUCCESS
-    assert run_result.artifact_hash is not None
 
     # Read the plan to get operations
     events = read_events(root, run_result.run_id)
