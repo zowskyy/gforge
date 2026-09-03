@@ -17,6 +17,7 @@ from ..version import __version__
 @dataclass
 class DoctorCheck:
     """DoctorCheck — production class."""
+
     name: str
     status: str  # "ok" | "warn" | "fail"
     detail: str
@@ -26,6 +27,7 @@ class DoctorCheck:
 @dataclass
 class DoctorResult:
     """DoctorResult — production class."""
+
     status: str  # "ok" | "warn" | "fail"
     checks: list[DoctorCheck]
     exit_code: int = 0

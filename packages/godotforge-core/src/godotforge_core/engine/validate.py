@@ -21,6 +21,7 @@ from .runner import CaptureConfig, ProcessResult, run_process
 
 class ValidateMode(StrEnum):
     """ValidateMode — production class."""
+
     IMPORT = "import"
     LOAD = "load"
     BOOT = "boot"
@@ -30,6 +31,7 @@ class ValidateMode(StrEnum):
 @dataclass(frozen=True)
 class StageResult:
     """StageResult — production class."""
+
     stage: str
     command: tuple[str, ...]
     process: ProcessResult
@@ -41,6 +43,7 @@ class StageResult:
 @dataclass(frozen=True)
 class ValidationResult:
     """ValidationResult — production class."""
+
     project_root: str
     engine: EngineProbeResult | None
     mode: str

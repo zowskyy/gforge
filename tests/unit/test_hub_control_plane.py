@@ -49,8 +49,14 @@ def _fake_symlink_lstat(monkeypatch: pytest.MonkeyPatch, *targets: Path) -> None
 
 
 def test_exact_four_control_plane_files() -> None:
-    from godotforge_core.hub_control_plane import AUDIT_LOG_RELATIVE, PLAN_CACHE_RELATIVE
-    assert HUB_METADATA_FILES == (RUN_RECORDS_RELATIVE, SPOKE_LEDGER_RELATIVE, AUDIT_LOG_RELATIVE, PLAN_CACHE_RELATIVE)
+    from godotforge_core.hub_control_plane import AUDIT_LOG_RELATIVE
+
+    assert HUB_METADATA_FILES == (
+        RUN_RECORDS_RELATIVE,
+        SPOKE_LEDGER_RELATIVE,
+        AUDIT_LOG_RELATIVE,
+        PLAN_CACHE_RELATIVE,
+    )
     assert RUN_RECORDS_RELATIVE == ".godotforge/hub/run-records.jsonl"
     assert SPOKE_LEDGER_RELATIVE == ".godotforge/hub/spoke-ledger.jsonl"
     assert AUDIT_LOG_RELATIVE == ".godotforge/hub/audit.jsonl"
@@ -58,7 +64,8 @@ def test_exact_four_control_plane_files() -> None:
 
 
 def test_is_hub_metadata_relpath_exact_only() -> None:
-    from godotforge_core.hub_control_plane import AUDIT_LOG_RELATIVE, PLAN_CACHE_RELATIVE
+    from godotforge_core.hub_control_plane import AUDIT_LOG_RELATIVE
+
     assert is_hub_metadata_relpath(RUN_RECORDS_RELATIVE)
     assert is_hub_metadata_relpath(SPOKE_LEDGER_RELATIVE)
     assert is_hub_metadata_relpath(AUDIT_LOG_RELATIVE)
@@ -82,7 +89,6 @@ def test_validate_hub_metadata_dir_no_hub_subdir_is_empty(tmp_path: Path) -> Non
 
 
 def test_validate_hub_metadata_dir_accepts_all_four_exact_files(tmp_path: Path) -> None:
-    from godotforge_core.hub_control_plane import AUDIT_LOG_RELATIVE, PLAN_CACHE_RELATIVE
     hub_dir = tmp_path / ".godotforge" / "hub"
     hub_dir.mkdir(parents=True)
     (hub_dir / "run-records.jsonl").write_text("{}\n")

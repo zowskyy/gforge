@@ -70,7 +70,9 @@ def test_state_a_empty_six_ops_four_diffs(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)
     assert data["command"] == "creator.preview"
@@ -101,7 +103,9 @@ def test_state_b_skeleton_four_ops(tmp_path: Path) -> None:
     (root / "scenes").mkdir()
     (root / "scripts").mkdir()
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)
     assert data["data"]["noop"] is False
@@ -126,7 +130,9 @@ def test_state_c_noop_planHash_null(tmp_path: Path) -> None:
         fp.parent.mkdir(parents=True, exist_ok=True)
         fp.write_bytes(data)
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)
     assert data["data"]["noop"] is True
@@ -139,8 +145,12 @@ def test_apply_without_flag_same_as_preview(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r1 = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
-    r2 = _invoke(["--project", str(root), "--format", "json", "creator", "apply", "--manifest", str(mf)])  # noqa: E501
+    r1 = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
+    r2 = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "apply", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r1.exit_code == 0 and r2.exit_code == 0
     d1 = json.loads(r1.output)
     d2 = json.loads(r2.output)
@@ -155,7 +165,19 @@ def test_apply_creates_backup_and_next_preview_noop_with_backups(tmp_path: Path)
     root.mkdir()
     mf = _write_manifest(tmp_path)
     # Apply
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "apply", "--manifest", str(mf), "--apply"])  # noqa: E501
+    r = _invoke(
+        [
+            "--project",
+            str(root),
+            "--format",
+            "json",
+            "creator",
+            "apply",
+            "--manifest",
+            str(mf),
+            "--apply",
+        ]
+    )  # noqa: E501
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)
     assert data["data"]["applied"] is True
@@ -167,7 +189,9 @@ def test_apply_creates_backup_and_next_preview_noop_with_backups(tmp_path: Path)
     assert (backups[0] / "manifest.json").is_file()
     assert (backups[0] / "apply_journal.json").is_file()
     # Next preview allows backups and is noop
-    r2 = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r2 = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r2.exit_code == 0, r2.output
     d2 = json.loads(r2.output)
     assert d2["data"]["noop"] is True
@@ -181,7 +205,9 @@ def test_unknown_godotforge_rejected_exit2(tmp_path: Path) -> None:
     (root / ".godotforge/project.yaml").write_text("name: test\n", encoding="utf-8")
     (root / ".godotforge/evil.yaml").write_text("bad: 1\n", encoding="utf-8")
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 2
     # JSON envelope not emitted on preflight 2 via reraise (stderr message)
     assert "unexpected file" in r.output or "evil" in r.output.lower() or r.exit_code == 2
@@ -203,11 +229,25 @@ def test_divergent_generated_file_exit4(tmp_path: Path) -> None:
     (root / "project.godot").write_bytes(b"divergent content\n")
     mf = _write_manifest(tmp_path)
     # Preview still returns plan (not preflight 2)
-    r_prev = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r_prev = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r_prev.exit_code == 0
     assert json.loads(r_prev.output)["data"]["noop"] is False
     # Apply should fail with check_plan already_exists → 4
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "apply", "--manifest", str(mf), "--apply"])  # noqa: E501
+    r = _invoke(
+        [
+            "--project",
+            str(root),
+            "--format",
+            "json",
+            "creator",
+            "apply",
+            "--manifest",
+            str(mf),
+            "--apply",
+        ]
+    )  # noqa: E501
     assert r.exit_code == 4, r.output
     data = json.loads(r.output)
     assert data["status"] == "fail"
@@ -219,7 +259,9 @@ def test_invalid_shape_partial_materialization_exit2(tmp_path: Path) -> None:
     root.mkdir()
     (root / "unexpected.txt").write_text("oops", encoding="utf-8")
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r.exit_code == 2
 
 
@@ -227,8 +269,12 @@ def test_cross_format_envelope_semantics(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r_json = _invoke(["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
-    r_human = _invoke(["--project", str(root), "--format", "human", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r_json = _invoke(
+        ["--project", str(root), "--format", "json", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
+    r_human = _invoke(
+        ["--project", str(root), "--format", "human", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r_json.exit_code == 0 and r_human.exit_code == 0
     d = json.loads(r_json.output)
     assert all(k in d["data"] for k in ("applied", "noop", "diff", "planId", "planHash"))
@@ -236,7 +282,9 @@ def test_cross_format_envelope_semantics(tmp_path: Path) -> None:
     assert d["data"]["planId"] in r_human.output
     assert d["data"]["planHash"] in r_human.output
     # JSONL: summary record then diagnostics
-    r_jsonl = _invoke(["--project", str(root), "--format", "jsonl", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r_jsonl = _invoke(
+        ["--project", str(root), "--format", "jsonl", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r_jsonl.exit_code == 0
     lines = [json.loads(line) for line in r_jsonl.output.strip().splitlines() if line.strip()]
     summary = next(x for x in lines if x.get("record") == "summary")
@@ -244,7 +292,9 @@ def test_cross_format_envelope_semantics(tmp_path: Path) -> None:
     assert summary["planHash"] == d["data"]["planHash"]
     assert summary["applied"] == d["data"]["applied"]
     # SARIF is valid JSON with runs
-    r_sarif = _invoke(["--project", str(root), "--format", "sarif", "creator", "preview", "--manifest", str(mf)])  # noqa: E501
+    r_sarif = _invoke(
+        ["--project", str(root), "--format", "sarif", "creator", "preview", "--manifest", str(mf)]
+    )  # noqa: E501
     assert r_sarif.exit_code == 0
     sarif = json.loads(r_sarif.output)
     assert sarif["version"] == "2.1.0"
@@ -254,7 +304,9 @@ def test_dry_run_and_apply_mutual_exclusion(tmp_path: Path) -> None:
     root = tmp_path / "proj"
     root.mkdir()
     mf = _write_manifest(tmp_path)
-    r = _invoke(["--dry-run", "--project", str(root), "creator", "apply", "--manifest", str(mf), "--apply"])  # noqa: E501
+    r = _invoke(
+        ["--dry-run", "--project", str(root), "creator", "apply", "--manifest", str(mf), "--apply"]
+    )  # noqa: E501
     assert r.exit_code == 2
     assert "mutually exclusive" in r.output.lower()
 

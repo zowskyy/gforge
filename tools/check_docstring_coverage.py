@@ -138,9 +138,13 @@ def inspect_file(path: pathlib.Path) -> tuple[list[str], list[str]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check production docstring coverage")
-    parser.add_argument("--minimum", type=float, default=100.0, help="Minimum coverage percent required")  # noqa: E501
+    parser.add_argument(
+        "--minimum", type=float, default=100.0, help="Minimum coverage percent required"
+    )  # noqa: E501
     parser.add_argument("--verbose", action="store_true", help="List missing symbols")
-    parser.add_argument("--list-missing", action="store_true", help="List missing (alias for --verbose)")  # noqa: E501
+    parser.add_argument(
+        "--list-missing", action="store_true", help="List missing (alias for --verbose)"
+    )  # noqa: E501
     args = parser.parse_args()
 
     files = discover_files()
@@ -184,7 +188,9 @@ def main() -> None:
                             continue
                         total_expected += 1
                         if not has_docstring(item):
-                            missing_all.append(f"{rel}:{item.lineno} method {node.name}.{item.name}")  # noqa: E501
+                            missing_all.append(
+                                f"{rel}:{item.lineno} method {node.name}.{item.name}"
+                            )  # noqa: E501
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if is_dunder(node.name):
                     continue

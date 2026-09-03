@@ -88,7 +88,9 @@ def _hash_source_files(root: Path) -> str:
         dirnames[:] = [d for d in dirnames if d not in PRUNED_DIRS]
         # Skip pruned prefixes
         rel_dir = Path(dirpath).relative_to(root).as_posix()
-        if rel_dir != "." and any(rel_dir == p or rel_dir.startswith(p + "/") for p in PRUNED_PREFIXES):  # noqa: E501
+        if rel_dir != "." and any(
+            rel_dir == p or rel_dir.startswith(p + "/") for p in PRUNED_PREFIXES
+        ):  # noqa: E501
             dirnames[:] = []
             continue
         for fn in sorted(filenames):
@@ -139,7 +141,9 @@ def _secure_copy(src: Path, dst: Path) -> None:
                 dirnames.remove(d)
         # Prune prefixes
         rel_dir = Path(dirpath).relative_to(src).as_posix()
-        if rel_dir != "." and any(rel_dir == p or rel_dir.startswith(p + "/") for p in PRUNED_PREFIXES):  # noqa: E501
+        if rel_dir != "." and any(
+            rel_dir == p or rel_dir.startswith(p + "/") for p in PRUNED_PREFIXES
+        ):  # noqa: E501
             dirnames[:] = []
             continue
         # Ensure dest dir exists
@@ -192,9 +196,7 @@ def _inject_validator(dst: Path) -> None:
     dest.write_bytes(data)
 
 
-def _sanitize_result(
-    result: ValidationResult, src_root: Path, tmp_root: Path
-) -> ValidationResult:
+def _sanitize_result(result: ValidationResult, src_root: Path, tmp_root: Path) -> ValidationResult:
     """Sanitize absolute/temporary paths and bound raw output.
 
     - Relativize project_root

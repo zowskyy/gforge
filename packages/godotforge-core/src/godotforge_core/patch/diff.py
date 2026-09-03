@@ -66,6 +66,7 @@ def _render_text_diff(
 @dataclass(frozen=True)
 class DiffEntry:
     """DiffEntry — production class."""
+
     operation_index: int
     kind: OperationKind
     path: str

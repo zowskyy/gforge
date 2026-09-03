@@ -36,6 +36,7 @@ AUTOLOAD_REF_RE = re.compile(r'get_node_or_null\(\s*"/root/(\w+)"')
 @dataclass
 class ScriptDependency:
     """ScriptDependency — production class."""
+
     kind: str
     expression: str
     target: str | None
@@ -47,6 +48,7 @@ class ScriptDependency:
 @dataclass
 class ScriptModel:
     """ScriptModel — production class."""
+
     path: str
     class_name: str | None
     extends: str | None

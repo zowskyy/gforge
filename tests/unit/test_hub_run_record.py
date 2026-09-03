@@ -236,9 +236,7 @@ def test_proof_hash_stable_and_excludes_volatile(tmp_path: Path) -> None:
     _full_run(tmp_path)
     record = fold_run(read_events(tmp_path), RUN)
     proof = compute_proof_hash_forced(record)
-    append_event(
-        tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof}
-    )
+    append_event(tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof})
     final = fold_run(read_events(tmp_path), RUN)
     assert compute_proof_hash(final) == proof
     assert final.proof_hash == proof
@@ -262,9 +260,7 @@ def test_as_dict_matches_schema(tmp_path: Path) -> None:
     _full_run(tmp_path)
     record = fold_run(read_events(tmp_path), RUN)
     proof = compute_proof_hash_forced(record)
-    append_event(
-        tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof}
-    )
+    append_event(tmp_path, RUN, RunEventKind.RUN_FINALIZED, {"outcome": "ok", "proof_hash": proof})
     final = fold_run(read_events(tmp_path), RUN)
     schema = json.loads(
         (files("godotforge_core") / "schemas" / "run-record.schema.json").read_text(

@@ -57,9 +57,9 @@ def test_tscn_section_order_and_load_steps(tmp_path: Path) -> None:
             raise AssertionError(f"{kind} after node")
 
     # load_steps = 1 + ext(2) + sub(3) = 6
-    m = re.search(r'load_steps=(\d+)', tscn_text)
+    m = re.search(r"load_steps=(\d+)", tscn_text)
     assert m is not None and m.group(1) == "6"
-    assert 'format=3' in tscn_text
+    assert "format=3" in tscn_text
     assert 'uid="uid://' in tscn_text
 
 

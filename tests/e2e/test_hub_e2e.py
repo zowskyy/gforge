@@ -16,15 +16,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from godotforge_core.detection.engine import resolve_engine
 from godotforge_core.exit_codes import ForgeExitCode
 from godotforge_core.hub.audit import read_audit, read_audit_for_run
-from godotforge_core.hub.cache import _compute_project_root_hash, get_cached_plan, invalidate_cache
-from godotforge_core.hub.goal import load_goal_text
-from godotforge_core.hub.orchestrator import HubRunResult, preview_goal, resume_run, run_goal
+from godotforge_core.hub.cache import get_cached_plan
+from godotforge_core.hub.definitions import Capability, Permission
+from godotforge_core.hub.orchestrator import (
+    _new_run_id,
+    preview_goal,
+    resume_run,
+    run_goal,
+)
 from godotforge_core.hub.registry import (
-    ActiveRegistration,
     LedgerAction,
     ProviderDescriptor,
     SpokeDefinition,
@@ -33,10 +36,8 @@ from godotforge_core.hub.registry import (
     discover_spokes,
     fold_registry,
     is_healthy,
-    read_ledger,
     register_spoke,
 )
-from godotforge_core.hub.definitions import Capability, Permission
 from godotforge_core.hub.run_record import (
     RunEventKind,
     compute_proof_hash,
@@ -44,8 +45,6 @@ from godotforge_core.hub.run_record import (
     read_events,
     verify_chain,
 )
-from godotforge_core.hub.orchestrator import _new_run_id
-
 
 GOAL: dict[str, Any] = {
     "schema_version": 1,
@@ -65,6 +64,7 @@ def _engine() -> Path | None:
 
 
 # --- Fixtures for multi-spoke tests ---
+
 
 def _make_patch_engine_spoke() -> tuple[SpokeDefinition, ProviderDescriptor]:
     """Create patch-engine spoke definition and provider."""
@@ -124,6 +124,7 @@ def _make_project_intel_spoke() -> tuple[SpokeDefinition, ProviderDescriptor]:
 
 
 # --- Test: Full Goal Lifecycle ---
+
 
 @pytest.mark.integration
 def test_full_goal_lifecycle_preview_run_resume_report(tmp_path: Path) -> None:
@@ -190,6 +191,7 @@ def test_full_goal_lifecycle_preview_run_resume_report(tmp_path: Path) -> None:
 
 # --- Test: Multi-Spoke Scenario ---
 
+
 def test_multi_spoke_register_discover_fold_health_eligibility_deregister(tmp_path: Path) -> None:
     """Multi-spoke scenario: register → discover → fold → health → eligibility → deregister."""
     root = tmp_path / "proj"
@@ -204,7 +206,9 @@ def test_multi_spoke_register_discover_fold_health_eligibility_deregister(tmp_pa
     assert reg1.action == LedgerAction.REGISTER
     assert reg1.spoke_id == "spoke.patch-engine"
 
-    reg2 = register_spoke(root, "reg-000000000002", creator_def, creator_prov, "initial registration")
+    reg2 = register_spoke(
+        root, "reg-000000000002", creator_def, creator_prov, "initial registration"
+    )
     assert reg2.action == LedgerAction.REGISTER
     assert reg2.spoke_id == "spoke.creator"
 
@@ -280,6 +284,7 @@ def test_multi_spoke_register_discover_fold_health_eligibility_deregister(tmp_pa
 
 # --- Test: Audit Log Verification ---
 
+
 @pytest.mark.integration
 def test_audit_log_verification_after_run_goal(tmp_path: Path) -> None:
     """After run_goal, audit.log contains run record events with correct kinds."""
@@ -296,32 +301,43 @@ def test_audit_log_verification_after_run_goal(tmp_path: Path) -> None:
 
     # Read audit log for this run
     audit_entries = read_audit_for_run(root, run_id)
-    actions = [entry["action"] for entry in audit_entries]
 
     # All run-record events are logged as "append_run_record" with kind in details
     append_run_record_entries = [e for e in audit_entries if e["action"] == "append_run_record"]
     kinds = [e["details"].get("kind") for e in append_run_record_entries]
 
     # Verify required event kinds appear
-    expected_kinds = ["run_started", "authorization_recorded", "apply_committed", "validation_completed", "run_finalized"]
+    expected_kinds = [
+        "run_started",
+        "authorization_recorded",
+        "apply_committed",
+        "validation_completed",
+        "run_finalized",
+    ]
     for kind in expected_kinds:
         assert kind in kinds, f"Missing event kind: {kind}"
 
     # Verify run_finalized kind exists (in append_run_record)
-    run_finalized_kind_entries = [e for e in append_run_record_entries if e["details"].get("kind") == "run_finalized"]
+    run_finalized_kind_entries = [
+        e for e in append_run_record_entries if e["details"].get("kind") == "run_finalized"
+    ]
     assert len(run_finalized_kind_entries) == 1
     # proof_hash is in the run record, not in audit log details for run_finalized kind
     # Verify via run record instead
     from godotforge_core.hub.run_record import fold_run, read_events
+
     record = fold_run(read_events(root), run_id)
     assert record.proof_hash == run_result.proof_hash
 
     # Verify authorization_recorded event kind exists
-    auth_entries = [e for e in append_run_record_entries if e["details"].get("kind") == "authorization_recorded"]
+    auth_entries = [
+        e for e in append_run_record_entries if e["details"].get("kind") == "authorization_recorded"
+    ]
     assert len(auth_entries) == 1
     # plan_hash is in the run record event payload, not in audit log details
     # Verify via run record instead
     from godotforge_core.hub.run_record import fold_run, read_events
+
     record = fold_run(read_events(root), run_id)
     assert record.authorization is not None
     assert record.authorization.plan_hash == run_result.plan_hash
@@ -348,6 +364,7 @@ def test_audit_log_verification_after_register_spoke(tmp_path: Path) -> None:
 
 
 # --- Test: Cache Hit/Miss ---
+
 
 @pytest.mark.integration
 def test_cache_hit_miss_behavior(tmp_path: Path) -> None:
@@ -376,7 +393,7 @@ def test_cache_hit_miss_behavior(tmp_path: Path) -> None:
     # Fresh project for cache hit test
     root2 = tmp_path / "proj2"
     root2.mkdir()
-    
+
     # First preview on fresh project — cache miss (no cache entry yet)
     preview2a = preview_goal(root2, GOAL)
     assert preview2a.plan_hash == plan_hash_1
@@ -395,8 +412,10 @@ def test_cache_hit_miss_behavior(tmp_path: Path) -> None:
     cache_path = root2 / ".godotforge" / "hub" / "plan-cache.jsonl"
     assert cache_path.exists()
     import json
+
     from godotforge_core.patch.hashing import compute_plan_hash
-    from godotforge_core.patch.models import PatchPlan, OperationKind, PatchOperation
+    from godotforge_core.patch.models import OperationKind, PatchOperation, PatchPlan
+
     content = cache_path.read_text()
     entry = json.loads(content.strip())
     assert entry["goal_path"] == goal_path
@@ -405,14 +424,16 @@ def test_cache_hit_miss_behavior(tmp_path: Path) -> None:
     plan_data = entry["patch"]["plan"]
     ops = []
     for op_data in plan_data["operations"]:
-        ops.append(PatchOperation(
-            kind=OperationKind(op_data["kind"]),
-            path=op_data.get("path"),
-            desired_hash=op_data.get("desired_hash"),
-            owner=op_data.get("owner", "godotforge"),
-            source=op_data.get("source", "creator"),
-            reason=op_data.get("reason", "creator manifest"),
-        ))
+        ops.append(
+            PatchOperation(
+                kind=OperationKind(op_data["kind"]),
+                path=op_data.get("path"),
+                desired_hash=op_data.get("desired_hash"),
+                owner=op_data.get("owner", "godotforge"),
+                source=op_data.get("source", "creator"),
+                reason=op_data.get("reason", "creator manifest"),
+            )
+        )
     plan = PatchPlan(id=plan_data["id"], operations=tuple(ops))
     assert compute_plan_hash(plan) == plan_hash_1
 
@@ -421,12 +442,12 @@ def test_cache_hit_miss_behavior(tmp_path: Path) -> None:
     original_content = project_godot.read_text(encoding="utf-8")
     project_godot.write_text(original_content + "\n# modified\n", encoding="utf-8")
 
-    from godotforge_core.hub.cache import get_cached_plan
     cached_after_mod = get_cached_plan(root2, goal_path, run1.goal_hash)
     assert cached_after_mod is None  # cache miss due to different project_root_hash
 
 
 # --- Test: Performance Benchmarks (optional) ---
+
 
 @pytest.mark.benchmark
 @pytest.mark.integration
@@ -448,7 +469,7 @@ def test_benchmark_preview_goal_10_calls(tmp_path: Path) -> None:
     elapsed = time.perf_counter() - start
 
     # Just log the time; no strict threshold (informational)
-    print(f"\n10 preview_goal calls: {elapsed:.3f}s ({elapsed/10*1000:.1f}ms each)")
+    print(f"\n10 preview_goal calls: {elapsed:.3f}s ({elapsed / 10 * 1000:.1f}ms each)")
     assert elapsed > 0  # sanity
 
 
@@ -474,6 +495,7 @@ def test_benchmark_parallel_vs_sequential_hashing(tmp_path: Path) -> None:
 
     # Time sequential hashing (single-threaded)
     from godotforge_core.patch.hashing import hash_file
+
     paths = list(record.artifact_hash.keys())
 
     def sequential_hash(paths_list: list[str]) -> dict[str, str]:
@@ -484,9 +506,12 @@ def test_benchmark_parallel_vs_sequential_hashing(tmp_path: Path) -> None:
 
     def parallel_hash(paths_list: list[str]) -> dict[str, str]:
         import concurrent.futures
+
         max_workers = min(8, os.cpu_count() or 1)
+
         def _hash_one(rel_path: str) -> tuple[str, str]:
             return rel_path, hash_file(root / rel_path)
+
         if max_workers == 1 or len(paths_list) <= 1:
             return dict(_hash_one(p) for p in paths_list)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -506,10 +531,11 @@ def test_benchmark_parallel_vs_sequential_hashing(tmp_path: Path) -> None:
 
     print(f"\nSequential hashing: {seq_time:.3f}s")
     print(f"Parallel hashing:   {par_time:.3f}s")
-    print(f"Speedup:            {seq_time/par_time:.2f}x" if par_time > 0 else "N/A")
+    print(f"Speedup:            {seq_time / par_time:.2f}x" if par_time > 0 else "N/A")
 
 
 # --- Test: Run Record Chain Integrity ---
+
 
 def test_run_record_chain_tamper_detection(tmp_path: Path) -> None:
     """Verify that tampering with run-record chain is detected."""
@@ -518,19 +544,23 @@ def test_run_record_chain_tamper_detection(tmp_path: Path) -> None:
 
     # Create a simple no-op run by previewing and then directly appending
     # (We use a no-op run for simplicity - no engine needed)
-    from godotforge_core.hub.orchestrator import _new_run_id
-    from godotforge_core.hub.run_record import append_event, RunEventKind
+    from godotforge_core.hub.run_record import append_event
 
     run_id = _new_run_id()
-    append_event(root, run_id, RunEventKind.RUN_STARTED, {
-        "goal_hash": "a" * 64,
-        "manifest_hash": "b" * 64,
-        "plan_id": "plan-test",
-        "plan_hash": None,
-        "goal": GOAL,
-        "manifest_dict": {"game": {"name": "Test"}},
-        "mode": "full",
-    })
+    append_event(
+        root,
+        run_id,
+        RunEventKind.RUN_STARTED,
+        {
+            "goal_hash": "a" * 64,
+            "manifest_hash": "b" * 64,
+            "plan_id": "plan-test",
+            "plan_hash": None,
+            "goal": GOAL,
+            "manifest_dict": {"game": {"name": "Test"}},
+            "mode": "full",
+        },
+    )
     proof = "c" * 64
     append_event(root, run_id, RunEventKind.RUN_FINALIZED, {"proof_hash": proof, "outcome": "noop"})
 
@@ -543,6 +573,7 @@ def test_run_record_chain_tamper_detection(tmp_path: Path) -> None:
     lines = content.strip().split("\n")
     # Modify the goal_hash in the first event
     import json
+
     first = json.loads(lines[0])
     first["payload"]["goal_hash"] = "d" * 64
     lines[0] = json.dumps(first, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -556,6 +587,7 @@ def test_run_record_chain_tamper_detection(tmp_path: Path) -> None:
 
 # --- Test: Spoke Ledger Chain Integrity ---
 
+
 def test_spoke_ledger_chain_tamper_detection(tmp_path: Path) -> None:
     """Verify that tampering with spoke-ledger chain is detected."""
     root = tmp_path / "proj"
@@ -566,6 +598,7 @@ def test_spoke_ledger_chain_tamper_detection(tmp_path: Path) -> None:
 
     # Verify chain is valid
     from godotforge_core.hub.registry import verify_ledger
+
     verify_ledger(root)
 
     # Tamper with the ledger
@@ -573,6 +606,7 @@ def test_spoke_ledger_chain_tamper_detection(tmp_path: Path) -> None:
     content = ledger_path.read_text(encoding="utf-8")
     lines = content.strip().split("\n")
     import json
+
     first = json.loads(lines[0])
     first["spoke_id"] = "spoke.tampered"
     lines[0] = json.dumps(first, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

@@ -35,6 +35,7 @@ _PROMOTE_RETRY_DELAYS_S = (0.05, 0.10, 0.20, 0.40)
 @dataclass(frozen=True)
 class BackupManifest:
     """BackupManifest — production class."""
+
     transaction_id: str
     plan_id: str
     plan_hash: str

@@ -56,6 +56,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "E501",  # line too long — unavoidable in hash/path literal dictionaries
+]
 
 [tool.pyright]
 include = ["src", "packages", "tests"]

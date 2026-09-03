@@ -74,16 +74,28 @@ SPAWN_TEAM1_POS = (0.0, 0.5, -20.0)
 
 _EXTERNAL_BEHAVIOR_IDS: tuple[tuple[str, str], ...] = (
     ("external/world_generator/map_generator", "scripts/external/world_generator/map_generator.gd"),
-    ("external/world_generator/city_noise_generator", "scripts/external/world_generator/city_noise_generator.gd"),
+    (
+        "external/world_generator/city_noise_generator",
+        "scripts/external/world_generator/city_noise_generator.gd",
+    ),
     ("external/world_generator/terrain_utils", "scripts/external/world_generator/terrain_utils.gd"),
-    ("external/spritebrew/asset_import_pipeline", "scripts/external/spritebrew/asset_import_pipeline.gd"),
-    ("external/spritebrew/texture_processor_3d", "scripts/external/spritebrew/texture_processor_3d.gd"),
+    (
+        "external/spritebrew/asset_import_pipeline",
+        "scripts/external/spritebrew/asset_import_pipeline.gd",
+    ),
+    (
+        "external/spritebrew/texture_processor_3d",
+        "scripts/external/spritebrew/texture_processor_3d.gd",
+    ),
     ("external/spritebrew/decals_and_labels", "scripts/external/spritebrew/decals_and_labels.gd"),
     ("external/powerups/ability_base", "scripts/external/powerups/ability_base.gd"),
     ("external/powerups/ability_manager", "scripts/external/powerups/ability_manager.gd"),
     ("external/powerups/ability_effects", "scripts/external/powerups/ability_effects.gd"),
     ("external/powerups/ability_pickup", "scripts/external/powerups/ability_pickup.gd"),
-    ("external/signal_generator/signal_macros", "scripts/external/signal_generator/signal_macros.gd"),
+    (
+        "external/signal_generator/signal_macros",
+        "scripts/external/signal_generator/signal_macros.gd",
+    ),
 )
 
 _G_FILES_3D = (
@@ -230,8 +242,14 @@ _RENDERER_FEATURE_TAG: dict[str, str] = {
 # Godot 4 Key enum (physical_keycode values) for the fixed keyboard
 # vocabulary used by the 3D template's default input_map bindings.
 _KEY_PHYSICAL_KEYCODE: dict[str, int] = {
-    "W": 87, "A": 65, "S": 83, "D": 68,
-    "Q": 81, "E": 69, "R": 82, "F": 70,
+    "W": 87,
+    "A": 65,
+    "S": 83,
+    "D": 68,
+    "Q": 81,
+    "E": 69,
+    "R": 82,
+    "F": 70,
     "Space": 32,
     "Shift": 4194325,
 }
@@ -573,14 +591,53 @@ def _ability_tres(manifest: CreatorManifest, name: str, stats: dict) -> bytes:
 # AbilityParameters schema exists yet; see PROJECT_TRACKING.md "Open
 # dependencies"). Plausible placeholder values, deterministic literals.
 _WEAPON_STATS: dict[str, dict] = {
-    "rifle": {"weapon_name": "Rifle", "damage": 18.0, "pellet_count": 1, "fire_rate": 0.11, "magazine_size": 30, "reload_time": 1.8},
-    "shotgun": {"weapon_name": "Shotgun", "damage": 8.0, "pellet_count": 8, "fire_rate": 0.75, "magazine_size": 6, "reload_time": 2.2},
-    "sniper": {"weapon_name": "Sniper", "damage": 95.0, "pellet_count": 1, "fire_rate": 1.1, "magazine_size": 5, "reload_time": 2.6},
+    "rifle": {
+        "weapon_name": "Rifle",
+        "damage": 18.0,
+        "pellet_count": 1,
+        "fire_rate": 0.11,
+        "magazine_size": 30,
+        "reload_time": 1.8,
+    },
+    "shotgun": {
+        "weapon_name": "Shotgun",
+        "damage": 8.0,
+        "pellet_count": 8,
+        "fire_rate": 0.75,
+        "magazine_size": 6,
+        "reload_time": 2.2,
+    },
+    "sniper": {
+        "weapon_name": "Sniper",
+        "damage": 95.0,
+        "pellet_count": 1,
+        "fire_rate": 1.1,
+        "magazine_size": 5,
+        "reload_time": 2.6,
+    },
 }
 _ABILITY_STATS: dict[str, dict] = {
-    "dash": {"ability_name": "Dash", "cooldown": 6.0, "duration": 0.25, "magnitude": 8.0, "radius": 0.0},
-    "shield": {"ability_name": "Shield", "cooldown": 14.0, "duration": 6.0, "magnitude": 75.0, "radius": 0.0},
-    "heal": {"ability_name": "Heal", "cooldown": 10.0, "duration": 0.0, "magnitude": 40.0, "radius": 4.0},
+    "dash": {
+        "ability_name": "Dash",
+        "cooldown": 6.0,
+        "duration": 0.25,
+        "magnitude": 8.0,
+        "radius": 0.0,
+    },
+    "shield": {
+        "ability_name": "Shield",
+        "cooldown": 14.0,
+        "duration": 6.0,
+        "magnitude": 75.0,
+        "radius": 0.0,
+    },
+    "heal": {
+        "ability_name": "Heal",
+        "cooldown": 10.0,
+        "duration": 0.0,
+        "magnitude": 40.0,
+        "radius": 4.0,
+    },
 }
 
 
@@ -1038,9 +1095,7 @@ def _check_preflight(root: Path, g_files: tuple[str, ...], g_dirs: tuple[str, ..
     # top-level segment of each g_dir is a direct child of root; nested
     # template dirs (e.g. "scripts/external") are reached by walking into
     # an already-allowed top-level dir, not by this direct-child check.
-    allowed_top_level_dir_names = {".godotforge", ".godot"} | {
-        d.split("/", 1)[0] for d in g_dirs
-    }
+    allowed_top_level_dir_names = {".godotforge", ".godot"} | {d.split("/", 1)[0] for d in g_dirs}
     for p in root.iterdir():
         if p.is_dir() and p.name not in allowed_top_level_dir_names:
             # Could be .godotforge subdirs — already file-based check covers

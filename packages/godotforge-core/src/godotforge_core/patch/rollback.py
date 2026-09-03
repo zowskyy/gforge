@@ -23,6 +23,7 @@ from .models import (
 @dataclass(frozen=True)
 class RollbackResult:
     """RollbackResult — production class."""
+
     transaction_id: str
     status: TransactionStatus
     restored: int = 0

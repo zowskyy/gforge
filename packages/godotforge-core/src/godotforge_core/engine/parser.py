@@ -21,6 +21,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class EngineDiagnostic:
     """EngineDiagnostic — production class."""
+
     severity: str  # error | warning | info
     code: str | None
     message: str

@@ -13,15 +13,17 @@ Atomic writes follow the same pattern as Slice 4C (temp file + replace + fsync d
 Valid action types for the audit log (frozenset):
 
 ```python
-AUDIT_ACTIONS = frozenset({
-    "append_run_record",
-    "append_spoke_event",
-    "run_finalized",
-    "run_failed",
-    "authorization_recorded",
-    "register_spoke",
-    "deregister_spoke",
-})
+AUDIT_ACTIONS = frozenset(
+    {
+        "append_run_record",
+        "append_spoke_event",
+        "run_finalized",
+        "run_failed",
+        "authorization_recorded",
+        "register_spoke",
+        "deregister_spoke",
+    }
+)
 ```
 
 ---
@@ -220,11 +222,12 @@ from pathlib import Path
 root = Path(".")
 
 # Record an audit entry
-append_audit(root, "run-a1b2c3d4e5f6", "run_failed", {
-    "reason": "validation_failed",
-    "stage": "validation",
-    "detail": "Godot engine timeout"
-})
+append_audit(
+    root,
+    "run-a1b2c3d4e5f6",
+    "run_failed",
+    {"reason": "validation_failed", "stage": "validation", "detail": "Godot engine timeout"},
+)
 
 # Query audit trail for a run
 entries = read_audit_for_run(root, "run-a1b2c3d4e5f6")

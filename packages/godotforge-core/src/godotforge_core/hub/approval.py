@@ -38,12 +38,8 @@ def record_explicit_cli_authorization(
     run-record event; there is no separate approval file. Raises
     ``ValueError`` for malformed run ids, hashes, modes, or scopes.
     """
-    authorization = Authorization(
-        mode=APPROVAL_MODE_EXPLICIT_CLI, plan_hash=plan_hash, scope=scope
-    )
-    return append_event(
-        root, run_id, RunEventKind.AUTHORIZATION_RECORDED, authorization.as_dict()
-    )
+    authorization = Authorization(mode=APPROVAL_MODE_EXPLICIT_CLI, plan_hash=plan_hash, scope=scope)
+    return append_event(root, run_id, RunEventKind.AUTHORIZATION_RECORDED, authorization.as_dict())
 
 
 def require_authorization(
@@ -67,8 +63,6 @@ def require_authorization(
                 f"match current plan hash {plan_hash!r}"
             )
         if authorization.scope != APPROVAL_SCOPE_APPLY:
-            raise ValueError(
-                f"authorization scope {authorization.scope!r} does not cover apply"
-            )
+            raise ValueError(f"authorization scope {authorization.scope!r} does not cover apply")
         return authorization
     raise ValueError("no recorded authorization for this run")

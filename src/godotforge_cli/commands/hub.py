@@ -21,7 +21,6 @@ from godotforge_core.exit_codes import ForgeExitCode
 from godotforge_core.hub.goal import load_goal_text
 from godotforge_core.hub.orchestrator import HubRunResult, preview_goal, resume_run, run_goal
 from godotforge_core.hub.run_record import (
-    RunEventKind,
     RunRecord,
     RunState,
     compute_proof_hash,

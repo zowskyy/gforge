@@ -18,6 +18,7 @@ JOURNAL_SCHEMA_VERSION = 1
 
 class JournalState(StrEnum):
     """JournalState — production class."""
+
     PENDING = "pending"
     STARTED = "started"
     COMPLETED = "completed"
@@ -26,6 +27,7 @@ class JournalState(StrEnum):
 @dataclass(frozen=True)
 class JournalEntry:
     """JournalEntry — production class."""
+
     operation_index: int
     operation_kind: OperationKind
     state: JournalState
@@ -66,6 +68,7 @@ class JournalEntry:
 @dataclass(frozen=True)
 class ApplyJournal:
     """ApplyJournal — production class."""
+
     transaction_id: str
     plan_id: str
     plan_hash: str

@@ -3,6 +3,12 @@
 Deterministic, offline, AI-free. See ``docs/contracts/hub-v1.md``.
 """
 
+from godotforge_core.creator.manifest import (
+    CharacterParameters,
+    InputMapConfig,
+    Physics3DSettings,
+    RendererType,
+)
 from godotforge_core.hub.approval import (
     APPROVAL_MODE_EXPLICIT_CLI,
     APPROVAL_SCOPE_APPLY,
@@ -33,6 +39,14 @@ from godotforge_core.hub.goal import (
     load_goal_lazy,
     load_goal_text,
     registered_templates,
+)
+from godotforge_core.hub.observability import (
+    RunMetrics,
+    TimelineEvent,
+    compute_metrics,
+    get_run_logger,
+    get_timeline,
+    setup_structured_logging,
 )
 from godotforge_core.hub.orchestrator import (
     HubRunResult,
@@ -77,21 +91,6 @@ from godotforge_core.hub.run_record import (
     run_store_path,
     verify_chain,
     verify_ledger_integrity,
-)
-from godotforge_core.hub.observability import (
-    RunMetrics,
-    TimelineEvent,
-    compute_metrics,
-    get_run_logger,
-    get_timeline,
-    setup_structured_logging,
-)
-from godotforge_core.creator.manifest import (
-    BehaviorParameters3D,
-    CharacterParameters,
-    InputMapConfig,
-    Physics3DSettings,
-    RendererType,
 )
 
 __all__ = [

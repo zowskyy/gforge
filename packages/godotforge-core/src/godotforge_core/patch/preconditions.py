@@ -14,6 +14,7 @@ from .models import OperationKind, PatchPlan
 @dataclass(frozen=True)
 class PathSnapshot:
     """PathSnapshot — production class."""
+
     path: str
     exists: bool
     is_file: bool
@@ -25,6 +26,7 @@ class PathSnapshot:
 @dataclass(frozen=True)
 class PreconditionIssue:
     """PreconditionIssue — production class."""
+
     path: str
     code: str
     expected_hash: str | None
@@ -35,6 +37,7 @@ class PreconditionIssue:
 @dataclass(frozen=True)
 class PreconditionReport:
     """PreconditionReport — production class."""
+
     plan_id: str
     plan_hash: str
     snapshots: tuple[PathSnapshot, ...]

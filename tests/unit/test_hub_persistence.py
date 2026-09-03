@@ -5,15 +5,25 @@ from __future__ import annotations
 import json
 import os
 import stat
-import sys
-import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
+from godotforge_core.hub.definitions import (
+    Capability,
+    Permission,
+    ProviderDescriptor,
+    SpokeDefinition,
+)
+from godotforge_core.hub.registry import (
+    LedgerAction,
+    deregister_spoke,
+    ledger_path,
+    read_ledger,
+    register_spoke,
+    verify_ledger,
+)
 from godotforge_core.hub.run_record import (
-    Authorization,
     RunEventKind,
     RunState,
     append_event,
@@ -23,22 +33,6 @@ from godotforge_core.hub.run_record import (
     run_store_path,
     verify_chain,
     verify_ledger_integrity,
-)
-from godotforge_core.hub.registry import (
-    LedgerAction,
-    compute_spoke_event_hash,
-    deregister_spoke,
-    fold_registry,
-    ledger_path,
-    read_ledger,
-    register_spoke,
-    verify_ledger,
-)
-from godotforge_core.hub.definitions import (
-    Capability,
-    Permission,
-    ProviderDescriptor,
-    SpokeDefinition,
 )
 
 H = "a" * 64
@@ -140,6 +134,7 @@ def test_append_event_cleans_temp_on_exception_during_write(tmp_path: Path) -> N
     The production code has the cleanup logic in an except BaseException block.
     """
     import platform
+
     if platform.system() == "Windows":
         pytest.skip("os.replace patching unreliable on Windows")
 
@@ -151,6 +146,7 @@ def test_append_event_cleans_temp_on_exception_during_fsync(tmp_path: Path) -> N
     The production code has the cleanup logic in an except BaseException block.
     """
     import platform
+
     if platform.system() == "Windows":
         pytest.skip("os.fsync patching unreliable on Windows")
 
@@ -164,12 +160,11 @@ def test_append_event_survives_crash_simulation(tmp_path: Path) -> None:
     # Write first event normally
     append_event(tmp_path, RUN, RunEventKind.RUN_STARTED, START_PAYLOAD)
     first_content = store.read_bytes()
-    first_events = read_events(tmp_path)
 
     # Now simulate crash by appending second event normally
     # The atomic write ensures either the full write succeeds or the original is intact
     append_event(tmp_path, RUN, RunEventKind.AUTHORIZATION_RECORDED, AUTH_PAYLOAD)
-    second_content = store.read_bytes()
+    _ = store.read_bytes()  # verify file is readable after second write
 
     # Verify both events are present and chain is valid
     events = read_events(tmp_path)
@@ -195,7 +190,7 @@ def test_append_event_survives_crash_simulation(tmp_path: Path) -> None:
 def test_append_event_directory_fsync_called(tmp_path: Path) -> None:
     """Verify that parent directory is fsynced after atomic replace (skipped on Windows)."""
     import platform
-    
+
     if platform.system() == "Windows":
         pytest.skip("Directory fsync not supported on Windows")
 
@@ -254,7 +249,6 @@ def test_deregister_spoke_atomic_write(tmp_path: Path) -> None:
     register_spoke(tmp_path, REG, definition, provider, "initial")
     deregister_spoke(tmp_path, REG, "retired")
 
-    store = ledger_path(tmp_path)
     events = read_ledger(tmp_path)
     assert len(events) == 2
     assert events[1].action == LedgerAction.DEREGISTER
@@ -272,6 +266,7 @@ def test_spoke_ledger_cleans_temp_on_exception(tmp_path: Path) -> None:
     The production code has the cleanup logic in an except BaseException block.
     """
     import platform
+
     if platform.system() == "Windows":
         pytest.skip("os.replace patching unreliable on Windows")
 
@@ -457,7 +452,7 @@ def test_fold_run_recovery_started_state(tmp_path: Path) -> None:
 
 def test_fold_run_recovery_finalized_state(tmp_path: Path) -> None:
     """fold_run correctly recovers FINALIZED state with valid proof."""
-    from godotforge_core.hub.run_record import compute_proof_for_outcome, compute_proof_hash
+    from godotforge_core.hub.run_record import compute_proof_hash
 
     append_event(tmp_path, RUN, RunEventKind.RUN_STARTED, START_PAYLOAD)
     append_event(tmp_path, RUN, RunEventKind.AUTHORIZATION_RECORDED, AUTH_PAYLOAD)
@@ -528,7 +523,9 @@ def test_multiple_appends_no_temp_accumulation(tmp_path: Path) -> None:
         append_event(tmp_path, f"run-{i:012x}", RunEventKind.RUN_STARTED, START_PAYLOAD)
 
     hub_dir = tmp_path / ".godotforge" / "hub"
-    temp_files = list(hub_dir.glob(".run-records.tmp.*")) + list(hub_dir.glob(".spoke-ledger.tmp.*"))
+    temp_files = list(hub_dir.glob(".run-records.tmp.*")) + list(
+        hub_dir.glob(".spoke-ledger.tmp.*")
+    )
     assert temp_files == []
 
 
@@ -640,7 +637,9 @@ def test_both_stores_independent_atomic_writes(tmp_path: Path) -> None:
 
     # No temp files left
     hub_dir = tmp_path / ".godotforge" / "hub"
-    temp_files = list(hub_dir.glob(".run-records.tmp.*")) + list(hub_dir.glob(".spoke-ledger.tmp.*"))
+    temp_files = list(hub_dir.glob(".run-records.tmp.*")) + list(
+        hub_dir.glob(".spoke-ledger.tmp.*")
+    )
     assert temp_files == []
 
 
@@ -664,10 +663,12 @@ def test_corrupt_temp_file_ignored_on_next_write(tmp_path: Path) -> None:
     verify_chain(tmp_path)
 
     # Corrupt temp should still be there (not our responsibility to clean others)
-    # but our temp files should be cleaned
-    our_temps = list(hub_dir.glob(".run-records.tmp.*"))
-    # The corrupt one might still exist, but our temp files from the successful
-    # write should be gone
+    # but our temp files from the successful write should be gone
+    assert not any(
+        True
+        for _ in hub_dir.glob(".run-records.tmp.*")
+        if _.stat().st_size > 0 and _.name != corrupt_temp.name
+    )
     assert len(events) == 1
 
 

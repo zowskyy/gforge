@@ -13,11 +13,11 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from godotforge_core.creator.plan import CreatorPatch, _G_FILES
-from godotforge_core.creator.manifest import CreatorManifest, validate_manifest_dict
+from godotforge_core.creator.manifest import validate_manifest_dict
+from godotforge_core.creator.plan import _G_FILES, CreatorPatch
 from godotforge_core.hub.cache import (
     CacheEntry,
     _compute_project_root_hash,
@@ -28,15 +28,11 @@ from godotforge_core.hub.cache import (
 from godotforge_core.hub.goal import load_goal_lazy, load_goal_text
 from godotforge_core.hub.orchestrator import _hash_applied_artifacts
 from godotforge_core.hub.run_record import (
-    RunEvent,
     RunEventKind,
-    RunState,
     append_event,
     fold_run,
     read_events,
     read_events_streaming,
-    run_store_path,
-    verify_chain,
 )
 
 GOAL_MINIMAL = {
@@ -65,7 +61,7 @@ def _mock_creator_patch() -> CreatorPatch:
     }
     manifest = validate_manifest_dict(manifest_dict)
     desired = {
-        "project.godot": b"config_version=5\n[application]\nconfig/name=\"PerfTest\"\n",
+        "project.godot": b'config_version=5\n[application]\nconfig/name="PerfTest"\n',
         "scenes/main.tscn": b"[gd_scene]\n",
         "scripts/coin.gd": b"# coin\n",
         "scripts/player_controller.gd": b"# player\n",
@@ -95,7 +91,9 @@ class TestPlanComputationCache:
         result = get_cached_plan(root, "goal.yaml", "a" * 64)
         assert result is None
 
-    def test_cache_hit_returns_same_patch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_cache_hit_returns_same_patch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Cache hit returns the same patch that was stored."""
         root = _root(tmp_path)
         goal_path = "goal.yaml"
@@ -282,7 +280,9 @@ class TestParallelArtifactHashing:
         # Must be sorted
         assert keys == sorted(_G_FILES)
 
-    def test_parallel_hashing_single_worker_fallback(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_parallel_hashing_single_worker_fallback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Single file or single CPU falls back to sequential."""
         from godotforge_core.patch.models import OperationKind, PatchOperation, PatchPlan
 
@@ -315,7 +315,12 @@ class TestStreamingRunRecordReader:
 
         # Write some events
         append_event(root, run_id, RunEventKind.RUN_STARTED, {"goal_hash": "a" * 64})
-        append_event(root, run_id, RunEventKind.AUTHORIZATION_RECORDED, {"plan_hash": "b" * 64, "mode": "explicit_cli", "scope": "apply"})
+        append_event(
+            root,
+            run_id,
+            RunEventKind.AUTHORIZATION_RECORDED,
+            {"plan_hash": "b" * 64, "mode": "explicit_cli", "scope": "apply"},
+        )
         append_event(root, run_id, RunEventKind.APPLY_COMMITTED, {"artifact_hash": {}})
 
         # Read both ways
@@ -332,7 +337,12 @@ class TestStreamingRunRecordReader:
 
         append_event(root, run_a, RunEventKind.RUN_STARTED, {"goal_hash": "a" * 64})
         append_event(root, run_b, RunEventKind.RUN_STARTED, {"goal_hash": "b" * 64})
-        append_event(root, run_a, RunEventKind.AUTHORIZATION_RECORDED, {"plan_hash": "c" * 64, "mode": "explicit_cli", "scope": "apply"})
+        append_event(
+            root,
+            run_a,
+            RunEventKind.AUTHORIZATION_RECORDED,
+            {"plan_hash": "c" * 64, "mode": "explicit_cli", "scope": "apply"},
+        )
 
         stream_a = list(read_events_streaming(root, run_id=run_a))
         stream_b = list(read_events_streaming(root, run_id=run_b))
@@ -360,8 +370,23 @@ class TestStreamingRunRecordReader:
         root = _root(tmp_path)
         run_id = "run-" + "a" * 12
 
-        append_event(root, run_id, RunEventKind.RUN_STARTED, {"goal_hash": "a" * 64, "manifest_hash": "b" * 64, "plan_id": "cr-test", "plan_hash": "c" * 64})
-        append_event(root, run_id, RunEventKind.AUTHORIZATION_RECORDED, {"plan_hash": "c" * 64, "mode": "explicit_cli", "scope": "apply"})
+        append_event(
+            root,
+            run_id,
+            RunEventKind.RUN_STARTED,
+            {
+                "goal_hash": "a" * 64,
+                "manifest_hash": "b" * 64,
+                "plan_id": "cr-test",
+                "plan_hash": "c" * 64,
+            },
+        )
+        append_event(
+            root,
+            run_id,
+            RunEventKind.AUTHORIZATION_RECORDED,
+            {"plan_hash": "c" * 64, "mode": "explicit_cli", "scope": "apply"},
+        )
 
         regular_record = fold_run(read_events(root, run_id), run_id)
         streaming_events = list(read_events_streaming(root, run_id))
@@ -380,10 +405,7 @@ class TestLazyGoalLoading:
         """load_goal_lazy yields the parsed goal dict."""
         goal_path = tmp_path / "goal.yaml"
         goal_path.write_text(
-            "schema_version: 1\n"
-            "game:\n"
-            "  name: Test Game\n"
-            "  template: 2d-platformer-minimal\n",
+            "schema_version: 1\ngame:\n  name: Test Game\n  template: 2d-platformer-minimal\n",
             encoding="utf-8",
         )
 
@@ -396,10 +418,12 @@ class TestLazyGoalLoading:
         """load_goal_lazy works with JSON format."""
         goal_path = tmp_path / "goal.json"
         goal_path.write_text(
-            json.dumps({
-                "schema_version": 1,
-                "game": {"name": "Test Game", "template": "2d-platformer-minimal"},
-            }),
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "game": {"name": "Test Game", "template": "2d-platformer-minimal"},
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -434,14 +458,14 @@ class TestCacheIntegration:
     ) -> None:
         """run_goal uses cached plan when available."""
         from godotforge_core.hub.orchestrator import run_goal
-        from godotforge_core.creator.plan import CreatorPatch
-        from godotforge_core.creator.manifest import validate_manifest_dict
 
         root = _root(tmp_path)
+
         # Mock verify to avoid engine dependency
         def fake_verify(*args, **kwargs):
             from godotforge_core.creator.verify import VerifyResult
             from godotforge_core.engine.validate import ValidationResult
+
             validation = ValidationResult(
                 project_root=str(root),
                 engine=None,
@@ -452,9 +476,14 @@ class TestCacheIntegration:
                 graph={},
             )
             return VerifyResult(
-                manifest=None, plan_id="cr-fake", plan_hash=None,
-                validation=validation, source_before_hash="a"*64,
-                source_after_hash="a"*64, temp_removed=True, source_unchanged=True
+                manifest=None,
+                plan_id="cr-fake",
+                plan_hash=None,
+                validation=validation,
+                source_before_hash="a" * 64,
+                source_after_hash="a" * 64,
+                temp_removed=True,
+                source_unchanged=True,
             )
 
         monkeypatch.setattr("godotforge_core.hub.orchestrator.verify_creator_project", fake_verify)
@@ -470,7 +499,7 @@ class TestCacheIntegration:
         monkeypatch.setattr("godotforge_core.hub.orchestrator.plan_creator_manifest", mock_plan)
 
         # First run - should call plan_creator_manifest
-        result1 = run_goal(root, GOAL_MINIMAL)
+        run_goal(root, GOAL_MINIMAL)
         assert call_count["n"] == 1
 
         # Second run - should use cache (no additional plan call)
@@ -485,8 +514,8 @@ class TestCacheIntegration:
 
         Cache is only populated by run_goal; preview_goal only reads.
         """
+        from godotforge_core.hub.cache import _compute_project_root_hash, store_plan
         from godotforge_core.hub.orchestrator import preview_goal
-        from godotforge_core.hub.cache import store_plan, _compute_project_root_hash
 
         root = _root(tmp_path)
 
@@ -502,17 +531,18 @@ class TestCacheIntegration:
 
         # Pre-populate cache (simulating run_goal having run first)
         from godotforge_core.hub.goal import compile_goal
+
         compilation = compile_goal(GOAL_MINIMAL)
         goal_path = str(Path(GOAL_MINIMAL["game"]["name"]).with_suffix(".yaml"))
         project_root_hash = _compute_project_root_hash(root)
         store_plan(root, goal_path, compilation.goal_hash, project_root_hash, mock_patch)
 
         # First preview - should hit cache
-        result1 = preview_goal(root, GOAL_MINIMAL)
+        preview_goal(root, GOAL_MINIMAL)
         calls_after_first = call_count["n"]
 
         # Second preview - should also hit cache
-        result2 = preview_goal(root, GOAL_MINIMAL)
+        preview_goal(root, GOAL_MINIMAL)
         calls_after_second = call_count["n"]
 
         # Both previews should use cache (no plan_creator_manifest calls)

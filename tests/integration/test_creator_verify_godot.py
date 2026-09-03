@@ -62,7 +62,8 @@ def test_verify_c_valid_succeeds(tmp_path: Path) -> None:
     assert (root / "project.godot").is_file()
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 0, r.output
     data = json.loads(r.output)
@@ -102,7 +103,8 @@ def test_verify_c_malformed_fails(tmp_path: Path) -> None:
     (root / "scenes/main.tscn").write_text("INVALID TSCN CONTENT\n", encoding="utf-8")
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 1, r.output
     data = json.loads(r.output)
@@ -128,6 +130,7 @@ def test_verify_c_invalid_script_fails(tmp_path: Path) -> None:
     (root / "scripts/player_controller.gd").write_text("!!! syntax error !!!\n", encoding="utf-8")
     mf = _manifest_file(tmp_path)
     r: Result = CliRunner().invoke(
-        cli, ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)]  # noqa: E501
+        cli,
+        ["--project", str(root), "--format", "json", "creator", "verify", "--manifest", str(mf)],  # noqa: E501
     )
     assert r.exit_code == 1, r.output

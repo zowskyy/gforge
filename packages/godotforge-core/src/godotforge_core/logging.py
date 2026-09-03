@@ -15,6 +15,7 @@ from typing import Any, TextIO
 
 class JsonlHandler(logging.Handler):
     """JsonlHandler — production class."""
+
     def __init__(self, stream: TextIO | None = None) -> None:
         super().__init__()
         self.setFormatter(logging.Formatter())

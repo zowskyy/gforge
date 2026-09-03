@@ -9,6 +9,7 @@ from enum import IntEnum
 
 class ForgeExitCode(IntEnum):
     """ForgeExitCode — production class."""
+
     SUCCESS = 0
     VALIDATION_FAILURE = 1
     CONFIGURATION_FAILURE = 2

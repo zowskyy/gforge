@@ -250,8 +250,7 @@ def apply_cmd(ctx: click.Context, manifest_opt: str, apply_flag: bool) -> None:
         {
             "rule": "patch-conflict",
             "severity": "error",
-            "message": f"{reason} — {journal_hint}. "
-            "Inspect recovery; rollback if needed.",
+            "message": f"{reason} — {journal_hint}. Inspect recovery; rollback if needed.",
         }
     ]
     fmt2: OutputFormat = ctx.obj["output_format"]

@@ -34,7 +34,9 @@ _JUMP_MIN = Decimal("-1000.0")
 _JUMP_MAX = Decimal("-100.0")
 _JUMP_DEFAULT = Decimal("-350.0")
 _ALLOWED_TOP_LEVEL_KEYS_V2 = frozenset({"schema_version", "game", "input", "parameters"})
-_ALLOWED_TOP_LEVEL_KEYS_V3 = frozenset({"schema_version", "game", "input", "parameters", "renderer", "physics_3d", "input_map"})
+_ALLOWED_TOP_LEVEL_KEYS_V3 = frozenset(
+    {"schema_version", "game", "input", "parameters", "renderer", "physics_3d", "input_map"}
+)
 
 # 3D template constants
 _FIXED_BINDINGS_3D: dict[str, str] = {
@@ -149,9 +151,7 @@ class BehaviorParameters:
         return {
             "platformer_controller": {
                 "speed": format_canonical(self.speed, name="speed"),
-                "jump_velocity": format_canonical(
-                    self.jump_velocity, name="jump_velocity"
-                ),
+                "jump_velocity": format_canonical(self.jump_velocity, name="jump_velocity"),
             }
         }
 
@@ -163,9 +163,9 @@ class BehaviorParameters3D:
     Contains parameters for all three character roles: enforcer, scout, fixer.
     """
 
-    enforcer: "CharacterParameters"
-    scout: "CharacterParameters"
-    fixer: "CharacterParameters"
+    enforcer: CharacterParameters
+    scout: CharacterParameters
+    fixer: CharacterParameters
 
     def as_dict(self) -> dict:
         return {
@@ -196,6 +196,7 @@ class CharacterParameters:
 @dataclass(frozen=True)
 class CreatorInput:
     """CreatorInput — production class."""
+
     name: str
     binding: str
 
@@ -203,6 +204,7 @@ class CreatorInput:
 @dataclass(frozen=True)
 class CreatorManifest:
     """CreatorManifest — production class."""
+
     schema_version: int
     game_name: str
     template: str
@@ -270,27 +272,19 @@ def _validate_parameters_v2(raw: object) -> BehaviorParameters:
     if behavior is None:
         return BehaviorParameters(speed=_SPEED_DEFAULT, jump_velocity=_JUMP_DEFAULT)
     if not isinstance(behavior, dict):
-        raise ValueError(
-            f"parameters.{_BEHAVIOR_KEY} must be a mapping, got {behavior!r}"
-        )
+        raise ValueError(f"parameters.{_BEHAVIOR_KEY} must be a mapping, got {behavior!r}")
     known = {"speed", "jump_velocity"}
     unknown_params = set(behavior) - known
     if unknown_params:
-        raise ValueError(
-            f"unknown parameter(s) for {_BEHAVIOR_KEY}: {sorted(unknown_params)}"
-        )
+        raise ValueError(f"unknown parameter(s) for {_BEHAVIOR_KEY}: {sorted(unknown_params)}")
     speed = parse_canonical_decimal(behavior.get("speed", _SPEED_DEFAULT), name="speed")
     if not (_SPEED_MIN <= speed <= _SPEED_MAX):
-        raise ValueError(
-            f"speed {speed} out of range {_SPEED_MIN}..{_SPEED_MAX} (inclusive)"
-        )
+        raise ValueError(f"speed {speed} out of range {_SPEED_MIN}..{_SPEED_MAX} (inclusive)")
     jump = parse_canonical_decimal(
         behavior.get("jump_velocity", _JUMP_DEFAULT), name="jump_velocity"
     )
     if not (_JUMP_MIN <= jump <= _JUMP_MAX):
-        raise ValueError(
-            f"jump_velocity {jump} out of range {_JUMP_MIN}..{_JUMP_MAX} (inclusive)"
-        )
+        raise ValueError(f"jump_velocity {jump} out of range {_JUMP_MIN}..{_JUMP_MAX} (inclusive)")
     return BehaviorParameters(speed=speed, jump_velocity=jump)
 
 
@@ -303,18 +297,24 @@ def _validate_character_parameters(raw: object, role: str) -> CharacterParameter
     if raw is None:
         if role == "enforcer":
             return CharacterParameters(
-                health=_ENFORCER_HEALTH_DEFAULT, armor=_ENFORCER_ARMOR_DEFAULT,
-                move_speed=_ENFORCER_MOVE_SPEED_DEFAULT, sprint_multiplier=_ENFORCER_SPRINT_DEFAULT
+                health=_ENFORCER_HEALTH_DEFAULT,
+                armor=_ENFORCER_ARMOR_DEFAULT,
+                move_speed=_ENFORCER_MOVE_SPEED_DEFAULT,
+                sprint_multiplier=_ENFORCER_SPRINT_DEFAULT,
             )
         elif role == "scout":
             return CharacterParameters(
-                health=_SCOUT_HEALTH_DEFAULT, armor=_SCOUT_ARMOR_DEFAULT,
-                move_speed=_SCOUT_MOVE_SPEED_DEFAULT, sprint_multiplier=_SCOUT_SPRINT_DEFAULT
+                health=_SCOUT_HEALTH_DEFAULT,
+                armor=_SCOUT_ARMOR_DEFAULT,
+                move_speed=_SCOUT_MOVE_SPEED_DEFAULT,
+                sprint_multiplier=_SCOUT_SPRINT_DEFAULT,
             )
         elif role == "fixer":
             return CharacterParameters(
-                health=_FIXER_HEALTH_DEFAULT, armor=_FIXER_ARMOR_DEFAULT,
-                move_speed=_FIXER_MOVE_SPEED_DEFAULT, sprint_multiplier=_FIXER_SPRINT_DEFAULT
+                health=_FIXER_HEALTH_DEFAULT,
+                armor=_FIXER_ARMOR_DEFAULT,
+                move_speed=_FIXER_MOVE_SPEED_DEFAULT,
+                sprint_multiplier=_FIXER_SPRINT_DEFAULT,
             )
         else:
             raise ValueError(f"unknown role {role!r}")
@@ -325,9 +325,7 @@ def _validate_character_parameters(raw: object, role: str) -> CharacterParameter
     known = {"health", "armor", "move_speed", "sprint_multiplier"}
     unknown_params = set(raw) - known
     if unknown_params:
-        raise ValueError(
-            f"unknown parameter(s) for {role}: {sorted(unknown_params)}"
-        )
+        raise ValueError(f"unknown parameter(s) for {role}: {sorted(unknown_params)}")
 
     def parse_param(key: str, min_val: Decimal, max_val: Decimal, default: Decimal) -> Decimal:
         val = parse_canonical_decimal(raw.get(key, default), name=key)
@@ -336,24 +334,48 @@ def _validate_character_parameters(raw: object, role: str) -> CharacterParameter
         return val
 
     if role == "enforcer":
-        health = parse_param("health", _ENFORCER_HEALTH_MIN, _ENFORCER_HEALTH_MAX, _ENFORCER_HEALTH_DEFAULT)
-        armor = parse_param("armor", _ENFORCER_ARMOR_MIN, _ENFORCER_ARMOR_MAX, _ENFORCER_ARMOR_DEFAULT)
-        move_speed = parse_param("move_speed", _ENFORCER_MOVE_SPEED_MIN, _ENFORCER_MOVE_SPEED_MAX, _ENFORCER_MOVE_SPEED_DEFAULT)
-        sprint = parse_param("sprint_multiplier", _ENFORCER_SPRINT_MIN, _ENFORCER_SPRINT_MAX, _ENFORCER_SPRINT_DEFAULT)
+        health = parse_param(
+            "health", _ENFORCER_HEALTH_MIN, _ENFORCER_HEALTH_MAX, _ENFORCER_HEALTH_DEFAULT
+        )
+        armor = parse_param(
+            "armor", _ENFORCER_ARMOR_MIN, _ENFORCER_ARMOR_MAX, _ENFORCER_ARMOR_DEFAULT
+        )
+        move_speed = parse_param(
+            "move_speed",
+            _ENFORCER_MOVE_SPEED_MIN,
+            _ENFORCER_MOVE_SPEED_MAX,
+            _ENFORCER_MOVE_SPEED_DEFAULT,
+        )
+        sprint = parse_param(
+            "sprint_multiplier",
+            _ENFORCER_SPRINT_MIN,
+            _ENFORCER_SPRINT_MAX,
+            _ENFORCER_SPRINT_DEFAULT,
+        )
     elif role == "scout":
         health = parse_param("health", _SCOUT_HEALTH_MIN, _SCOUT_HEALTH_MAX, _SCOUT_HEALTH_DEFAULT)
         armor = parse_param("armor", _SCOUT_ARMOR_MIN, _SCOUT_ARMOR_MAX, _SCOUT_ARMOR_DEFAULT)
-        move_speed = parse_param("move_speed", _SCOUT_MOVE_SPEED_MIN, _SCOUT_MOVE_SPEED_MAX, _SCOUT_MOVE_SPEED_DEFAULT)
-        sprint = parse_param("sprint_multiplier", _SCOUT_SPRINT_MIN, _SCOUT_SPRINT_MAX, _SCOUT_SPRINT_DEFAULT)
+        move_speed = parse_param(
+            "move_speed", _SCOUT_MOVE_SPEED_MIN, _SCOUT_MOVE_SPEED_MAX, _SCOUT_MOVE_SPEED_DEFAULT
+        )
+        sprint = parse_param(
+            "sprint_multiplier", _SCOUT_SPRINT_MIN, _SCOUT_SPRINT_MAX, _SCOUT_SPRINT_DEFAULT
+        )
     elif role == "fixer":
         health = parse_param("health", _FIXER_HEALTH_MIN, _FIXER_HEALTH_MAX, _FIXER_HEALTH_DEFAULT)
         armor = parse_param("armor", _FIXER_ARMOR_MIN, _FIXER_ARMOR_MAX, _FIXER_ARMOR_DEFAULT)
-        move_speed = parse_param("move_speed", _FIXER_MOVE_SPEED_MIN, _FIXER_MOVE_SPEED_MAX, _FIXER_MOVE_SPEED_DEFAULT)
-        sprint = parse_param("sprint_multiplier", _FIXER_SPRINT_MIN, _FIXER_SPRINT_MAX, _FIXER_SPRINT_DEFAULT)
+        move_speed = parse_param(
+            "move_speed", _FIXER_MOVE_SPEED_MIN, _FIXER_MOVE_SPEED_MAX, _FIXER_MOVE_SPEED_DEFAULT
+        )
+        sprint = parse_param(
+            "sprint_multiplier", _FIXER_SPRINT_MIN, _FIXER_SPRINT_MAX, _FIXER_SPRINT_DEFAULT
+        )
     else:
         raise ValueError(f"unknown role {role!r}")
 
-    return CharacterParameters(health=health, armor=armor, move_speed=move_speed, sprint_multiplier=sprint)
+    return CharacterParameters(
+        health=health, armor=armor, move_speed=move_speed, sprint_multiplier=sprint
+    )
 
 
 def _validate_parameters_v3(raw: object) -> BehaviorParameters3D:
@@ -385,7 +407,9 @@ def _validate_renderer(raw: object) -> str:
     if not isinstance(raw, str):
         raise ValueError("renderer must be a string")
     if raw not in ("forward_plus", "mobile", "compatibility"):
-        raise ValueError(f"renderer must be one of: forward_plus, mobile, compatibility; got {raw!r}")
+        raise ValueError(
+            f"renderer must be one of: forward_plus, mobile, compatibility; got {raw!r}"
+        )
     return raw
 
 
@@ -398,7 +422,9 @@ def _validate_physics_3d(raw: object) -> Physics3DSettings:
     gravity = parse_canonical_decimal(raw.get("gravity", Decimal("9.8")), name="gravity")
     if not (Decimal("0.1") <= gravity <= Decimal("50.0")):
         raise ValueError(f"gravity {gravity} out of range 0.1..50.0")
-    floor_snap = parse_canonical_decimal(raw.get("floor_snap_length", Decimal("0.5")), name="floor_snap_length")
+    floor_snap = parse_canonical_decimal(
+        raw.get("floor_snap_length", Decimal("0.5")), name="floor_snap_length"
+    )
     if not (Decimal("0.1") <= floor_snap <= Decimal("2.0")):
         raise ValueError(f"floor_snap_length {floor_snap} out of range 0.1..2.0")
     return Physics3DSettings(gravity=gravity, floor_snap_length=floor_snap)
@@ -494,11 +520,15 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
     # Template-specific validation
     if data.get("schema_version") == 3:
         if template != _TEMPLATE_3D:
-            raise ValueError(f"game.template must be {_TEMPLATE_3D!r} for schema_version 3, got {template!r}")
+            raise ValueError(
+                f"game.template must be {_TEMPLATE_3D!r} for schema_version 3, got {template!r}"
+            )
         # Validate 3D input map (14 actions)
         raw_inputs = data.get("input")
         if not isinstance(raw_inputs, list) or len(raw_inputs) != 14:
-            raise ValueError(f"input must be array of exactly 14 for 3D template, got {raw_inputs!r}")
+            raise ValueError(
+                f"input must be array of exactly 14 for 3D template, got {raw_inputs!r}"
+            )
         seen: set[str] = set()
         inputs: list[CreatorInput] = []
         for entry in raw_inputs:
@@ -518,12 +548,13 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
             seen.add(iname)
             expected = _FIXED_BINDINGS_3D[iname]
             if binding != expected:
-                raise ValueError(f"fixed binding for {iname!r} must be {expected!r}, got {binding!r}")
+                raise ValueError(
+                    f"fixed binding for {iname!r} must be {expected!r}, got {binding!r}"
+                )
             inputs.append(CreatorInput(name=iname, binding=binding))
         if seen != _REQUIRED_NAMES_3D:
             raise ValueError(
-                f"input must contain exactly {sorted(_REQUIRED_NAMES_3D)}, "
-                f"got {sorted(seen)}"
+                f"input must contain exactly {sorted(_REQUIRED_NAMES_3D)}, got {sorted(seen)}"
             )
     else:
         # v1/v2 template validation
@@ -541,8 +572,7 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
             binding = entry.get("binding")
             if not isinstance(iname, str) or iname not in _FIXED_BINDINGS:
                 raise ValueError(
-                    f"unknown or missing input name {iname!r}; "
-                    f"required {sorted(_REQUIRED_NAMES)}"
+                    f"unknown or missing input name {iname!r}; required {sorted(_REQUIRED_NAMES)}"
                 )
             if not isinstance(binding, str):
                 raise ValueError(f"binding must be string for {iname!r}, got {binding!r}")
@@ -551,12 +581,13 @@ def validate_manifest_dict(data: dict) -> CreatorManifest:
             seen.add(iname)
             expected = _FIXED_BINDINGS[iname]
             if binding != expected:
-                raise ValueError(f"fixed binding for {iname!r} must be {expected!r}, got {binding!r}")
+                raise ValueError(
+                    f"fixed binding for {iname!r} must be {expected!r}, got {binding!r}"
+                )
             inputs.append(CreatorInput(name=iname, binding=binding))
         if seen != _REQUIRED_NAMES:
             raise ValueError(
-                f"input must contain exactly {sorted(_REQUIRED_NAMES)}, "
-                f"got {sorted(seen)}"
+                f"input must contain exactly {sorted(_REQUIRED_NAMES)}, got {sorted(seen)}"
             )
         # Sort inputs by canonical order move_left, move_right, jump for determinism
         order = {"move_left": 0, "move_right": 1, "jump": 2}

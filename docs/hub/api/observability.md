@@ -87,7 +87,9 @@ Format: `%(asctime)s [%(levelname)s] run_id=%(run_id)s %(message)s`
 from godotforge_core.hub.observability import get_run_logger
 
 logger = get_run_logger("run-a1b2c3d4e5f6")
-logger.info("Starting validation")  # Logs: 2024-01-15T10:30:00 [INFO] run_id=run-a1b2c3d4e5f6 Starting validation
+logger.info(
+    "Starting validation"
+)  # Logs: 2024-01-15T10:30:00 [INFO] run_id=run-a1b2c3d4e5f6 Starting validation
 ```
 
 ---
@@ -167,12 +169,14 @@ timeline = get_timeline(Path("."), "run-a1b2c3d4e5f6")
 # Convert to Gantt data
 gantt_data = []
 for event in timeline:
-    gantt_data.append({
-        "task": event.kind,
-        "start": event.timestamp,  # Note: timestamps not currently recorded in events
-        "duration": event.details.get("wall_duration_ms", 0),
-        "summary": event.summary,
-    })
+    gantt_data.append(
+        {
+            "task": event.kind,
+            "start": event.timestamp,  # Note: timestamps not currently recorded in events
+            "duration": event.details.get("wall_duration_ms", 0),
+            "summary": event.summary,
+        }
+    )
 ```
 
 ---

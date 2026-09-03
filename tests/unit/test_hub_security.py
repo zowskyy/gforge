@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import json
 import os
-import stat
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -26,27 +24,24 @@ from godotforge_core.hub.audit import (
     read_audit,
     read_audit_for_run,
 )
-from godotforge_core.hub.goal import (
-    MAX_GOAL_FILE_SIZE,
-    compile_goal,
-    load_goal_file,
-    load_goal_text,
-)
-from godotforge_core.hub.run_record import (
-    RunEventKind,
-    append_event,
-    read_events,
-)
-from godotforge_core.hub.registry import (
-    LedgerAction,
-    deregister_spoke,
-    register_spoke,
-)
 from godotforge_core.hub.definitions import (
     Capability,
     Permission,
     ProviderDescriptor,
     SpokeDefinition,
+)
+from godotforge_core.hub.goal import (
+    MAX_GOAL_FILE_SIZE,
+    compile_goal,
+    load_goal_file,
+)
+from godotforge_core.hub.registry import (
+    deregister_spoke,
+    register_spoke,
+)
+from godotforge_core.hub.run_record import (
+    RunEventKind,
+    append_event,
 )
 
 H = "a" * 64
@@ -111,9 +106,7 @@ def _sample_spoke_definition() -> SpokeDefinition:
     return SpokeDefinition(
         spoke_id="spoke.test-spoke",
         version="1.0.0",
-        capabilities=(
-            Capability(id="test.capability", description="Test capability"),
-        ),
+        capabilities=(Capability(id="test.capability", description="Test capability"),),
         permissions=(Permission.FILESYSTEM_READ,),
     )
 
@@ -211,7 +204,9 @@ def test_append_audit_atomic_write_crash_simulation(tmp_path: Path) -> None:
     temp_path = path.with_suffix(path.suffix + ".tmp")
     with temp_path.open("w", encoding="utf-8") as f:
         f.write(original_content)
-        f.write('{"schema_version":1,"run_id":"run-crash","action":"append_run_record","timestamp":"2024-01-01T00:00:00Z","details":{"seq":2}}\n')
+        f.write(
+            '{"schema_version":1,"run_id":"run-crash","action":"append_run_record","timestamp":"2024-01-01T00:00:00Z","details":{"seq":2}}\n'
+        )
         f.flush()
         os.fsync(f.fileno())
     # Crash simulation: temp file exists but not renamed
@@ -255,7 +250,9 @@ def test_load_goal_file_rejects_over_1mb(tmp_path: Path) -> None:
 def test_load_goal_file_accepts_under_1mb(tmp_path: Path) -> None:
     """Goal file under 1MB is accepted."""
     goal_file = tmp_path / "small_goal.yaml"
-    goal_file.write_text("schema_version: 1\ngame:\n  name: Test\n  template: 2d-platformer-minimal\n")
+    goal_file.write_text(
+        "schema_version: 1\ngame:\n  name: Test\n  template: 2d-platformer-minimal\n"
+    )
 
     data = load_goal_file(goal_file)
     assert data["schema_version"] == 1
@@ -266,6 +263,7 @@ def test_load_goal_file_exactly_1mb_accepted(tmp_path: Path) -> None:
     """Goal file exactly at 1MB limit is accepted."""
     goal_file = tmp_path / "exact_goal.yaml"
     import yaml
+
     minimal = {"schema_version": 1, "game": {"name": "T", "template": "2d-platformer-minimal"}}
     yaml_str = yaml.dump(minimal)
     # Write exactly 1MB by padding with a comment line
@@ -290,6 +288,7 @@ def test_load_goal_file_rejects_absolute_path_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "/absolute/path"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -302,6 +301,7 @@ def test_load_goal_file_rejects_windows_path_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "C:\\game"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -314,6 +314,7 @@ def test_load_goal_file_rejects_traversal_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "../escape"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -326,6 +327,7 @@ def test_load_goal_file_rejects_double_slash_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "a//b"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -338,6 +340,7 @@ def test_load_goal_file_rejects_res_uri_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "res://resource"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -350,6 +353,7 @@ def test_load_goal_file_rejects_uid_uri_in_name(tmp_path: Path) -> None:
     goal_data["game"]["name"] = "uid://12345"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -362,6 +366,7 @@ def test_load_goal_file_rejects_path_in_parameter_value(tmp_path: Path) -> None:
     goal_data["parameters"]["platformer_controller"]["speed"] = "/bad/path"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -374,6 +379,7 @@ def test_load_goal_file_rejects_path_in_nested_dict(tmp_path: Path) -> None:
     goal_data["custom_nested"] = {"path": "/bad/path"}
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -386,6 +392,7 @@ def test_load_goal_file_rejects_path_in_list(tmp_path: Path) -> None:
     goal_data["custom_list"] = ["/bad/path", "ok"]
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(ValueError, match="must not contain paths or traversal"):
@@ -410,6 +417,7 @@ def test_load_goal_file_validates_against_schema(tmp_path: Path) -> None:
     goal_data = {"schema_version": 1, "game": {"template": "2d-platformer-minimal"}}
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(Exception):  # jsonschema.ValidationError
@@ -421,6 +429,7 @@ def test_load_goal_file_rejects_unknown_template(tmp_path: Path) -> None:
     goal_data = {"schema_version": 1, "game": {"name": "Test", "template": "unknown-template"}}
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(Exception):  # jsonschema.ValidationError
@@ -433,6 +442,7 @@ def test_load_goal_file_rejects_invalid_parameter_format(tmp_path: Path) -> None
     goal_data["parameters"]["platformer_controller"]["speed"] = "not-a-decimal"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(Exception):  # jsonschema.ValidationError
@@ -445,6 +455,7 @@ def test_load_goal_file_rejects_additional_properties(tmp_path: Path) -> None:
     goal_data["unknown_field"] = "not allowed"
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(goal_data))
 
     with pytest.raises(Exception):  # jsonschema.ValidationError
@@ -458,6 +469,7 @@ def test_load_goal_file_valid_yaml_passes(tmp_path: Path) -> None:
     """Valid YAML goal file passes all validation."""
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(_valid_goal()))
 
     data = load_goal_file(goal_file)
@@ -480,6 +492,7 @@ def test_load_goal_file_minimal_valid_passes(tmp_path: Path) -> None:
     """Minimal valid goal file (no parameters) passes."""
     goal_file = tmp_path / "goal.yaml"
     import yaml
+
     goal_file.write_text(yaml.dump(_minimal_goal()))
 
     data = load_goal_file(goal_file)
@@ -615,6 +628,7 @@ def test_audit_log_queryable_by_run_id(tmp_path: Path) -> None:
 def test_audit_module_docstring_mentions_no_access_control() -> None:
     """audit.py module docstring states no access control/rate limiting."""
     from godotforge_core.hub import audit
+
     assert "no access control or rate limiting" in audit.__doc__
     assert "Offline/single-user mode" in audit.__doc__
 
@@ -622,5 +636,6 @@ def test_audit_module_docstring_mentions_no_access_control() -> None:
 def test_goal_module_docstring_mentions_no_access_control() -> None:
     """goal.py module docstring states no access control/rate limiting."""
     from godotforge_core.hub import goal
+
     assert "no access control or rate limiting" in goal.__doc__
     assert "Offline/single-user mode" in goal.__doc__
