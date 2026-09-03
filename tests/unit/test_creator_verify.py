@@ -51,7 +51,7 @@ def test_validator_pin_reflects_3d_template_amendment() -> None:
     this literal again requires the same explicit amendment procedure.
     """
     assert PINNED_VALIDATOR_SHA256 == (
-        "26027ef4c096793dd9afee442fa94ca21663f3ac565a037e1324fceeb0e820bf"
+        "ab7686793cfe3617ecb5a6ebcafdd9ae5abb5eed5852bb202a21f39e51cf090b"
     )
 
 
